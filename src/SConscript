@@ -1,0 +1,26 @@
+# Import variables
+Import('debug')
+Import('deal_II_path')
+
+# Source files
+src_files = Split('ouranos.cc')
+
+# Create the environment
+env = Environment(
+  CPPFLAGS=['-Wall','-std=c++0x'],
+  CPPPATH=[deal_II_path+'/include',deal_II_path+'/deal.II/include',
+  deal_II_path+'/deal.II/deal.II/bundled'],
+  LIBPATH=[deal_II_path+'/lib'],
+  LINKFLAGS=['-Wl,-rpath='+deal_II_path])
+
+# Check if the debug or the release version should be compiled
+if int(debug) :
+  env.Append(CXXFLAGS=['-g'])
+  env.Append(LIBS=['deal_II.g'])
+else :
+  env.Append(CXXFLAGS=['-O3'])
+  env.Append(LIBS=['deal_II'])
+
+# Create the program and install it in bin
+ouranos = env.Program('ouranos',src_files)
+env.Install('../bin',ouranos)
