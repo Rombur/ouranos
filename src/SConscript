@@ -1,15 +1,16 @@
 # Import variables
 Import('debug')
 Import('deal_II_path')
+Import('boost_path')
 
 # Source files
-src_files = Split('ouranos.cc')
+src_files = Split('ouranos.cc Quadrature.cc')
 
 # Create the environment
 env = Environment(
   CPPFLAGS=['-Wall','-std=c++0x'],
   CPPPATH=[deal_II_path+'/include',deal_II_path+'/deal.II/include',
-  deal_II_path+'/deal.II/deal.II/bundled'],
+  deal_II_path+'/deal.II/deal.II/bundled',boost_path],
   LIBPATH=[deal_II_path+'/lib'],
   LINKFLAGS=['-Wl,-rpath='+deal_II_path])
 
