@@ -23,8 +23,10 @@ Quadrature::Quadrature(unsigned int sn_,unsigned int L_max_,bool galerkin_) :
   M2D.shape(n_dir,n_mom);
 }
 
-Teuchos::SerialDenseVector<int,double> QUADRATURE::get_omega_2d(unsigned int idir) const
+Teuchos::SerialDenseVector<int,double> Quadrature::get_omega_2d(unsigned int idir) const
 {
+  Assert(idir<n_dir,ExcIndexRange(idir,0,n_dir));
+
   Teuchos::SerialDenseVector<int,double> omega_2d(2);
   omega_2d(0) = omega[idir](0);
   omega_2d(1) = omega[idir](1);
@@ -32,16 +34,16 @@ Teuchos::SerialDenseVector<int,double> QUADRATURE::get_omega_2d(unsigned int idi
   return omega_2d;
 }
 
-void QUADRATURE::build_quadrature(const double weight_sum)
+void Quadrature::build_quadrature(const double weight_sum)
 {
   // Compute sin_theta octant
-  Build_octant();
+  build_octant();
 
   // Compute omega in the other octant by deploying the octant
-  Deploy_octant();
+  deploy_octant();
 
   // Compute the spherical harmonics
-  Compute_harmonics(weight_sum);
+  compute_harmonics(weight_sum);
 
   // Compute D
   if (galerkin==true)
@@ -116,8 +118,8 @@ void Quadrature::compute_harmonics(const double weight_sum)
 {
   const unsigned int L_max_x(L_max+1);
   d_vector phi(n_dir,0.);
-  vector<vector<d_vector> > Ye(L_max_x,vector<d_vector>(L_max_x,d_vector(n_dir,0.)));
-  vector<vector<d_vector> > Yo(L_max_x,vector<d_vector>(L_max_x,d_vector(n_dir,0.)));
+  std::vector<std::vector<d_vector> > Ye(L_max_x,std::vector<d_vector>(L_max_x,d_vector(n_dir,0.)));
+  std::vector<std::vector<d_vector> > Yo(L_max_x,std::vector<d_vector>(L_max_x,d_vector(n_dir,0.)));
 
   // Compute the real spherical harmonics
   for (unsigned int i=0; i<n_dir; ++i)
@@ -133,7 +135,6 @@ void Quadrature::compute_harmonics(const double weight_sum)
     {
       for (unsigned int idir=0; idir<n_dir; ++idir)
       {
-        const double P_lm(gsl_sf_legendre_sphPlm(l,m,omega[idir](2)));
         // If the sum of the weight is not 4pi the weight must be modified
         const double w_sph(sqrt((4.*M_PI)/weight_sum));
         // Compute the normalized associated Legendre polynomial using boost:
@@ -141,9 +142,9 @@ void Quadrature::compute_harmonics(const double weight_sum)
         // Condon-Shortley phase is included in the associated Legendre
         // polynomial.
         Ye[l][m][idir] = w_sph*
-          boost::spherical_harmonic_r<double,double>(l,m,omega[idir](2),phi[idir]);
+          boost::math::spherical_harmonic_r<double,double>(l,m,omega[idir](2),phi[idir]);
         Yo[l][m][idir] = w_sph*
-          boost::spherical_harmonic_i<double,double>(l,m,omega[idir](2),phi[idir]);
+          boost::math::spherical_harmonic_i<double,double>(l,m,omega[idir](2),phi[idir]);
       } 
     }
   }

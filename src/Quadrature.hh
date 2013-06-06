@@ -16,14 +16,17 @@
 #include "Teuchos_LAPACK.hpp"
 #include "Teuchos_SerialDenseMatrix.hpp"
 #include "Teuchos_SerialDenseVector.hpp"
+#include "deal.II/base/exceptions.h"
 
 
-typedef vector<double> d_vector;
+using namespace dealii;
+
+typedef std::vector<double> d_vector;
 
 class Quadrature
 {
   public :
-    QUADRATURE(unsigned int sn,unsigned int L_max,bool galerkin);
+    Quadrature(unsigned int sn,unsigned int L_max,bool galerkin);
 
     /// Build the quadrature, i.e. M,D and omega (direction vector).
     void build_quadrature(const double weight_sum);
@@ -81,7 +84,7 @@ class Quadrature
     /// Directions to moments matrix.
     Teuchos::SerialDenseMatrix<int,double> D2M;
     /// Vector of omega for each direction.
-    vector<Teuchos::SerialDenseVector<int,double> > omega;
+    std::vector<Teuchos::SerialDenseVector<int,double> > omega;
 };
 
 inline unsigned int Quadrature::get_n_dir() const

@@ -2,17 +2,23 @@
 Import('debug')
 Import('deal_II_path')
 Import('boost_path')
+Import('trilinos_path')
+
+deal_II_lib = deal_II_path+'/lib'
+trilinos_lib = trilinos_path+'/lib'
 
 # Source files
-src_files = Split('ouranos.cc Quadrature.cc')
+src_files = Split('ouranos.cc GLC.cc LS.cc Quadrature.cc')
 
 # Create the environment
 env = Environment(
   CPPFLAGS=['-Wall','-std=c++0x'],
   CPPPATH=[deal_II_path+'/include',deal_II_path+'/deal.II/include',
-  deal_II_path+'/deal.II/deal.II/bundled',boost_path],
-  LIBPATH=[deal_II_path+'/lib'],
-  LINKFLAGS=['-Wl,-rpath='+deal_II_path])
+  deal_II_path+'/deal.II/deal.II/bundled',boost_path,trilinos_path+'/include'],
+  LIBPATH=[deal_II_lib,trilinos_lib],
+  LIBS=['teuchoscomm','teuchoscore','teuchosnumerics','teuchosparameterlist',
+  'teuchosremainder'],
+  LINKFLAGS=['-Wl,-rpath='+deal_II_lib,'-Wl,-rpath='+trilinos_lib])
 
 # Check if the debug or the release version should be compiled
 if int(debug) :
@@ -22,6 +28,10 @@ else :
   env.Append(CXXFLAGS=['-O3'])
   env.Append(LIBS=['deal_II'])
 
-# Create the program and install it in bin
+# Build the program in src
 ouranos = env.Program('ouranos',src_files)
-env.Install('../bin',ouranos)
+
+# By default build ouranos in src
+Default(ouranos)
+# Scons install installs ouranos in bin
+Alias("install",env.Install('../bin',ouranos))
