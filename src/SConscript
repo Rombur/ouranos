@@ -3,21 +3,23 @@ Import('debug')
 Import('deal_II_path')
 Import('boost_path')
 Import('trilinos_path')
+Import('mpi_path')
 
 deal_II_lib = deal_II_path+'/lib'
 trilinos_lib = trilinos_path+'/lib'
 
 # Source files
-src_files = Split('ouranos.cc GLC.cc LS.cc Quadrature.cc')
+src_files = Split('ouranos.cc GLC.cc LS.cc Quadrature.cc Parameters.cc')
 
 # Create the environment
 env = Environment(
   CPPFLAGS=['-Wall','-std=c++0x'],
   CPPPATH=[deal_II_path+'/include',deal_II_path+'/deal.II/include',
-  deal_II_path+'/deal.II/deal.II/bundled',boost_path,trilinos_path+'/include'],
+  deal_II_path+'/deal.II/deal.II/bundled',boost_path,trilinos_path+'/include',
+  mpi_path],
   LIBPATH=[deal_II_lib,trilinos_lib],
   LIBS=['teuchoscomm','teuchoscore','teuchosnumerics','teuchosparameterlist',
-  'teuchosremainder'],
+  'teuchosremainder','mpi_cxx','mpi'],
   LINKFLAGS=['-Wl,-rpath='+deal_II_lib,'-Wl,-rpath='+trilinos_lib])
 
 # Check if the debug or the release version should be compiled

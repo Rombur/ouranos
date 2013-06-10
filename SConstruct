@@ -10,5 +10,8 @@ boost_path = ARGUMENTS.get('boost_path','/usr/include')
 # Path to trilinos
 trilinos_path = ARGUMENTS.get('trilinos_path','/home/bruno/Documents/vendors/trilinos/bin')
 
+# Path to mpi.h
+mpi_path = ARGUMENTS.get('mpi_path','/usr/include/mpi')
+
 SConscript('tests/SConscript',exports=['deal_II_path','boost_path','trilinos_path'])
-SConscript('src/SConscript',exports=['debug','deal_II_path','boost_path','trilinos_path'])
+SConscript('src/SConscript',exports=['debug','deal_II_path','boost_path','trilinos_path','mpi_path'])

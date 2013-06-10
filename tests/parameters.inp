@@ -1,0 +1,28 @@
+set Verbose = 0
+set Dimension = 2
+set FE order = 4
+set Geometry file = geometry.inp
+set Refinement factor = 0.3
+set Coarsening factor = 0.1
+
+subsection Radiative Transfer parameters
+  set Cross sections file = xs.inp
+  set Solver type = BICGSTAB
+  set Max outer iterations = 2
+  set Max inner iterations = 10
+  set Tolerance outer solver = 1e-8
+  set Tolerance inner solver = 1e-10
+  set Sn order = 6
+  set Quadrature type = GLC
+  set Sum weight = 2PI
+  set Galerkin = false
+  set Xmin BC = vacuum
+  set Xmax BC = isotropic
+  set Ymin BC = reflective
+  set Ymax BC = most normal
+  set Xmax BC values = 1.,2.
+  set Ymax BC values = 8.,9.
+  set Number of sources = 1
+  set Number of groups = 2
+  set Source intensity = 4.5,8.9
+end

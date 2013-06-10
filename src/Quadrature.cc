@@ -23,17 +23,6 @@ Quadrature::Quadrature(unsigned int sn_,unsigned int L_max_,bool galerkin_) :
   M2D.shape(n_dir,n_mom);
 }
 
-Teuchos::SerialDenseVector<int,double> Quadrature::get_omega_2d(unsigned int idir) const
-{
-  Assert(idir<n_dir,ExcIndexRange(idir,0,n_dir));
-
-  Teuchos::SerialDenseVector<int,double> omega_2d(2);
-  omega_2d(0) = omega[idir](0);
-  omega_2d(1) = omega[idir](1);
-
-  return omega_2d;
-}
-
 void Quadrature::build_quadrature(const double weight_sum)
 {
   // Compute sin_theta octant

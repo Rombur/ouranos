@@ -23,6 +23,11 @@ using namespace dealii;
 
 typedef std::vector<double> d_vector;
 
+/**
+ * This class is the base class for the quadrature used for radiative
+ * transfer.
+ */
+
 class Quadrature
 {
   public :
@@ -44,9 +49,6 @@ class Quadrature
     /// Return a pointer to omega for direction idir.
     Teuchos::SerialDenseVector<int,double> const* const get_omega(unsigned int idir) 
       const;
-
-    /// Return the first two components of omega for direction idir.
-    Teuchos::SerialDenseVector<int,double> get_omega_2d(unsigned int idir) const;
 
     /// Return the moment-to-discrete matrix.
     Teuchos::SerialDenseMatrix<int,double> const* const get_M2D() const;

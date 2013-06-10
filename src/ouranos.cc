@@ -6,12 +6,21 @@
  */
 
 #include <iostream>
+#include "deal.II/base/utilities.h"
+#include "deal.II/base/mpi.h"
+#include "deal.II/base/logstream.h"
 
+using namespace dealii;
 
 int main(int argc,char **argv)
 {  
+  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc,argv);
+
   try
   {
+    // Suppress output on the screen
+    deallog.depth_console(0);
+    
   }
   catch(std::exception &exc)
   {

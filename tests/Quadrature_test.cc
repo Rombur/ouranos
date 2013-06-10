@@ -1,3 +1,10 @@
+/* Copyright (c) 2013, Bruno Turcksin
+ *
+ * This file is subject to the Modified BSD License and may not be distributed
+ * without copyright and license information. Pleas refer to the file
+ * license.txt for the text and further information on this license.
+ */
+
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
@@ -10,7 +17,7 @@
 #include "../src/GLC.hh"
 #include "../src/LS.hh"
 
-TEST_CASE("Quadrature/LS", "Check LS quadrature")
+TEST_CASE("Quadrature/LS","Check LS quadrature")
 {
   unsigned int n_dir(12);
   const double four_pi(4.*M_PI);
@@ -44,12 +51,9 @@ TEST_CASE("Quadrature/LS", "Check LS quadrature")
 
   // Check omega and omega_2d
   Teuchos::SerialDenseVector<int,double> const* const omega_ptr(quad.get_omega(0));
-  Teuchos::SerialDenseVector<int,double> omega_2d(quad.get_omega_2d(0));
   REQUIRE(omega[0]==(*omega_ptr)(0));
   REQUIRE(omega[1]==(*omega_ptr)(1));
   REQUIRE(omega[2]==(*omega_ptr)(2));
-  REQUIRE(omega[0]==omega_2d(0));
-  REQUIRE(omega[1]==omega_2d(1));
 
   // Check Galerkin
   Teuchos::BLAS<int,double> blas;
@@ -68,7 +72,7 @@ TEST_CASE("Quadrature/LS", "Check LS quadrature")
     }
 }
 
-TEST_CASE("Quadrature/GLC", "Check GLC quadrature")
+TEST_CASE("Quadrature/GLC","Check GLC quadrature")
 {
   unsigned int n_dir(12);
   unsigned int n_mom(15);
