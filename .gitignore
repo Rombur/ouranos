@@ -5,3 +5,7 @@ bin
 *.dblite
 *.o
 ouranos
+run_ouranos_tests.py
+quadrature_test
+parameters_test
+results.txt
