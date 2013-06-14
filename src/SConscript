@@ -4,19 +4,21 @@ Import('deal_II_path')
 Import('boost_path')
 Import('trilinos_path')
 Import('mpi_path')
+Import('p4est_path')
 
 deal_II_lib = deal_II_path+'/lib'
 trilinos_lib = trilinos_path+'/lib'
 
 # Source files
-src_files = Split('ouranos.cc GLC.cc LS.cc Quadrature.cc Parameters.cc')
+src_files = Split('ouranos.cc GLC.cc LS.cc Quadrature.cc Parameters.cc Geometry.cc '+
+  'FECell.cc')
 
 # Create the environment
 env = Environment(
   CPPFLAGS=['-Wall','-std=c++0x'],
   CPPPATH=[deal_II_path+'/include',deal_II_path+'/deal.II/include',
   deal_II_path+'/deal.II/deal.II/bundled',boost_path,trilinos_path+'/include',
-  mpi_path],
+  mpi_path,p4est_path+'/include'],
   LIBPATH=[deal_II_lib,trilinos_lib],
   LIBS=['teuchoscomm','teuchoscore','teuchosnumerics','teuchosparameterlist',
   'teuchosremainder','mpi_cxx','mpi'],

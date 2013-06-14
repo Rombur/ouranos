@@ -30,7 +30,7 @@ void Parameters::declare_parameters(ParameterHandler &prm)
   prm.declare_entry("Verbose","0",Patterns::Integer(0),"Verbosity of the code.");
   prm.declare_entry("Dimension","2",Patterns::Integer(2,3),
       "Dimension of the problem.");
-  prm.declare_entry("FE order","1",Patterns::Integer(1),
+  prm.declare_entry("FE order","1",Patterns::Integer(1,5),
       "Order of the finite elements.");
   prm.declare_entry("Geometry file","geometry.inp",Patterns::FileName(),
       "Name of the geometry file.");

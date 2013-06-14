@@ -110,7 +110,7 @@ class Parameters
     /// Parse the parameters.
     void parse_parameters(ParameterHandler &prm);
 
-    /// Get a list of n_elements doubles from a given string.
+    /// Return a list of n_elements doubles from a given string.
     d_vector get_list_double(std::string &input,unsigned int n_elements);
 
     /// Flag for Galerkin quadrature.
@@ -231,6 +231,8 @@ inline double Parameters::get_outer_tolerance() const
 
 inline double Parameters::get_inc_flux(unsigned int face,unsigned int group) const
 {
+  AssertIndexRange(face,in_flux.size());
+  AssertIndexRange(group,inc_fluc[face].size());
   return inc_flux[face][group];
 }
 
@@ -251,6 +253,7 @@ inline double Parameters::get_coarsening_factor() const
 
 inline BC_TYPE Parameters::get_bc_type(unsigned int face) const
 {
+  AssertIndexRange(face,bc_type);
   return bc_type[face];
 }
     
@@ -266,6 +269,7 @@ inline SOLVER_TYPE Parameters::get_solver_type() const
 
 inline d_vector Parameters::get_src(unsigned int i) const
 {
+  AssertIndexRange(i,src.size());
   return src[i];
 }
 

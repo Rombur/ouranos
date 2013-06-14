@@ -2,34 +2,42 @@
 Import('deal_II_path')
 Import('boost_path')
 Import('trilinos_path')
+Import('mpi_path')
+Import('p4est_path')
 
 deal_II_lib = deal_II_path+'/lib'
 trilinos_lib = trilinos_path+'/lib'
 
 # Source files
-src_files = Split('Quadrature_test.cc Parameters_test.cc')
+src_files = Split('Quadrature_test.cc Parameters_test.cc Geometry_test.cc '+
+  'FECell_test.cc')
 
 # Path of src directory
 src_path = Dir('..').abspath+'/src/'
 
 objects = [src_path+'GLC.o',src_path+'Quadrature.o',src_path+'LS.o',
-  src_path+'Parameters.o']
+  src_path+'Parameters.o',src_path+'Geometry.o',src_path+'FECell.o']
 
 # Create the environment
 env = Environment(
   CPPFLAGS=['-Wall','-std=c++0x'],
   CPPPATH=[deal_II_path+'/include',deal_II_path+'/deal.II/include',
-  deal_II_path+'/deal.II/deal.II/bundled',boost_path,trilinos_path+'/include'],
+  deal_II_path+'/deal.II/deal.II/bundled',boost_path,trilinos_path+'/include',
+  mpi_path,p4est_path+'/include'],
   LIBPATH=[deal_II_lib,trilinos_lib],
   LIBS=['deal_II.g','teuchoscomm','teuchoscore','teuchosnumerics',
-  'teuchosparameterlist','teuchosremainder'],
+  'teuchosparameterlist','teuchosremainder','mpi_cxx','mpi'],
   LINKFLAGS=['-Wl,-rpath='+deal_II_lib,'-Wl,-rpath='+trilinos_lib,
   objects])
 
 # Create the programs
 quadrature_test = env.Program('quadrature_test',src_files[0])
 parameters_test = env.Program('parameters_test',src_files[1])
+geometry_test = env.Program('geometry_test',src_files[2])
+fecell_test = env.Program('fecell_test',src_files[3])
 # Create an alias and run the tests
-tests_alias = Alias('tests',[quadrature_test,parameters_test],
-  [quadrature_test[0].abspath,parameters_test[0].abspath])
+programs = [quadrature_test,parameters_test,geometry_test,fecell_test]
+tests_alias = Alias('tests',programs,
+  [programs[0][0].abspath,programs[1][0].abspath,
+  'mpirun -np 1 '+programs[2][0].abspath,programs[3][0].abspath])
 AlwaysBuild(tests_alias)

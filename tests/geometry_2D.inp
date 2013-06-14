@@ -1,0 +1,5 @@
+set Bottom left point = 0.3,2.
+set Upper right point = 10.,20.
+set Number of subdivisions = 2,3
+set Material IDs = 0,1,0,1,0,1
+set Source IDs = 1,0,1,0,1,0
