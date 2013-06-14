@@ -12,9 +12,15 @@ template <int dim,int tensor_dim>
 FECell<dim,tensor_dim>::FECell(const unsigned int n_q_points,
     const unsigned int n_face_q_points,FEValues<dim> &fe_values,
     FEFaceValues<dim> &fe_face_values,
-    typename DoFHandler<dim>::active_cell_iterator &cell) :
-  grad_matrices(dim)
+    typename DoFHandler<dim>::active_cell_iterator &cell,
+    FEFaceValues<dim> &fe_neighbor_face_values,
+    std::vector<typename DoFHandler<dim>::active_cell_iterator*> &neighbor_cell) :
+  grad_matrices(dim),
+  downwind_matrices(2*dim),
+  upwind_matrices(2*dim)
 {
+  unsigned int face_map[6] = {1,0,3,2,6,5};
+
   // Reinit fe_values on the current cell
   fe_values.reinit(cell);
 
@@ -33,7 +39,7 @@ FECell<dim,tensor_dim>::FECell(const unsigned int n_q_points,
           grad_matrices[d][i][j] += fe_values.shape_value(j,q_point)*
             fe_values.shape_grad(i,q_point)[d]*fe_values.JxW(q_point);
 
-  // Loop over the cell to create the downwind matrices
+  // Loop over the faces to create the downwind matrices
   for (unsigned int face=0; face<2*dim; ++face)
   {
     // Reinit fe_face_values on the current face
@@ -43,6 +49,23 @@ FECell<dim,tensor_dim>::FECell(const unsigned int n_q_points,
         for (unsigned int q_point=0; q_point<n_face_q_points; ++q_point)
           downwind_matrices[face][i][j] += fe_face_values.shape_value(i,q_point)*
             fe_face_values.shape_value(j,q_point)*fe_face_values.JxW(q_point);
+  }
+
+  // Loop over the faces to create the upwind matrices
+  for (unsigned int face=0; face<2*dim; ++face)
+  {
+    // Reinit fe_face_values on the current face
+    fe_face_values.reinit(cell,face);
+    if (neighbor_cell[face]!=nullptr)
+    {
+      fe_neighbor_face_values.reinit(*(neighbor_cell[face]),face_map[face]);
+      for (unsigned int i=0; i<tensor_dim; ++i)
+        for (unsigned int j=0; j<tensor_dim; ++j)
+          for (unsigned int q_point=0; q_point<n_face_q_points; ++q_point)
+            upwind_matrices[face][i][j] += fe_face_values.shape_value(i,q_point)*
+              fe_neighbor_face_values.shape_value(j,q_point)*
+              fe_face_values.JxW(q_point);
+    }
   }
 }
 

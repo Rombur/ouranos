@@ -8,4 +8,6 @@ ouranos
 run_ouranos_tests.py
 quadrature_test
 parameters_test
+fecell_test
+geometry_test
 results.txt
