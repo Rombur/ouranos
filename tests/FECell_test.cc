@@ -18,6 +18,7 @@
 #include "deal.II/grid/tria.h"
 #include "../src/FECell.hh"
 
+
 TEST_CASE("FECell/one cell","Check FECell on one cell")
 {
   Triangulation<2> triangulation;
@@ -34,11 +35,11 @@ TEST_CASE("FECell/one cell","Check FECell on one cell")
   FEFaceValues<2> fe_neighbor_face_values(fe,face_quadrature_formula,
       update_values);
   DoFHandler<2>::active_cell_iterator cell(dof_handler.begin_active());
-  std::vector<typename DoFHandler<2>::active_cell_iterator*> neighbor_cell(4,nullptr);
+  DoFHandler<2>::active_cell_iterator cell_end(dof_handler.end());
 
   // Create the fecell
   FECell<2,4> fecell(quadrature_formula.size(),face_quadrature_formula.size(),
-      fe_values,fe_face_values,cell,fe_neighbor_face_values,neighbor_cell);
+      fe_values,fe_face_values,fe_neighbor_face_values,cell,cell_end);
   
   // Check the mass matrix
   Tensor<2,4> mass_matrix(*fecell.get_mass_matrix());
@@ -164,5 +165,92 @@ TEST_CASE("FECell/one cell","Check FECell on one cell")
     for (unsigned int i=0; i<4; ++i)
       for(unsigned int j=0; j<4; ++j)
         REQUIRE(upwind_matrix[i][j]==0.);
+  }
+}
+
+TEST_CASE("FECell/two cells","Check FECell on two cells")
+{
+  Triangulation<2> triangulation;
+  FE_DGQ<2> fe(1);
+  DoFHandler<2> dof_handler(triangulation);
+  GridGenerator::subdivided_hyper_cube(triangulation,3,0,3);
+  dof_handler.distribute_dofs(fe);
+  QGauss<2> quadrature_formula(2);
+  QGauss<1> face_quadrature_formula(2);
+  FEValues<2> fe_values(fe,quadrature_formula,
+      update_values|update_gradients|update_JxW_values);
+  FEFaceValues<2> fe_face_values(fe,face_quadrature_formula,
+      update_values|update_gradients|update_JxW_values);
+  FEFaceValues<2> fe_neighbor_face_values(fe,face_quadrature_formula,
+      update_values);
+  // Middle cell
+  DoFHandler<2>::active_cell_iterator cell(dof_handler.begin_active());
+  DoFHandler<2>::active_cell_iterator end_cell(dof_handler.end());
+  for (unsigned int i=0; i<4; ++i)
+    ++cell;
+
+  // Create the fecell
+  FECell<2,4> fecell(quadrature_formula.size(),face_quadrature_formula.size(),
+      fe_values,fe_face_values,fe_neighbor_face_values,cell,end_cell);
+  
+  // Check the upwind matrices
+  // Left face
+  Tensor<2,4> upwind_matrix(*fecell.get_upwind_matrix(0));
+  REQUIRE(upwind_matrix[0][0]==0.);
+  REQUIRE(std::fabs(upwind_matrix[0][1]-(1./3))<1e-12);
+  REQUIRE(upwind_matrix[0][2]==0.);
+  REQUIRE(std::fabs(upwind_matrix[0][3]-(1./6))<1e-12);
+  REQUIRE(std::fabs(upwind_matrix[2][1]-(1./6.))<1e-12);
+  REQUIRE(upwind_matrix[2][2]==0.);
+  REQUIRE(std::fabs(upwind_matrix[2][3]-(1./3.))<1e-12);
+  for (unsigned int i=0; i<4; ++i)
+  {
+    REQUIRE(upwind_matrix[1][i]==0.);
+    REQUIRE(upwind_matrix[3][i]==0.);
+  }
+  // Right face
+  upwind_matrix = *fecell.get_upwind_matrix(1);
+  REQUIRE(std::fabs(upwind_matrix[1][0]-(1./3.))<1e-12);
+  REQUIRE(upwind_matrix[1][1]==0.);
+  REQUIRE(std::fabs(upwind_matrix[1][2]-(1./6.))<1e-12);
+  REQUIRE(upwind_matrix[1][3]==0.);
+  REQUIRE(std::fabs(upwind_matrix[3][0]-(1./6.))<1e-12);
+  REQUIRE(upwind_matrix[3][1]==0.);
+  REQUIRE(std::fabs(upwind_matrix[3][2]-(1./3.))<1e-12);
+  REQUIRE(upwind_matrix[3][3]==0.);
+  for (unsigned int i=0; i<4; ++i)
+  {
+    REQUIRE(upwind_matrix[0][i]==0.);
+    REQUIRE(upwind_matrix[2][i]==0.);
+  }
+  // Bottom face
+  upwind_matrix = *fecell.get_upwind_matrix(2);
+  REQUIRE(upwind_matrix[0][0]==0.);
+  REQUIRE(upwind_matrix[0][1]==0.);
+  REQUIRE(std::fabs(upwind_matrix[0][2]-(1./3.))<1e-12);
+  REQUIRE(std::fabs(upwind_matrix[0][3]-(1./6.))<1e-12);
+  REQUIRE(upwind_matrix[1][0]==0.);
+  REQUIRE(upwind_matrix[1][1]==0.);
+  REQUIRE(std::fabs(upwind_matrix[1][2]-(1./6.))<1e-12);
+  REQUIRE(std::fabs(upwind_matrix[1][3]-(1./3.))<1e-12);
+  for (unsigned int i=0; i<4; ++i)
+  {
+    REQUIRE(upwind_matrix[2][i]==0.);
+    REQUIRE(upwind_matrix[3][i]==0.);
+  }
+  // Top face
+  upwind_matrix = *fecell.get_upwind_matrix(3);
+  REQUIRE(std::fabs(upwind_matrix[2][0]-(1./3.))<1e-12);
+  REQUIRE(std::fabs(upwind_matrix[2][1]-(1./6.))<1e-12);
+  REQUIRE(upwind_matrix[2][2]==0.);
+  REQUIRE(upwind_matrix[2][3]==0.);
+  REQUIRE(std::fabs(upwind_matrix[3][0]-(1./6.))<1e-12);
+  REQUIRE(std::fabs(upwind_matrix[3][1]-(1./3.))<1e-12);
+  REQUIRE(upwind_matrix[3][2]==0.);
+  REQUIRE(upwind_matrix[3][3]==0.);
+  for (unsigned int i=0; i<4; ++i)
+  {
+    REQUIRE(upwind_matrix[0][i]==0.);
+    REQUIRE(upwind_matrix[1][i]==0.);
   }
 }

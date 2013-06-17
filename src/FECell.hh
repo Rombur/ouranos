@@ -9,6 +9,7 @@
 #define _FECELL_HH_
 
 #include <vector>
+#include "deal.II/base/exceptions.h"
 #include "deal.II/base/tensor.h"
 #include "deal.II/dofs/dof_handler.h"
 #include "deal.II/fe/fe_values.h"
@@ -26,9 +27,9 @@ class FECell
   public :
     FECell(const unsigned int n_q_points,const unsigned int n_face_q_points,
         FEValues<dim> &fe_values,FEFaceValues<dim> &fe_face_values,
-        typename DoFHandler<dim>::active_cell_iterator &cell,
         FEFaceValues<dim> &fe_neighbor_face_values,
-        std::vector<typename DoFHandler<dim>::active_cell_iterator*> &neighbor_cell);
+        typename DoFHandler<dim>::active_cell_iterator &cell,
+        typename DoFHandler<dim>::active_cell_iterator &end_cell);
 
     /// Return a pointer to the mass matrix.
     Tensor<2,tensor_dim> const* const get_mass_matrix() const;
@@ -67,6 +68,7 @@ template <int dim,int tensor_dim>
 inline Tensor<2,tensor_dim> const* const 
 FECell<dim,tensor_dim>::get_grad_matrix(unsigned int k) const
 {
+  AssertIndexRange(i,dim);
   return &grad_matrices[k];
 }
 
@@ -74,6 +76,7 @@ template <int dim,int tensor_dim>
 inline Tensor<2,tensor_dim> const* const
 FECell<dim,tensor_dim>::get_downwind_matrix(unsigned int face) const
 {
+  AssertIndexRange(i,2*dim);
   return &downwind_matrices[face];
 }
 
@@ -81,6 +84,7 @@ template <int dim,int tensor_dim>
 inline Tensor<2,tensor_dim> const* const
 FECell<dim,tensor_dim>::get_upwind_matrix(unsigned int face) const
 {
+  AssertIndexRange(i,2*dim);
   return &upwind_matrices[face];
 }
 
