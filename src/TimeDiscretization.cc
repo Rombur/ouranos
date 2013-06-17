@@ -19,6 +19,7 @@ TimeDiscretization::TimeDiscretization(DISCRETIZATION_METHOD method,
         b_tableau.a.resize(1,d_vector(1,0.));
         b_tableau.b.push_back(1.);
         b_tableau.c.push_back(0.);
+        implicit = false;
         break;
       }
     case IMPLICIT_EULER :
@@ -26,6 +27,7 @@ TimeDiscretization::TimeDiscretization(DISCRETIZATION_METHOD method,
         b_tableau.a.resize(1,d_vector(1,1.));
         b_tableau.b.push_back(1.);
         b_tableau.c.push_back(0.);
+        implicit = true;
         break;
       }
     case CRANK_NICHOLSON :
@@ -38,6 +40,7 @@ TimeDiscretization::TimeDiscretization(DISCRETIZATION_METHOD method,
         b_tableau.b[0] = 0.5;
         b_tableau.b[1] = 0.5;
         b_tableau.c[1] = 1.;
+        implicit = false;
         break;
       }
     case RK44 :
@@ -55,6 +58,7 @@ TimeDiscretization::TimeDiscretization(DISCRETIZATION_METHOD method,
         b_tableau.c[1] = 0.5;
         b_tableau.c[2] = 0.5;
         b_tableau.c[3] = 1.;
+        implicit = true;
         break;      
       }
     case IRK42 :
@@ -71,6 +75,7 @@ TimeDiscretization::TimeDiscretization(DISCRETIZATION_METHOD method,
         b_tableau.b[1] = 0.5;
         b_tableau.c[0] = 0.5-sqrt_3/6.;
         b_tableau.c[1] = 0.5+sqrt_3/6.;
+        implicit = false;
         break;
       }
   }

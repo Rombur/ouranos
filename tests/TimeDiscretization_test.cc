@@ -14,7 +14,7 @@
 // Solve the problem dy/dt=ty, y(0) = 1, solution = exp(t^2/2)
 TEST_CASE("TimeDiscretization/Explicit Euler","Check explicit Euler")
 {
-  const double delta_t(0.001);
+  const double delta_t(0.0001);
   const double final_time(1.);
   TimeDiscretization time(EXPLICIT_EULER,delta_t,final_time);
 
@@ -25,6 +25,22 @@ TEST_CASE("TimeDiscretization/Explicit Euler","Check explicit Euler")
   {
     double k0(delta_t*y*i*delta_t);
     y += time.get_butcher_b(0)*k0;
+    REQUIRE(std::fabs(y-std::exp(std::pow(i*delta_t,2) /2.))<1e-3);
+  }
+}
+
+TEST_CASE("TimeDiscretization/Implicit Euler","Check implicit Euler")
+{
+  const double delta_t(0.0001);
+  const double final_time(1.);
+  TimeDiscretization time(IMPLICIT_EULER,delta_t,final_time);
+
+  REQUIRE(time.get_time_step()==delta_t);
+  const unsigned int n_step(final_time/delta_t);
+  double y(1.);
+  for (unsigned int i=1; i<n_step; ++i)
+  {
+    y /= (1.-delta_t*(i+1)*delta_t);
     REQUIRE(std::fabs(y-std::exp(std::pow(i*delta_t,2) /2.))<1e-3);
   }
 }

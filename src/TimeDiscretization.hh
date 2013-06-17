@@ -41,6 +41,9 @@ class TimeDiscretization
     TimeDiscretization(DISCRETIZATION_METHOD method,double time_step,
         double final_time);
 
+    /// Return true if the method is implicit.
+    bool is_implicit() const;
+
     /// Return the current time step.
     double get_time_step() const;
 
@@ -57,6 +60,8 @@ class TimeDiscretization
     double get_butcher_c(unsigned int j) const;
 
   private :
+    /// Flag to indicate if the method is implicit.
+    bool implicit;
     /// Time step.
     double time_step;
     /// End time of the simulation.
@@ -64,6 +69,11 @@ class TimeDiscretization
     /// Butcher tableau.
     ButcherTableau b_tableau;
 };
+
+inline bool is_implicit() const
+{
+  return implicit;
+}
 
 inline double TimeDiscretization::get_time_step() const
 {
