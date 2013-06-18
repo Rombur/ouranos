@@ -31,6 +31,15 @@ class FECell
         typename DoFHandler<dim>::active_cell_iterator &cell,
         typename DoFHandler<dim>::active_cell_iterator &end_cell);
 
+    /// Return the material id of the current cell
+    unsigned int get_material_id() const;
+
+    /// Return the source id of the current cell
+    unsigned int get_source_id() const;
+
+    /// Return the active_cell_itertor of the current cell.
+    typename DoFHandler<dim>::active_cell_iterator& get_cell();
+
     /// Return a pointer to the mass matrix.
     Tensor<2,tensor_dim> const* const get_mass_matrix() const;
 
@@ -44,6 +53,12 @@ class FECell
     Tensor<2,tensor_dim> const* const get_upwind_matrix(unsigned int face) const;
 
   private :
+    /// Material id of the current cell.
+    unsigned int material_id;
+    /// Source id of the current cell.
+    unsigned int source_id;
+    /// Current cell.
+    typename DoFHandler<dim>::active_cell_iterator cell;
     /// Mass matrix \f$\int_D b_i\ b_j\ dr\f$.
     Tensor<2,tensor_dim> mass_matrix;
     /// Vector of the matrices correspondant to the components of gradient
@@ -56,6 +71,25 @@ class FECell
     /// \f$b_j\f$ are defined on different cell.
     std::vector<Tensor<2,tensor_dim> > upwind_matrices;
 };
+
+template <int dim,int tensor_dim>
+inline unsigned int FECell<dim,tensor_dim>::get_material_id() const
+{
+  return material_id;
+}
+
+template <int dim,int tensor_dim>
+inline unsigned int FECell<dim,tensor_dim>::get_source_id() const
+{
+  return source_id;
+}
+
+template <int dim,int tensor_dim>
+inline typename DoFHandler<dim>::active_cell_iterator& 
+FECell<dim,tensor_dim>::get_cell()
+{
+  return cell;
+}
 
 template <int dim,int tensor_dim>
 inline Tensor<2,tensor_dim> const* const 

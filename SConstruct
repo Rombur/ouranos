@@ -2,7 +2,7 @@
 debug = ARGUMENTS.get('debug',1)
 
 # Path to deal.II
-deal_II_path = ARGUMENTS.get('deal_II_path','/home/bruno/Documents/deal.ii/trunk/deal.II/installed')
+deal_II_path = ARGUMENTS.get('deal_II_path','/home/bruno/Documents/deal.ii/modified_deal_ii/deal.II/installed')
 
 # Path to boost
 boost_path = ARGUMENTS.get('boost_path','/usr/include')

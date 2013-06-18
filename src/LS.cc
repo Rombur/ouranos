@@ -8,7 +8,7 @@
 #include "LS.hh"
 
 LS::LS(unsigned int sn,unsigned int L_max,bool galerkin) :
-  Quadrature(sn,L_max,galerkin)
+  RTQuadrature(sn,L_max,galerkin)
 {}
 
 void LS::build_octant()

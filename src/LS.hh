@@ -8,13 +8,13 @@
 #ifndef _LS_HH_
 #define _LS_HH_
 
-#include "Quadrature.hh"
+#include "RTQuadrature.hh"
 
 /**
  * This class build the Level Symmetric quadrature.
  */
 
-class LS : public Quadrature
+class LS : public RTQuadrature
 {
   public :
     LS(unsigned int sn,unsigned int L_max,bool galerkin);

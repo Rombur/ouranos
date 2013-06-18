@@ -10,7 +10,7 @@
 
 #include <cmath>
 #include <vector>
-#include "Quadrature.hh"
+#include "RTQuadrature.hh"
 
 
 typedef std::vector<double> d_vector;
@@ -22,7 +22,7 @@ typedef std::vector<double> d_vector;
  * quadrature.
  */ 
 
-class GLC : public Quadrature
+class GLC : public RTQuadrature
 {
   public : 
     GLC(unsigned int sn,unsigned int L_max,bool galerkin);

@@ -6,7 +6,7 @@ bin
 *.o
 ouranos
 run_ouranos_tests.py
-quadrature_test
+rtquadrature_test
 parameters_test
 fecell_test
 geometry_test

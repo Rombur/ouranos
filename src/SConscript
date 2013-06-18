@@ -10,8 +10,8 @@ deal_II_lib = deal_II_path+'/lib'
 trilinos_lib = trilinos_path+'/lib'
 
 # Source files
-src_files = Split('ouranos.cc GLC.cc LS.cc Quadrature.cc Parameters.cc Geometry.cc '+
-  'FECell.cc TimeDiscretization.cc')
+src_files = Split('ouranos.cc GLC.cc LS.cc RTQuadrature.cc Parameters.cc Geometry.cc '+
+  'FECell.cc TimeDiscretization.cc RadiativeTransfer.cc')
 
 # Create the environment
 env = Environment(
@@ -21,7 +21,7 @@ env = Environment(
   mpi_path,p4est_path+'/include'],
   LIBPATH=[deal_II_lib,trilinos_lib],
   LIBS=['teuchoscomm','teuchoscore','teuchosnumerics','teuchosparameterlist',
-  'teuchosremainder','mpi_cxx','mpi'],
+  'teuchosremainder','epetra','mpi_cxx','mpi'],
   LINKFLAGS=['-Wl,-rpath='+deal_II_lib,'-Wl,-rpath='+trilinos_lib])
 
 # Check if the debug or the release version should be compiled

@@ -70,7 +70,7 @@ class TimeDiscretization
     ButcherTableau b_tableau;
 };
 
-inline bool is_implicit() const
+inline bool TimeDiscretization::is_implicit() const
 {
   return implicit;
 }

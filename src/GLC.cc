@@ -8,7 +8,7 @@
 #include "GLC.hh"
 
 GLC::GLC(unsigned int sn,unsigned int L_max,bool galerkin) :
-  Quadrature(sn,L_max,galerkin)
+  RTQuadrature(sn,L_max,galerkin)
 {}
 
 void GLC::build_octant()
