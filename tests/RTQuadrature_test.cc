@@ -11,9 +11,8 @@
 #include <iomanip>
 #include <cmath>
 #include <vector>
-#include "Teuchos_BLAS.hpp"
-#include "Teuchos_BLAS_types.hpp"
-#include "Teuchos_SerialDenseMatrix.hpp"
+#include "deal.II/lac/full_matrix.h"
+#include "deal.II/lac/vector.h"
 #include "../src/GLC.hh"
 #include "../src/LS.hh"
 
@@ -50,18 +49,16 @@ TEST_CASE("RTQuadrature/LS","Check LS quadrature")
   REQUIRE(quad.get_l(11)==4);
 
   // Check omega and omega_2d
-  Teuchos::SerialDenseVector<int,double> const* const omega_ptr(quad.get_omega(0));
+  Vector<double> const* const omega_ptr(quad.get_omega(0));
   REQUIRE(omega[0]==(*omega_ptr)(0));
   REQUIRE(omega[1]==(*omega_ptr)(1));
   REQUIRE(omega[2]==(*omega_ptr)(2));
 
   // Check Galerkin
-  Teuchos::BLAS<int,double> blas;
-  Teuchos::SerialDenseMatrix<int,double> result(n_dir,n_dir);
-  Teuchos::SerialDenseMatrix<int,double> const* const M2D(quad.get_M2D());
-  Teuchos::SerialDenseMatrix<int,double> const* const D2M(quad.get_D2M());
-  blas.GEMM(Teuchos::NO_TRANS,Teuchos::NO_TRANS,n_dir,n_dir,n_dir,1.,M2D->values(),
-      M2D->stride(),D2M->values(),D2M->stride(),0.,result.values(),result.stride());
+  FullMatrix<double> result(n_dir,n_dir);
+  FullMatrix<double> const* const M2D(quad.get_M2D());
+  FullMatrix<double> const* const D2M(quad.get_D2M());
+  D2M->mmult(result,*M2D);
   for (unsigned int i=0; i<n_dir; ++i)
     for (unsigned int j=0; j<n_dir; ++j)
     {
@@ -109,7 +106,7 @@ TEST_CASE("RTQuadrature/GLC","Check GLC quadrature")
   REQUIRE(quad.get_l(14)==4);
 
   // Check omega
-  Teuchos::SerialDenseVector<int,double> const* const omega_ptr(quad.get_omega(0));
+  Vector<double> const* const omega_ptr(quad.get_omega(0));
   REQUIRE(std::fabs(omega[0]-(*omega_ptr)(0))<1e-12);
   REQUIRE(std::fabs(omega[1]-(*omega_ptr)(1))<1e-12);
   REQUIRE(std::fabs(omega[2]-(*omega_ptr)(2))<1e-12);

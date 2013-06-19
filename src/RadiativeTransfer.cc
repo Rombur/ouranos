@@ -7,7 +7,7 @@
 
 #include "RadiativeTransfer.hh"
 
-template<int dim,int tensor_dim>
+template <int dim,int tensor_dim>
 RadiativeTransfer<dim,tensor_dim>::RadiativeTransfer(
     parallel::distributed::Triangulation<dim>* triangulation,
     DoFHandler<dim>* dof_handler,Parameters* parameters,RTQuadrature* quad) :
@@ -17,7 +17,7 @@ RadiativeTransfer<dim,tensor_dim>::RadiativeTransfer(
   quad(quad)
 {}
 
-template<int dim,int tensor_dim>
+template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::setup()
 {
   // Build the FECells.
@@ -44,6 +44,33 @@ void RadiativeTransfer<dim,tensor_dim>::setup()
           fe_values,fe_face_values,fe_neighbor_face_values,cell,end_cell);
       fecell_mesh.push_back(fecell);
     }
+}
+
+template <int dim,int tensor_dim>
+void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
+{
+  // First find the cells on the ''boundary'' of the processor
+  std::vector<std::set<unsigned int> > boundary_cells(dim);
+  const unsigned int fec_mesh_size(fecell_mesh.size());
+  for (unsigned int i=0; i<fec_mesh_size; ++i)
+  {
+    typename DoFHandler<dim>::active_cell_iterator cell(fecell_mesh[i].get_cell());
+    for (unsigned int face=0; face<2*dim; ++face)
+    {
+      // Check if the face is on the boundary of the problem
+      if (cell->at_boundary(face)==true)
+        boundary_cells[face].insert(i);
+      else
+        if (cell->neighbor(face)->is_locally_owned()==false)
+          boundary_cells[face].insert(i);
+    }
+  }         
+
+  const unsigned int n_dir(quad->get_n_dir());
+  sweep_order.resize(n_dir);
+  for (unsigned int idir=0; idir<n_dir; ++idir)
+  {
+  }
 }
 
 

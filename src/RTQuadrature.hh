@@ -11,12 +11,9 @@
 #include <cmath>
 #include <vector>
 #include "boost/math/special_functions/spherical_harmonic.hpp"
-#include "Teuchos_BLAS.hpp"
-#include "Teuchos_BLAS_types.hpp"
-#include "Teuchos_LAPACK.hpp"
-#include "Teuchos_SerialDenseMatrix.hpp"
-#include "Teuchos_SerialDenseVector.hpp"
 #include "deal.II/base/exceptions.h"
+#include "deal.II/lac/full_matrix.h"
+#include "deal.II/lac/vector.h"
 
 
 using namespace dealii;
@@ -47,14 +44,13 @@ class RTQuadrature
     unsigned int get_l(const unsigned int i) const;
 
     /// Return a pointer to omega for direction idir.
-    Teuchos::SerialDenseVector<int,double> const* const get_omega(unsigned int idir) 
-      const;
+    Vector<double> const* const get_omega(unsigned int idir) const;
 
     /// Return the moment-to-discrete matrix.
-    Teuchos::SerialDenseMatrix<int,double> const* const get_M2D() const;
+    FullMatrix<double> const* const get_M2D() const;
 
     /// Return the discrete-to-moment matrix.
-    Teuchos::SerialDenseMatrix<int,double> const* const get_D2M() const;
+    FullMatrix<double> const* const get_D2M() const;
 
   protected :
     /// Purely virtual function. Compute omega in one octant.
@@ -80,13 +76,13 @@ class RTQuadrature
     /// to the number of the moment.
     d_vector moment_to_order;
     /// Weights of the quadrature when a non-Galerkin quadrature is used.
-    Teuchos::SerialDenseVector<int,double> weight;
+    Vector<double> weight;
     /// Moments to directions matrix.
-    Teuchos::SerialDenseMatrix<int,double> M2D;
+    FullMatrix<double> M2D;
     /// Directions to moments matrix.
-    Teuchos::SerialDenseMatrix<int,double> D2M;
+    FullMatrix<double> D2M;
     /// Vector of omega for each direction.
-    std::vector<Teuchos::SerialDenseVector<int,double> > omega;
+    std::vector<Vector<double> > omega;
 };
 
 inline unsigned int RTQuadrature::get_n_dir() const
@@ -104,20 +100,17 @@ inline unsigned int RTQuadrature::get_l(const unsigned int i) const
   return moment_to_order[i];
 }
 
-inline Teuchos::SerialDenseVector<int,double> const* const 
-RTQuadrature::get_omega(unsigned int idir) const
+inline Vector<double> const* const RTQuadrature::get_omega(unsigned int idir) const
 {
   return &omega[idir];
 }
 
-inline Teuchos::SerialDenseMatrix<int,double> const* const 
-RTQuadrature::get_M2D() const
+inline FullMatrix<double> const* const RTQuadrature::get_M2D() const
 {
   return &M2D;
 }
 
-inline Teuchos::SerialDenseMatrix<int,double> const* const 
-RTQuadrature::get_D2M() const
+inline FullMatrix<double> const* const RTQuadrature::get_D2M() const
 {
   return &D2M;
 }

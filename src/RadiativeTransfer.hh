@@ -8,6 +8,8 @@
 #ifndef _RADIATIVETRANSFER_HH_
 #define _RADIATIVETRANSFER_HH_
 
+#include <algorithm>
+#include <set>
 #include <vector>
 #include "Epetra_Comm.h"
 #include "Epetra_Map.h"
@@ -23,7 +25,7 @@
 #include "Parameters.hh"
 #include "RTQuadrature.hh"
 
-using namespace std;
+using namespace dealii;
 
 /**
  *  This class derives from Epetra_Operator and implement the function Apply
@@ -88,7 +90,10 @@ class RadiativeTransfer : public Epetra_Operator
   private :
     /// Compute the ordering of the cell for the sweeps.
     void compute_sweep_ordering();
-
+                      
+    /// Sweep ordering associated to the different direction.
+    std::vector<unsigned int> sweep_order;
+    /// FECells owned by the current processor.
     std::vector<FECell<dim,tensor_dim> > fecell_mesh;
     /// Pointer to the distributed triangulation.
     parallel::distributed::Triangulation<dim>* triangulation;

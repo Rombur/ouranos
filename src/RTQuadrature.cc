@@ -14,13 +14,14 @@ RTQuadrature::RTQuadrature(unsigned int sn_,unsigned int L_max_,bool galerkin_) 
 {
   // Assume that the quadrature is triangular
   n_dir = sn*(sn+2)/2;
-  omega.resize(n_dir,Teuchos::SerialDenseVector<int,double> (3));
+  omega.resize(n_dir,Vector<double>(3));
   if (galerkin==true)
     n_mom = n_dir;
   else 
     n_mom = (L_max+1)*(L_max+2)/2;
-  weight.size(n_dir);
-  M2D.shape(n_dir,n_mom);
+  weight.reinit(n_dir);
+  M2D.reinit(n_dir,n_mom);
+  D2M.reinit(n_mom,n_dir);
 }
 
 void RTQuadrature::build_quadrature(const double weight_sum)
@@ -36,32 +37,14 @@ void RTQuadrature::build_quadrature(const double weight_sum)
 
   // Compute D
   if (galerkin==true)
-  {
-    int info;
-    int ipiv[n_dir];
-    Teuchos::LAPACK<int,double> lapack;
-    Teuchos::SerialDenseMatrix<int,double> work(n_dir,n_dir);
-    D2M = M2D;
-    
-    // Compute an LU factorization of a general M-by-N matrix using partial
-    // pivoting with row interchanges
-    lapack.GETRF(n_dir,n_dir,D2M.values(),D2M.stride(),ipiv,&info);
-    // Compute the inverse of a matrix using the LU factorization computed by
-    // GETRF
-    lapack.GETRI(n_dir,D2M.values(),D2M.stride(),ipiv,work.values(),work.stride(),
-        &info);
-  }
+    D2M.invert(M2D);
   else
   {
-    Teuchos::BLAS<int,double> blas;
-    Teuchos::SerialDenseMatrix<int,double> weight_matrix(n_dir,n_dir);
+    FullMatrix<double> weight_matrix(n_dir,n_dir);
     for (unsigned int i=0; i<n_dir; ++i)
-      weight_matrix(i,i) = weight_sum*weight(i);
-    D2M.shape(n_mom,n_dir);
+      weight_matrix(i,i) = weight_sum*weight[i];
 
-    blas.GEMM(Teuchos::TRANS,Teuchos::NO_TRANS,n_mom,n_dir,n_dir,1.,
-        M2D.values(),M2D.stride(),weight_matrix.values(),weight_matrix.stride(),
-        0.,D2M.values(),D2M.stride());
+    M2D.Tmmult(D2M,weight_matrix);
   }  
 }
 
@@ -76,21 +59,21 @@ void RTQuadrature::deploy_octant()
     {
       // Copy omega and weight
       if (galerkin==false)
-        weight(j+offset) = weight(j);
-      omega[j+offset](2) = omega[j](2);
+        weight[j+offset] = weight[j];
+      omega[j+offset][2] = omega[j][2];
       switch(i)
       {
         case 1:
-          omega[j+offset](0) = omega[j](0);
-          omega[j+offset](1) = -omega[j](1);
+          omega[j+offset][0] = omega[j][0];
+          omega[j+offset][1] = -omega[j][1];
           break;
         case 2 :
-          omega[j+offset](0) = -omega[j](0);
-          omega[j+offset](1) = -omega[j](1);
+          omega[j+offset][0] = -omega[j][0];
+          omega[j+offset][1] = -omega[j][1];
           break;
         case 3 :
-          omega[j+offset](0) = -omega[j](0);
-          omega[j+offset](1) = omega[j](1);
+          omega[j+offset](0) = -omega[j][0];
+          omega[j+offset](1) = omega[j][1];
       }
     }
   }
@@ -98,8 +81,9 @@ void RTQuadrature::deploy_octant()
   {
     double sum_weight(0.);
     for (unsigned int i=0; i<n_dir_octant; ++i)
-      sum_weight += weight(i);
-    weight *= 0.25/sum_weight; 
+      sum_weight += weight[i];
+    for (unsigned int i=0; i<weight.size(); ++i)
+      weight[i] *= 0.25/sum_weight; 
   }
 }
 
@@ -113,8 +97,8 @@ void RTQuadrature::compute_harmonics(const double weight_sum)
   // Compute the real spherical harmonics
   for (unsigned int i=0; i<n_dir; ++i)
   {
-    phi[i] = atan(omega[i](1)/omega[i](0));
-    if (omega[i](0)<0.)
+    phi[i] = atan(omega[i][1]/omega[i][0]);
+    if (omega[i][0]<0.)
       phi[i] += M_PI;
   }
 
@@ -131,9 +115,9 @@ void RTQuadrature::compute_harmonics(const double weight_sum)
         // Condon-Shortley phase is included in the associated Legendre
         // polynomial.
         Ye[l][m][idir] = w_sph*
-          boost::math::spherical_harmonic_r<double,double>(l,m,omega[idir](2),phi[idir]);
+          boost::math::spherical_harmonic_r<double,double>(l,m,omega[idir][2],phi[idir]);
         Yo[l][m][idir] = w_sph*
-          boost::math::spherical_harmonic_i<double,double>(l,m,omega[idir](2),phi[idir]);
+          boost::math::spherical_harmonic_i<double,double>(l,m,omega[idir][2],phi[idir]);
       } 
     }
   }
@@ -152,7 +136,7 @@ void RTQuadrature::compute_harmonics(const double weight_sum)
           // or L=sn and m=0
           if ((l<sn) && ((m+l)%2==0))
           {
-            M2D(idir,pos) = Ye[l][m][idir];
+            M2D.set(idir,pos,Ye[l][m][idir]);
             moment_to_order.push_back(l);
             ++pos;
           }
@@ -162,7 +146,7 @@ void RTQuadrature::compute_harmonics(const double weight_sum)
           // Do not use the ODD spherical harmonics when m+l is odd for l<=sn
           if ((l<=sn) && ((m+l)%2==0))
           {
-            M2D(idir,pos) = Yo[l][m][idir];
+            M2D.set(idir,pos,Yo[l][m][idir]);
             moment_to_order.push_back(l);
             ++pos;
           }
@@ -182,7 +166,7 @@ void RTQuadrature::compute_harmonics(const double weight_sum)
           // Do not use the EVEN spherical harmonics when m+l is odd
           if ((m+l)%2==0)
           {
-            M2D(idir,pos) = Ye[l][m][idir];
+            M2D.set(idir,pos,Ye[l][m][idir]);
             moment_to_order.push_back(l);
             ++pos;
           }
@@ -192,7 +176,7 @@ void RTQuadrature::compute_harmonics(const double weight_sum)
           // Do not use the ODD when m_l is odd
           if ((m+l)%2==0)
           {
-            M2D(idir,pos) = Yo[l][m][idir];
+            M2D.set(idir,pos,Yo[l][m][idir]);
             moment_to_order.push_back(l);
             ++pos;
           }
