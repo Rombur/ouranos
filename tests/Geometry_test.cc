@@ -27,6 +27,8 @@ TEST_CASE("Geometry/2D","Check Geometry for 2D")
   REQUIRE(geometry.get_material_ids(1,1)==1);
   REQUIRE(geometry.get_material_ids(0,2)==0);
   REQUIRE(geometry.get_material_ids(1,2)==1);
+  // Check the number of materials
+  REQUIRE(geometry.get_n_materials()==2);
   // Check the source IDs
   REQUIRE(geometry.get_source_ids(0,0)==1);
   REQUIRE(geometry.get_source_ids(1,0)==0);
@@ -61,6 +63,8 @@ TEST_CASE("Geometry/3D","Check Geometry for 3D")
   REQUIRE(geometry.get_material_ids(1,1,1)==0);
   REQUIRE(geometry.get_material_ids(0,2,1)==1);
   REQUIRE(geometry.get_material_ids(1,2,1)==0);
+  // Check the number of materials
+  REQUIRE(geometry.get_n_materials()==2);
   // Check the source IDs
   REQUIRE(geometry.get_source_ids(0,0,0)==1);
   REQUIRE(geometry.get_source_ids(1,0,0)==0);

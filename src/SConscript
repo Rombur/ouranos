@@ -11,7 +11,7 @@ trilinos_lib = trilinos_path+'/lib'
 
 # Source files
 src_files = Split('ouranos.cc GLC.cc LS.cc RTQuadrature.cc Parameters.cc Geometry.cc '+
-  'FECell.cc TimeDiscretization.cc RadiativeTransfer.cc')
+  'FECell.cc TimeDiscretization.cc RadiativeTransfer.cc RTMaterialProperties.cc')
 
 # Create the environment
 env = Environment(

@@ -100,6 +100,7 @@ void Geometry<dim>::parse_parameters(ParameterHandler &prm,d_vector &bot_left,
   for (unsigned int i=1; i<dim; ++i)
     n_sub *= n_subdivisions[i];
   material_ids = get_list_uint(input,n_sub);
+  n_materials = (*std::max_element(material_ids.begin(),material_ids.end()))+1;
 
   input = prm.get("Source IDs");
   source_ids = get_list_uint(input,n_sub);

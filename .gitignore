@@ -11,5 +11,6 @@ parameters_test
 fecell_test
 geometry_test
 timediscretization_test
+rtmaterialproperties_test
 results.txt
 tags

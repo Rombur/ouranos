@@ -9,6 +9,7 @@
 #define _RADIATIVETRANSFER_HH_
 
 #include <algorithm>
+#include <list>
 #include <set>
 #include <vector>
 #include "Epetra_Comm.h"
@@ -21,11 +22,16 @@
 #include "deal.II/dofs/dof_handler.h"
 #include "deal.II/fe/fe_dgq.h"
 #include "deal.II/fe/fe_values.h"
+#include "deal.II/lac/full_matrix.h"
+#include "deal.II/lac/vector.h"
 #include "FECell.hh"
 #include "Parameters.hh"
 #include "RTQuadrature.hh"
+#include "RTMaterialProperties.hh"
 
 using namespace dealii;
+
+typedef std::vector<unsigned int> ui_vector;
 
 /**
  *  This class derives from Epetra_Operator and implement the function Apply
@@ -37,7 +43,8 @@ class RadiativeTransfer : public Epetra_Operator
 {
   public :
     RadiativeTransfer(parallel::distributed::Triangulation<dim>* triangulation,
-        DoFHandler<dim>* dof_handler,Parameters* parameters,RTQuadrature* quad);
+        DoFHandler<dim>* dof_handler,Parameters* parameters,RTQuadrature* quad,
+        RTMaterialProperties* material_properties);
 
 
     /// Create all the matrices that are need to solve the transport equation
@@ -46,14 +53,14 @@ class RadiativeTransfer : public Epetra_Operator
 
     /// Return the result of the transport operator applied to x in. Return 0
     /// if successful.
-//    int Apply(Epetra_MultiVector const &x,Epetra_MultiVector &y) const;
+    int Apply(Epetra_MultiVector const &x,Epetra_MultiVector &y) const;
 
     /// Compute the scattering given a flux.
-//    void Compute_scattering_source(Epetra_MultiVector const &x) const;
+    void compute_scattering_source(Epetra_MultiVector const &x) const;
 
     /// Perform a sweep. If rhs is false, the surfacic and the volumetric
     /// sources are not included in the sweep.
-//    void Sweep(Epetra_MultiVector &flux_moments,bool rhs=false) const;
+    void sweep(Epetra_MultiVector &flux_moments,bool rhs=false) const;
 
     /// This method is not implemented.
     int SetUseTranspose(bool UseTranspose) {return 0;};
@@ -92,7 +99,9 @@ class RadiativeTransfer : public Epetra_Operator
     void compute_sweep_ordering();
                       
     /// Sweep ordering associated to the different direction.
-    std::vector<unsigned int> sweep_order;
+    std::vector<ui_vector> sweep_order;
+    /// Scattering source for each moment.
+    std::vector<Vector<double>*> scattering_source;
     /// FECells owned by the current processor.
     std::vector<FECell<dim,tensor_dim> > fecell_mesh;
     /// Pointer to the distributed triangulation.
@@ -103,6 +112,8 @@ class RadiativeTransfer : public Epetra_Operator
     Parameters* parameters;
     /// Pointer to the quadrature.
     RTQuadrature* quad;
+    /// Pointer to the material property.
+    RTMaterialProperties* material_properties;
 };
 
 #endif

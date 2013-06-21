@@ -38,6 +38,9 @@ class Geometry
     /// Return the number of subdivisions of dimension i.
     unsigned int get_n_subdivisions(unsigned int i) const;
 
+    /// Return the number of materials.
+    unsigned int get_n_materials() const;
+
     /// Return the material id for cell (i,j,k).
     unsigned int get_material_ids(unsigned int i,unsigned int j,
         unsigned int k=0) const;
@@ -66,6 +69,8 @@ class Geometry
     /// Return a list of n_elements doubles from a given string.
     d_vector get_list_double(std::string &input,unsigned int n_elements);
 
+    /// Number of materials.
+    unsigned int n_materials;
     /// Number of subdivisions in each direction.
     ui_vector n_subdivisions;
     /// Material IDs.
@@ -77,6 +82,12 @@ class Geometry
     /// DoF handler.
     DoFHandler<dim> dof_handler;
 };
+
+template<int dim>
+inline unsigned int Geometry<dim>::get_n_materials() const
+{
+  return n_materials;
+}
 
 template<int dim>
 inline unsigned int Geometry<dim>::get_n_subdivisions(unsigned int i) const
