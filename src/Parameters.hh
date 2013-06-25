@@ -84,6 +84,9 @@ class Parameters
     /// Return the coarsening factor used in AMR.
     double get_coarsening_factor() const;
 
+    /// Return the intensity of the source i for the group g.
+    double get_src(unsigned int i,unsigned int g) const;
+
     /// Return the boundary condition for a given face (vacuum, isotropic,
     /// most_normal, or reflective).
     BC_TYPE get_bc_type(unsigned int face) const;
@@ -99,9 +102,6 @@ class Parameters
 
     /// Return the name of the cross section file.
     std::string get_xs_filename() const;
-
-    /// Return the intensity of the source i.
-    d_vector get_src(unsigned int i) const;
 
   private :
     /// Declare the parameters and assign default values.
@@ -251,6 +251,13 @@ inline double Parameters::get_coarsening_factor() const
   return coarsening_factor;
 }
 
+inline double Parameters::get_src(unsigned int i,unsigned int g) const
+{
+  AssertIndexRange(i,src.size());
+  AssertIndexRange(g,src[i].size());
+  return src[i][g];
+}
+
 inline BC_TYPE Parameters::get_bc_type(unsigned int face) const
 {
   AssertIndexRange(face,bc_type);
@@ -265,12 +272,6 @@ inline QUAD_TYPE Parameters::get_quad_type() const
 inline SOLVER_TYPE Parameters::get_solver_type() const
 {
   return solver_type;
-}
-
-inline d_vector Parameters::get_src(unsigned int i) const
-{
-  AssertIndexRange(i,src.size());
-  return src[i];
 }
 
 #endif

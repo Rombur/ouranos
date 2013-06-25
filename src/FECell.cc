@@ -7,14 +7,12 @@
 
 #include "FECell.hh"
 
-
 template <int dim,int tensor_dim>
 FECell<dim,tensor_dim>::FECell(const unsigned int n_q_points,
     const unsigned int n_face_q_points,FEValues<dim> &fe_values,
     FEFaceValues<dim> &fe_face_values,FEFaceValues<dim> &fe_neighbor_face_values,
-    typename DoFHandler<dim>::active_cell_iterator &cell,
-    typename DoFHandler<dim>::active_cell_iterator &end_cell) :
-  cell(cell),
+    const typename DoFHandler<dim>::active_cell_iterator &cell,
+    const typename DoFHandler<dim>::active_cell_iterator &end_cell) :
   grad_matrices(dim),
   downwind_matrices(2*dim),
   upwind_matrices(2*dim)
@@ -71,7 +69,11 @@ FECell<dim,tensor_dim>::FECell(const unsigned int n_q_points,
               fe_face_values.JxW(q_point);
     }
   }
+
+  // Store the global dof indices
+  cell->get_dof_indices(dof_indices);
 }
+
 
 //*****Explicit instantiations*****//
 template class FECell<2,4>;

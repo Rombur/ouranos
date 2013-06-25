@@ -12,6 +12,10 @@ RadiativeTransfer<dim,tensor_dim>::RadiativeTransfer(
     parallel::distributed::Triangulation<dim>* triangulation,
     DoFHandler<dim>* dof_handler,Parameters* parameters,RTQuadrature* quad,
     RTMaterialProperties* material_properties) :
+  n_mom(quad->get_n_mom()),
+  group(0),
+  n_groups(1),
+  n_cells(1),
   triangulation(triangulation),
   dof_handler(dof_handler),
   parameters(parameters),
@@ -46,6 +50,7 @@ void RadiativeTransfer<dim,tensor_dim>::setup()
           fe_values,fe_face_values,fe_neighbor_face_values,cell,end_cell);
       fecell_mesh.push_back(fecell);
     }
+  n_cells = fecell_mesh.size();
 }
 
 template <int dim,int tensor_dim>
@@ -159,7 +164,11 @@ int RadiativeTransfer<dim,tensor_dim>::Apply(Epetra_MultiVector const &x,
 
   // Compute the scattering source
   compute_scattering_source(y);
-  sweep(y);
+
+// DO SOMETHING DIFFERENT HERE
+  const unsigned int n_dir(quad->get_n_dir());
+  for (unsigned int idir=0; idir<n_dir; ++idir)
+    sweep(y,idir);
 
   for (int i=0; i<y.MyLength(); ++i)
     y[0][i] = z[0][i]-y[0][i];
@@ -171,7 +180,6 @@ template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::compute_scattering_source(
     Epetra_MultiVector const &x) const
 {
-  const unsigned int n_mom(quad->get_n_mom());
   // Reinitialize the scattering source
   for (unsigned int i=0; i<n_mom; ++i)
     (*scattering_source[i]) = 0.;
@@ -179,30 +187,100 @@ void RadiativeTransfer<dim,tensor_dim>::compute_scattering_source(
   typedef typename std::vector<FECell<dim,tensor_dim> >::const_iterator fecell_it;
   fecell_it fecell(fecell_mesh.cbegin());
   fecell_it end_fecell(fecell_mesh.cend());
-  unsigned int offset(0);
   Tensor<1,tensor_dim> x_cell;
   for (; fecell!=end_fecell; ++fecell)
   {
+    std::vector<types::global_dof_index> local_dof_indices(
+        *fecell->get_dof_indices());
     for (unsigned int i=0; i<tensor_dim; ++i)
-      x_cell[i] = x[0][offset+i];
+      x_cell[i] = x[0][local_dof_indices[i]];
     
     Tensor<1,tensor_dim> scat_src_cell((*(fecell->get_mass_matrix()))*x_cell);
     for (unsigned int j=0; j<n_mom; ++j)
     {
-      //scat_src_cell *= material_properties->get_sigma_s(fecell->get_material_id(),j);
+      scat_src_cell *= material_properties->get_sigma_s(fecell->get_material_id(),
+          group,group,j);
 
       for (unsigned int i=0; i<tensor_dim; ++i)
-        (*scattering_source[j])[i+offset] += scat_src_cell[i];
+        (*scattering_source[j])[local_dof_indices[i]] += scat_src_cell[i];
     }
+  }
+}
 
-    offset += tensor_dim;
+template <int dim,int tensor_dim>
+void RadiativeTransfer<dim,tensor_dim>::compute_outer_scattering_source( 
+    Tensor<1,tensor_dim> &b,Epetra_MultiVector const* const group_flux,
+    FECell<dim,tensor_dim> const* const fecell,const unsigned int idir) const
+{
+  FullMatrix<double> const* const M2D(quad->get_M2D());
+  Tensor<1,tensor_dim> x_cell;
+  std::vector<types::global_dof_index> local_dof_indices(*fecell->get_dof_indices());
+  for (unsigned int g=0; g<n_groups; ++g)
+  {
+    if (g!=group)
+    {
+      for (unsigned int i=0; i<n_mom; ++i)
+      {
+        double m2d((*M2D)(idir,i));
+        for (unsigned int j=0; j<tensor_dim; ++j)
+          x_cell[j] = (*group_flux)[g*n_mom+i][local_dof_indices[j]];
+
+        Tensor<1,tensor_dim> scat_src_cell((*(fecell->get_mass_matrix()))*x_cell);
+
+        scat_src_cell *= (m2d*material_properties->get_sigma_s(
+              fecell->get_material_id(),g,group,i));
+
+        b += scat_src_cell;
+      }
+    }
   }
 }
 
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::sweep(Epetra_MultiVector &flux_moments,
-    bool rhs) const
-{}
+    unsigned int idir,Epetra_MultiVector const* const group_flux) const
+{
+  FullMatrix<double> const* const M2D(quad->get_M2D());
+//  FullMatrix<double> const* const D2M(quad->get_D2M());
+  Epetra_MultiVector psi(*map,1);
+  // Clear flux_moments
+  flux_moments.PutScalar(0.);
+  Vector<double> const* const omega(quad->get_omega(idir));
+
+  // Sweep on the spatial cells
+  for (unsigned int i=0; i<n_cells; ++i)
+  {
+    FECell<dim,tensor_dim> const* const fecell = &fecell_mesh[sweep_order[idir][i]];
+    Tensor<1,tensor_dim> b;
+    Tensor<2,tensor_dim> A(*(fecell->get_mass_matrix()));
+    std::vector<types::global_dof_index> local_dof_indices(
+        *fecell->get_dof_indices());
+    // Volumetrix terms of the lhs: -omega dot grad_matrix + sigma_t mass
+    A *= material_properties->get_sigma_t(fecell_mesh[i].get_material_id(),group);
+    for (unsigned int d=0; d<dim; ++d)
+      A += (-(*omega)[i]*(*(fecell->get_grad_matrix(d))));
+    
+    // Scattering source
+    for (unsigned int mom=0; mom<n_mom; ++mom)
+    {
+      const double m2d((*M2D)(idir,mom));
+      for (unsigned int j=0; j<tensor_dim; ++j)
+        b[j] += m2d*(*scattering_source[mom])[local_dof_indices[j]];
+    }
+    if (group_flux!=nullptr)
+    {
+      // Divide the source by the sum of the weights to the input source is
+      // easier to set
+      Tensor<1,tensor_dim> src;
+      const double src_value(parameters->get_src(fecell->get_source_id(),group));
+      for (unsigned int j=0; j<tensor_dim; ++j)
+        src[j] = src_value;
+      b += (*fecell->get_mass_matrix())*src;
+      // Compute the scattering source due to the other groups
+      compute_outer_scattering_source(b,group_flux,fecell,idir);
+    }
+  }
+}
 
 
 //*****Explicit instantiations*****//

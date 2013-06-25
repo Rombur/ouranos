@@ -58,9 +58,12 @@ class RadiativeTransfer : public Epetra_Operator
     /// Compute the scattering given a flux.
     void compute_scattering_source(Epetra_MultiVector const &x) const;
 
-    /// Perform a sweep. If rhs is false, the surfacic and the volumetric
-    /// sources are not included in the sweep.
-    void sweep(Epetra_MultiVector &flux_moments,bool rhs=false) const;
+    /// Perform a sweep. If group_flux is nullptr is false, the surfacic and 
+    /// the volumetric sources are not included in the sweep.
+    /// @todo The sweep can be optimized to use less memory (only keep the
+    /// front wave).
+    void sweep(Epetra_MultiVector &flux_moments,unsigned int idir,
+        Epetra_MultiVector const* const group_flux=nullptr) const;
 
     /// This method is not implemented.
     int SetUseTranspose(bool UseTranspose) {return 0;};
@@ -94,10 +97,29 @@ class RadiativeTransfer : public Epetra_Operator
     /// operator.
 //    Epetra_Map const& OperatorRangeMap() const;
     
+    /// Set the current group.
+    void Set_group(unsigned int g);    
+
   private :
     /// Compute the ordering of the cell for the sweeps.
     void compute_sweep_ordering();
-                      
+    
+    /// Compute the scattering source due to the upscattering and the
+    /// downscattering to the current group.
+    void compute_outer_scattering_source(Tensor<1,tensor_dim> &b,
+        Epetra_MultiVector const* const group_flux,
+        FECell<dim,tensor_dim> const* const fecell,const unsigned int idir) const;
+
+    /// Number of moments.
+    unsigned int n_mom;
+    /// Current group.
+    unsigned int group;
+    /// Number of groups.
+    unsigned int n_groups;
+    /// Number of cells owned by the current processor.
+    unsigned int n_cells;
+    /// Pointer to Epetra_Map associated to flux_moments and group_flux
+    Epetra_Map* map;
     /// Sweep ordering associated to the different direction.
     std::vector<ui_vector> sweep_order;
     /// Scattering source for each moment.

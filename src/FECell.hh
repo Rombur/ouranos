@@ -28,17 +28,17 @@ class FECell
     FECell(const unsigned int n_q_points,const unsigned int n_face_q_points,
         FEValues<dim> &fe_values,FEFaceValues<dim> &fe_face_values,
         FEFaceValues<dim> &fe_neighbor_face_values,
-        typename DoFHandler<dim>::active_cell_iterator &cell,
-        typename DoFHandler<dim>::active_cell_iterator &end_cell);
+        const typename DoFHandler<dim>::active_cell_iterator &cell,
+        const typename DoFHandler<dim>::active_cell_iterator &end_cell);
 
-    /// Return the material id of the current cell
+    /// Return the material id of the current cell.
     unsigned int get_material_id() const;
 
-    /// Return the source id of the current cell
+    /// Return the source id of the current cell.
     unsigned int get_source_id() const;
 
-    /// Return the active_cell_itertor of the current cell.
-    typename DoFHandler<dim>::active_cell_iterator& get_cell();
+    /// Return the indices of the dofs of this FECell.
+    std::vector<types::global_dof_index> const* const get_dof_indices() const;
 
     /// Return a pointer to the mass matrix.
     Tensor<2,tensor_dim> const* const get_mass_matrix() const;
@@ -57,8 +57,8 @@ class FECell
     unsigned int material_id;
     /// Source id of the current cell.
     unsigned int source_id;
-    /// Current cell.
-    typename DoFHandler<dim>::active_cell_iterator cell;
+    /// Dofs associated to this FECell.
+    std::vector<types::global_dof_index> dof_indices;
     /// Mass matrix \f$\int_D b_i\ b_j\ dr\f$.
     Tensor<2,tensor_dim> mass_matrix;
     /// Vector of the matrices correspondant to the components of gradient
@@ -85,10 +85,10 @@ inline unsigned int FECell<dim,tensor_dim>::get_source_id() const
 }
 
 template <int dim,int tensor_dim>
-inline typename DoFHandler<dim>::active_cell_iterator& 
-FECell<dim,tensor_dim>::get_cell()
+inline std::vector<types::global_dof_index> const* const
+FECell<dim,tensor_dim>::get_dof_indices() const
 {
-  return cell;
+  return &dof_indices;
 }
 
 template <int dim,int tensor_dim>
