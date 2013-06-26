@@ -31,14 +31,14 @@ class FECell
         const typename DoFHandler<dim>::active_cell_iterator &cell,
         const typename DoFHandler<dim>::active_cell_iterator &end_cell);
 
-    /// Return the material id of the current cell.
+    /// Return the material id of the current cell
     unsigned int get_material_id() const;
 
-    /// Return the source id of the current cell.
+    /// Return the source id of the current cell
     unsigned int get_source_id() const;
 
-    /// Return the indices of the dofs of this FECell.
-    std::vector<types::global_dof_index> const* const get_dof_indices() const;
+    /// Return the active_cell_iterator of the current cell.
+    typename DoFHandler<dim>::active_cell_iterator const* const get_cell() const;
 
     /// Return a pointer to the mass matrix.
     Tensor<2,tensor_dim> const* const get_mass_matrix() const;
@@ -57,8 +57,8 @@ class FECell
     unsigned int material_id;
     /// Source id of the current cell.
     unsigned int source_id;
-    /// Dofs associated to this FECell.
-    std::vector<types::global_dof_index> dof_indices;
+    /// Current cell.
+    typename DoFHandler<dim>::active_cell_iterator const* cell;
     /// Mass matrix \f$\int_D b_i\ b_j\ dr\f$.
     Tensor<2,tensor_dim> mass_matrix;
     /// Vector of the matrices correspondant to the components of gradient
@@ -85,10 +85,10 @@ inline unsigned int FECell<dim,tensor_dim>::get_source_id() const
 }
 
 template <int dim,int tensor_dim>
-inline std::vector<types::global_dof_index> const* const
-FECell<dim,tensor_dim>::get_dof_indices() const
+inline typename DoFHandler<dim>::active_cell_iterator const* const 
+FECell<dim,tensor_dim>::get_cell() const
 {
-  return &dof_indices;
+  return cell;
 }
 
 template <int dim,int tensor_dim>

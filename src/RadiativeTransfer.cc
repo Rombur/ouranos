@@ -61,7 +61,7 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
   const unsigned int fec_mesh_size(fecell_mesh.size());
   for (unsigned int i=0; i<fec_mesh_size; ++i)
   {
-    typename DoFHandler<dim>::active_cell_iterator cell(fecell_mesh[i].get_cell());
+    typename DoFHandler<dim>::active_cell_iterator cell(*fecell_mesh[i].get_cell());
     for (unsigned int face=0; face<2*dim; ++face)
     {
       // Check if the face is on the boundary of the problem
@@ -125,7 +125,7 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
     {
       bool accept(true);
       typename DoFHandler<dim>::active_cell_iterator current_cell(
-          fecell_mesh[candidate_cells.front()].get_cell());
+          *fecell_mesh[candidate_cells.front()].get_cell());
       for (unsigned int i=0; i<dim; ++i)
       {
         typename DoFHandler<dim>::active_cell_iterator neighbor_cell(
@@ -141,7 +141,7 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
         // The cell is added to the sweep order
         sweep_order[idir].push_back(candidate_cells.front());
         // The cell is removed from candidate_cells and added to used_cells
-        used_cells.insert(fecell_mesh[candidate_cells.front()].get_cell());
+        used_cells.insert(current_cell);
         candidate_cells.pop_back();
       }
       else
@@ -187,11 +187,11 @@ void RadiativeTransfer<dim,tensor_dim>::compute_scattering_source(
   typedef typename std::vector<FECell<dim,tensor_dim> >::const_iterator fecell_it;
   fecell_it fecell(fecell_mesh.cbegin());
   fecell_it end_fecell(fecell_mesh.cend());
+  std::vector<types::global_dof_index> local_dof_indices(tensor_dim);
   Tensor<1,tensor_dim> x_cell;
   for (; fecell!=end_fecell; ++fecell)
   {
-    std::vector<types::global_dof_index> local_dof_indices(
-        *fecell->get_dof_indices());
+    (*fecell->get_cell())->get_dof_indices(local_dof_indices);
     for (unsigned int i=0; i<tensor_dim; ++i)
       x_cell[i] = x[0][local_dof_indices[i]];
     
@@ -214,7 +214,8 @@ void RadiativeTransfer<dim,tensor_dim>::compute_outer_scattering_source(
 {
   FullMatrix<double> const* const M2D(quad->get_M2D());
   Tensor<1,tensor_dim> x_cell;
-  std::vector<types::global_dof_index> local_dof_indices(*fecell->get_dof_indices());
+  std::vector<types::global_dof_index> local_dof_indices(tensor_dim);
+  (*fecell->get_cell())->get_dof_indices(local_dof_indices);
   for (unsigned int g=0; g<n_groups; ++g)
   {
     if (g!=group)
@@ -253,8 +254,8 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Epetra_MultiVector &flux_moments,
     FECell<dim,tensor_dim> const* const fecell = &fecell_mesh[sweep_order[idir][i]];
     Tensor<1,tensor_dim> b;
     Tensor<2,tensor_dim> A(*(fecell->get_mass_matrix()));
-    std::vector<types::global_dof_index> local_dof_indices(
-        *fecell->get_dof_indices());
+    std::vector<types::global_dof_index> local_dof_indices(tensor_dim);
+    (*fecell->get_cell())->get_dof_indices(local_dof_indices);
     // Volumetrix terms of the lhs: -omega dot grad_matrix + sigma_t mass
     A *= material_properties->get_sigma_t(fecell_mesh[i].get_material_id(),group);
     for (unsigned int d=0; d<dim; ++d)
@@ -264,7 +265,7 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Epetra_MultiVector &flux_moments,
     for (unsigned int mom=0; mom<n_mom; ++mom)
     {
       const double m2d((*M2D)(idir,mom));
-      for (unsigned int j=0; j<tensor_dim; ++j)
+      for (unsigned int j=0; j<tensor_dim; ++i)
         b[j] += m2d*(*scattering_source[mom])[local_dof_indices[j]];
     }
     if (group_flux!=nullptr)
