@@ -1,0 +1,3 @@
+set L_max = 0
+set Sigma_t = 1.
+set Sigma_s = 0.5

@@ -5,8 +5,8 @@
  * license.txt for the text and further information on this license.
  */
 
-#ifndef _QUADRATURE_HH_
-#define _QUADRATURE_HH_
+#ifndef _RTQUADRATURE_HH_
+#define _RTQUADRATURE_HH_
 
 #include <cmath>
 #include <vector>

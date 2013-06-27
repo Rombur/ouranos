@@ -14,3 +14,5 @@ timediscretization_test
 rtmaterialproperties_test
 results.txt
 tags
+html
+radiativetransfer_test

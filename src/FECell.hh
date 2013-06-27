@@ -10,6 +10,7 @@
 
 #include <vector>
 #include "deal.II/base/exceptions.h"
+#include "deal.II/base/point.h"
 #include "deal.II/base/tensor.h"
 #include "deal.II/dofs/dof_handler.h"
 #include "deal.II/fe/fe_values.h"
@@ -28,8 +29,8 @@ class FECell
     FECell(const unsigned int n_q_points,const unsigned int n_face_q_points,
         FEValues<dim> &fe_values,FEFaceValues<dim> &fe_face_values,
         FEFaceValues<dim> &fe_neighbor_face_values,
-        const typename DoFHandler<dim>::active_cell_iterator &cell,
-        const typename DoFHandler<dim>::active_cell_iterator &end_cell);
+        typename DoFHandler<dim>::active_cell_iterator const &cell,
+        typename DoFHandler<dim>::active_cell_iterator const &end_cell);
 
     /// Return the material id of the current cell
     unsigned int get_material_id() const;
@@ -39,6 +40,9 @@ class FECell
 
     /// Return the active_cell_iterator of the current cell.
     typename DoFHandler<dim>::active_cell_iterator const* const get_cell() const;
+
+    /// Return a pointer to the normal vector of a given face.
+    Point<dim> const* const get_normal_vector(unsigned int face) const;
 
     /// Return a pointer to the mass matrix.
     Tensor<2,tensor_dim> const* const get_mass_matrix() const;
@@ -59,17 +63,19 @@ class FECell
     unsigned int source_id;
     /// Current cell.
     typename DoFHandler<dim>::active_cell_iterator const* cell;
+    /// Vector of normal vectors to the faces.
+    std::vector<Point<dim>> normal_vector;
     /// Mass matrix \f$\int_D b_i\ b_j\ dr\f$.
     Tensor<2,tensor_dim> mass_matrix;
     /// Vector of the matrices correspondant to the components of gradient
     /// matrix \f$\int_D b_i\ \nabla b_j\ dr\f$.
-    std::vector<Tensor<2,tensor_dim> > grad_matrices;
+    std::vector<Tensor<2,tensor_dim>> grad_matrices;
     /// Downwind matrices $\f\int_E b_i\ b_j\ dr\f$ where \f$b_i\f$ and
     /// \f$b_j\f$ are definde on the same cell.
-    std::vector<Tensor<2,tensor_dim> > downwind_matrices;
+    std::vector<Tensor<2,tensor_dim>> downwind_matrices;
     /// Upwind matrices \f$\int_{E_c} b_i\ b_j\ dr\f$ where \f$b_i\f$ and
     /// \f$b_j\f$ are defined on different cell.
-    std::vector<Tensor<2,tensor_dim> > upwind_matrices;
+    std::vector<Tensor<2,tensor_dim>> upwind_matrices;
 };
 
 template <int dim,int tensor_dim>
@@ -89,6 +95,13 @@ inline typename DoFHandler<dim>::active_cell_iterator const* const
 FECell<dim,tensor_dim>::get_cell() const
 {
   return cell;
+}
+
+template <int dim,int tensor_dim>
+inline Point<dim> const* const 
+FECell<dim,tensor_dim>::get_normal_vector(unsigned int face) const
+{
+  return &normal_vector[face];
 }
 
 template <int dim,int tensor_dim>

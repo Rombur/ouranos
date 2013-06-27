@@ -10,6 +10,7 @@
 
 #include <cmath>
 #include <vector>
+#include "deal.II/base/point.h"
 #include "deal.II/base/quadrature_lib.h"
 #include "deal.II/base/tensor.h"
 #include "deal.II/fe/fe_dgq.h"
@@ -31,7 +32,7 @@ TEST_CASE("FECell/one cell","Check FECell on one cell")
   FEValues<2> fe_values(fe,quadrature_formula,
       update_values|update_gradients|update_JxW_values);
   FEFaceValues<2> fe_face_values(fe,face_quadrature_formula,
-      update_values|update_gradients|update_JxW_values);
+      update_values|update_gradients|update_normal_vectors|update_JxW_values);
   FEFaceValues<2> fe_neighbor_face_values(fe,face_quadrature_formula,
       update_values);
   DoFHandler<2>::active_cell_iterator cell(dof_handler.begin_active());
@@ -180,7 +181,7 @@ TEST_CASE("FECell/two cells","Check FECell on two cells")
   FEValues<2> fe_values(fe,quadrature_formula,
       update_values|update_gradients|update_JxW_values);
   FEFaceValues<2> fe_face_values(fe,face_quadrature_formula,
-      update_values|update_gradients|update_JxW_values);
+      update_values|update_gradients|update_normal_vectors|update_JxW_values);
   FEFaceValues<2> fe_neighbor_face_values(fe,face_quadrature_formula,
       update_values);
   // Middle cell

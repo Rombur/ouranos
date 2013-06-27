@@ -9,6 +9,7 @@
 #define _RADIATIVETRANSFER_HH_
 
 #include <algorithm>
+#include <cmath>
 #include <list>
 #include <set>
 #include <vector>
@@ -18,6 +19,7 @@
 #include "Epetra_Operator.h"
 #include "deal.II/base/exceptions.h"
 #include "deal.II/base/quadrature_lib.h"
+#include "deal.II/base/point.h"
 #include "deal.II/distributed/tria.h"
 #include "deal.II/dofs/dof_handler.h"
 #include "deal.II/fe/fe_dgq.h"
@@ -44,7 +46,8 @@ class RadiativeTransfer : public Epetra_Operator
   public :
     RadiativeTransfer(parallel::distributed::Triangulation<dim>* triangulation,
         DoFHandler<dim>* dof_handler,Parameters* parameters,RTQuadrature* quad,
-        RTMaterialProperties* material_properties);
+        RTMaterialProperties* material_properties,Epetra_Comm const* comm,
+        Epetra_Map const* map);
 
 
     /// Create all the matrices that are need to solve the transport equation
@@ -87,15 +90,15 @@ class RadiativeTransfer : public Epetra_Operator
 
     /// Return pointer to the Epetra_Comm communicator associated with this
     /// operator.
-//    Epetra_Comm const& Comm() const;
+    Epetra_Comm const& Comm() const;
 
     /// Return the Epetra_Map object associated with the domain of this
     /// operator.
-//    Epetra_Map const& OperatorDomainMap() const;
+    Epetra_Map const& OperatorDomainMap() const;
 
     /// Return the Epetra_Map object associated with the range of this
     /// operator.
-//    Epetra_Map const& OperatorRangeMap() const;
+    Epetra_Map const& OperatorRangeMap() const;
     
     /// Set the current group.
     void Set_group(unsigned int g);    
@@ -110,6 +113,27 @@ class RadiativeTransfer : public Epetra_Operator
         Epetra_MultiVector const* const group_flux,
         FECell<dim,tensor_dim> const* const fecell,const unsigned int idir) const;
 
+    /// Get the local indices (used by the Epetra_MultiVector) of the dof 
+    /// associated to a given cell.
+    void get_multivector_indices(std::vector<int> &dof_indices,
+    typename DoFHandler<dim>::active_cell_iterator const& cell) const;
+
+    /**
+     * This routine uses Crout's method with pivoting to decompose the matrix
+     * \f$A\f$ into lower triangulat matrix \f$L\f$ and an unit upper
+     * triangular matrix \f$U\f$ such that $\f$A=LU\f$. The matrices \f$L\f$
+     * such replace the matrix \f$A\f$ so that the original matrix \f$A\f$ is
+     * destroyed. In Crout's method the diagonal element of \f$U\f$ are ones
+     * and are not stored.
+     */
+    void LU_decomposition(Tensor<2,tensor_dim> &A,
+        Tensor<1,tensor_dim,unsigned int> &pivot) const;
+
+    /// This routive is called after the matrix \f$A\f$ has been decomposed
+    /// into \f$L\f$ and \f$U\f$.
+    void LU_solve(Tensor<2,tensor_dim> const &A,Tensor<1,tensor_dim> &b,
+        Tensor<1,tensor_dim> &x,Tensor<1,tensor_dim,unsigned int> const &pivot) const;
+
     /// Number of moments.
     unsigned int n_mom;
     /// Current group.
@@ -118,14 +142,16 @@ class RadiativeTransfer : public Epetra_Operator
     unsigned int n_groups;
     /// Number of cells owned by the current processor.
     unsigned int n_cells;
+    /// Epetra communicator.
+    Epetra_Comm const* comm;
     /// Pointer to Epetra_Map associated to flux_moments and group_flux
-    Epetra_Map* map;
+    Epetra_Map const* map;
     /// Sweep ordering associated to the different direction.
     std::vector<ui_vector> sweep_order;
     /// Scattering source for each moment.
     std::vector<Vector<double>*> scattering_source;
     /// FECells owned by the current processor.
-    std::vector<FECell<dim,tensor_dim> > fecell_mesh;
+    std::vector<FECell<dim,tensor_dim>> fecell_mesh;
     /// Pointer to the distributed triangulation.
     parallel::distributed::Triangulation<dim>* triangulation;
     /// Pointer to the dof_handler.
@@ -137,5 +163,23 @@ class RadiativeTransfer : public Epetra_Operator
     /// Pointer to the material property.
     RTMaterialProperties* material_properties;
 };
+
+template <int dim,int tensor_dim>
+inline Epetra_Comm const& RadiativeTransfer<dim,tensor_dim>::Comm() const
+{
+  return *comm;
+}
+
+template <int dim,int tensor_dim>
+inline Epetra_Map const& RadiativeTransfer<dim,tensor_dim>::OperatorDomainMap() const
+{
+  return *map;
+}
+
+template <int dim,int tensor_dim>
+inline Epetra_Map const& RadiativeTransfer<dim,tensor_dim>::OperatorRangeMap() const
+{
+  return *map;
+}
 
 #endif

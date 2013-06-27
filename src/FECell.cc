@@ -11,9 +11,10 @@ template <int dim,int tensor_dim>
 FECell<dim,tensor_dim>::FECell(const unsigned int n_q_points,
     const unsigned int n_face_q_points,FEValues<dim> &fe_values,
     FEFaceValues<dim> &fe_face_values,FEFaceValues<dim> &fe_neighbor_face_values,
-    const typename DoFHandler<dim>::active_cell_iterator &cell_,
-    const typename DoFHandler<dim>::active_cell_iterator &end_cell) :
+    typename DoFHandler<dim>::active_cell_iterator const &cell_,
+    typename DoFHandler<dim>::active_cell_iterator const &end_cell) :
   cell(&cell_),
+  normal_vector(2*dim),
   grad_matrices(dim),
   downwind_matrices(2*dim),
   upwind_matrices(2*dim)
@@ -40,7 +41,8 @@ FECell<dim,tensor_dim>::FECell(const unsigned int n_q_points,
           grad_matrices[d][i][j] += fe_values.shape_value(j,q_point)*
             fe_values.shape_grad(i,q_point)[d]*fe_values.JxW(q_point);
 
-  // Loop over the faces to create the downwind matrices
+  // Loop over the faces to create the downwind matrices and the normal
+  // vectors.
   for (unsigned int face=0; face<2*dim; ++face)
   {
     // Reinit fe_face_values on the current face
@@ -50,6 +52,9 @@ FECell<dim,tensor_dim>::FECell(const unsigned int n_q_points,
         for (unsigned int q_point=0; q_point<n_face_q_points; ++q_point)
           downwind_matrices[face][i][j] += fe_face_values.shape_value(i,q_point)*
             fe_face_values.shape_value(j,q_point)*fe_face_values.JxW(q_point);
+    // Because the mesh is cartesian the normal vector of a face is the same
+    // at every quadrature point
+    normal_vector[face] = fe_face_values.normal_vector(0);
   }
 
   // Loop over the faces to create the upwind matrices

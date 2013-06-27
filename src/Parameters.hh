@@ -22,7 +22,7 @@ enum BC_TYPE{VACUUM,ISOTROPIC,MOST_NORMAL,REFLECTIVE};
 
 /// Enum on the quadrature type: GLC (Gauss-Legendre-Chebyshev) or LS (Level
 /// Symmetric.
-enum QUAD_TYPE{GLC,LS};
+enum QUAD_TYPE{GLC_QUAD,LS_QUAD};
 
 /// Enum on the solver type: SI (Source Iteration), GMRES, or BICGSTAB.
 enum SOLVER_TYPE{SI,GMRES,BICGSTAB};

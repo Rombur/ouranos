@@ -32,7 +32,7 @@ TEST_CASE("Parameters","Check the parameters handler")
   REQUIRE(parameters.get_outer_tolerance()==1e-8);
   REQUIRE(parameters.get_inner_tolerance()==1e-10);
   REQUIRE(parameters.get_sn_order()==6);
-  REQUIRE(parameters.get_quad_type()==GLC);
+  REQUIRE(parameters.get_quad_type()==GLC_QUAD);
   REQUIRE(parameters.get_weight_sum()==2.*M_PI);
   REQUIRE(parameters.get_galerkin()==false);
   REQUIRE(parameters.get_bc_type(0)==VACUUM);
@@ -45,7 +45,6 @@ TEST_CASE("Parameters","Check the parameters handler")
   REQUIRE(parameters.get_inc_flux(3,1)==9.);
   REQUIRE(parameters.get_n_src()==1);
   REQUIRE(parameters.get_n_groups()==2);
-  std::vector<double> intensity(parameters.get_src(0));
-  REQUIRE(intensity[0]==4.5);
-  REQUIRE(intensity[1]==8.9);
+  REQUIRE(parameters.get_src(0,0)==4.5);
+  REQUIRE(parameters.get_src(0,1)==8.9);
 }

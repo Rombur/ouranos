@@ -136,9 +136,9 @@ void Parameters::parse_parameters(ParameterHandler &prm)
     
     input = prm.get("Quadrature type");
     if (input.compare("LS")==0)
-      quad_type = LS;
+      quad_type = LS_QUAD;
     else
-      quad_type = GLC;
+      quad_type = GLC_QUAD;
     
     input = prm.get("Sum weight");
     if (input.compare("1")==0)
@@ -250,7 +250,7 @@ void Parameters::parse_parameters(ParameterHandler &prm)
 
     n_groups = prm.get_integer("Number of groups");
 
-    inc_flux.resize(2*dim,d_vector(n_groups));
+    inc_flux.resize(2*dim,d_vector(n_groups,0.));
     if ((bc_type[0]==ISOTROPIC) || (bc_type[0]==MOST_NORMAL))
     {
       input = prm.get("Xmin BC values");
