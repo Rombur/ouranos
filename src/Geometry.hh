@@ -71,6 +71,8 @@ class Geometry
 
     /// Number of materials.
     unsigned int n_materials;
+    /// Number of global refinements.
+    unsigned int n_global_refinements;
     /// Number of subdivisions in each direction.
     ui_vector n_subdivisions;
     /// Material IDs.

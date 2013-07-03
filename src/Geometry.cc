@@ -43,12 +43,14 @@ Geometry<dim>::Geometry(std::string &geometry_filename) :
     GridGenerator::subdivided_hyper_rectangle(triangulation,n_subdivisions,
         bottom_left,upper_right,true);
   }
+  triangulation.refine_global(n_global_refinements);
 
   // Set material ids
   double delta_x((up_right[0]-bot_left[0])/n_subdivisions[0]);
   double delta_y((up_right[1]-bot_left[1])/n_subdivisions[1]);
   double delta_z(dim==2 ? 0 : (up_right[0]-bot_left[0])/n_subdivisions[2]);
-  typename Triangulation<dim>::active_cell_iterator cell(triangulation.begin_active());
+  typename Triangulation<dim>::active_cell_iterator cell(
+      triangulation.begin_active());
   typename Triangulation<dim>::active_cell_iterator end_cell(triangulation.end());
   for (; cell!=end_cell; ++cell)
     if (cell->is_locally_owned())
@@ -74,6 +76,8 @@ void Geometry<dim>::declare_parameters(ParameterHandler &prm)
       "Coordinate of upper right point.");
   prm.declare_entry("Number of subdivisions","1,1",
       Patterns::List(Patterns::Integer(1)),"Number of subdivisions in x,y,z.");
+  prm.declare_entry("Number of global refinements","0",Patterns::Integer(0),
+      "Number of global refinements");
   prm.declare_entry("Material IDs","0",Patterns::List(Patterns::Integer(0,100)),
       "Material IDs.");
   prm.declare_entry("Source IDs","0",Patterns::List(Patterns::Integer(0,100)),
@@ -94,6 +98,8 @@ void Geometry<dim>::parse_parameters(ParameterHandler &prm,d_vector &bot_left,
 
   input = prm.get("Number of subdivisions");
   n_subdivisions = get_list_uint(input,dim);
+
+  n_global_refinements = prm.get_integer("Number of global refinements");
 
   input = prm.get("Material IDs");
   unsigned int n_sub(n_subdivisions[0]);

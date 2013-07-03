@@ -13,6 +13,7 @@
 #include <list>
 #include <set>
 #include <vector>
+#include "mpi.h"
 #include "Epetra_Comm.h"
 #include "Epetra_Map.h"
 #include "Epetra_MultiVector.h"
@@ -34,6 +35,13 @@
 using namespace dealii;
 
 typedef std::vector<unsigned int> ui_vector;
+typedef std::vector<int> i_vector;
+
+#ifdef DEAL_II_USE_LARGE_INDEX_TYPE
+  typedef MPI_UNSIGNED_LONG_LONG MPI_GLOBAL_DOF_INDEX;
+#else
+  typedef MPI_UNSIGNED MPI_GLOBAL_DOF_INDEX;
+#endif
 
 /**
  *  This class derives from Epetra_Operator and implement the function Apply
@@ -44,7 +52,8 @@ template <int dim,int tensor_dim>
 class RadiativeTransfer : public Epetra_Operator
 {
   public :
-    RadiativeTransfer(parallel::distributed::Triangulation<dim>* triangulation,
+    RadiativeTransfer(FE_DGQ<dim>* fe,
+        parallel::distributed::Triangulation<dim>* triangulation,
         DoFHandler<dim>* dof_handler,Parameters* parameters,RTQuadrature* quad,
         RTMaterialProperties* material_properties,Epetra_Comm const* comm,
         Epetra_Map const* map);
@@ -66,7 +75,7 @@ class RadiativeTransfer : public Epetra_Operator
     /// @todo The sweep can be optimized to use less memory (only keep the
     /// front wave).
     void sweep(Epetra_MultiVector &flux_moments,unsigned int idir,
-        Epetra_MultiVector const* const group_flux=nullptr) const;
+        std::vector<Epetra_MultiVector> const* const group_flux=nullptr) const;
 
     /// This method is not implemented.
     int SetUseTranspose(bool UseTranspose) {return 0;};
@@ -101,7 +110,7 @@ class RadiativeTransfer : public Epetra_Operator
     Epetra_Map const& OperatorRangeMap() const;
     
     /// Set the current group.
-    void Set_group(unsigned int g);    
+    void set_group(unsigned int g);    
 
   private :
     /// Compute the ordering of the cell for the sweeps.
@@ -110,7 +119,7 @@ class RadiativeTransfer : public Epetra_Operator
     /// Compute the scattering source due to the upscattering and the
     /// downscattering to the current group.
     void compute_outer_scattering_source(Tensor<1,tensor_dim> &b,
-        Epetra_MultiVector const* const group_flux,
+        std::vector<Epetra_MultiVector> const* const group_flux,
         FECell<dim,tensor_dim> const* const fecell,const unsigned int idir) const;
 
     /// Get the local indices (used by the Epetra_MultiVector) of the dof 
@@ -152,6 +161,8 @@ class RadiativeTransfer : public Epetra_Operator
     std::vector<Vector<double>*> scattering_source;
     /// FECells owned by the current processor.
     std::vector<FECell<dim,tensor_dim>> fecell_mesh;
+    /// Pointer to the discontinuous finite element object.
+    FE_DGQ<dim>* fe;
     /// Pointer to the distributed triangulation.
     parallel::distributed::Triangulation<dim>* triangulation;
     /// Pointer to the dof_handler.
@@ -180,6 +191,12 @@ template <int dim,int tensor_dim>
 inline Epetra_Map const& RadiativeTransfer<dim,tensor_dim>::OperatorRangeMap() const
 {
   return *map;
+}
+
+template <int dim,int tensor_dim>
+inline void RadiativeTransfer<dim,tensor_dim>::set_group(unsigned int g)
+{
+  group = g;
 }
 
 #endif
