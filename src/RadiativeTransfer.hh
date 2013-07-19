@@ -12,6 +12,7 @@
 #include <cmath>
 #include <list>
 #include <set>
+#include <utility>
 #include <vector>
 #include "mpi.h"
 #include "Epetra_Comm.h"
@@ -31,17 +32,13 @@
 #include "Parameters.hh"
 #include "RTQuadrature.hh"
 #include "RTMaterialProperties.hh"
+#include "Task.hh"
 
 using namespace dealii;
 
 typedef std::vector<unsigned int> ui_vector;
 typedef std::vector<int> i_vector;
 
-#ifdef DEAL_II_USE_LARGE_INDEX_TYPE
-  typedef MPI_UNSIGNED_LONG_LONG MPI_GLOBAL_DOF_INDEX;
-#else
-  typedef MPI_UNSIGNED MPI_GLOBAL_DOF_INDEX;
-#endif
 
 /**
  *  This class derives from Epetra_Operator and implement the function Apply
@@ -55,13 +52,24 @@ class RadiativeTransfer : public Epetra_Operator
     RadiativeTransfer(FE_DGQ<dim>* fe,
         parallel::distributed::Triangulation<dim>* triangulation,
         DoFHandler<dim>* dof_handler,Parameters* parameters,RTQuadrature* quad,
-        RTMaterialProperties* material_properties,Epetra_Comm const* comm,
+        RTMaterialProperties* material_properties,Epetra_MpiComm const* comm,
         Epetra_Map const* map);
 
 
     /// Create all the matrices that are need to solve the transport equation
     /// and compute the sweep ordering.
     void setup();
+
+    void build_waiting_tasks_map();
+    void build_local_waiting_tasks_map(Task &task,
+        types::global_dof_index* recv_dof_buffer,
+        const unsigned int recv_dof_buffer_size);
+    void build_required_tasks();
+    void build_local_required_tasks_map(Task &task,
+        types::global_dof_index* recv_dof_buffer,
+        const unsigned int recv_n_dofs_buffer);
+    void get_task_local_dof_indices(Task &task,std::vector<types::global_dof_index> 
+        &local_dof_indices);
 
     /// Return the result of the transport operator applied to x in. Return 0
     /// if successful.
@@ -152,7 +160,7 @@ class RadiativeTransfer : public Epetra_Operator
     /// Number of cells owned by the current processor.
     unsigned int n_cells;
     /// Epetra communicator.
-    Epetra_Comm const* comm;
+    Epetra_MpiComm const* comm;
     /// Pointer to Epetra_Map associated to flux_moments and group_flux
     Epetra_Map const* map;
     /// Sweep ordering associated to the different direction.
@@ -161,6 +169,8 @@ class RadiativeTransfer : public Epetra_Operator
     std::vector<Vector<double>*> scattering_source;
     /// FECells owned by the current processor.
     std::vector<FECell<dim,tensor_dim>> fecell_mesh;
+    /// Tasks owned by the current processor.
+    std::vector<Task> tasks;
     /// Pointer to the discontinuous finite element object.
     FE_DGQ<dim>* fe;
     /// Pointer to the distributed triangulation.

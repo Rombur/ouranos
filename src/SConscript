@@ -10,8 +10,9 @@ deal_II_lib = deal_II_path+'/lib'
 trilinos_lib = trilinos_path+'/lib'
 
 # Source files
-src_files = Split('ouranos.cc GLC.cc LS.cc RTQuadrature.cc Parameters.cc Geometry.cc '+
-  'FECell.cc TimeDiscretization.cc RadiativeTransfer.cc RTMaterialProperties.cc')
+src_files = Split('ouranos.cc GLC.cc LS.cc RTQuadrature.cc Parameters.cc '+
+  'Geometry.cc FECell.cc TimeDiscretization.cc RadiativeTransfer.cc '+
+  'RTMaterialProperties.cc Task.cc')
 
 # Create the environment
 env = Environment(

@@ -15,6 +15,7 @@
 #include "Epetra_MpiComm.h"
 #include "deal.II/base/utilities.h"
 #include "deal.II/base/mpi.h"
+#include "deal.II/fe/fe_dgq.h"
 #include "deal.II/lac/trilinos_vector.h"
 #include "../src/Geometry.hh"
 #include "../src/LS.hh"
@@ -27,6 +28,8 @@ TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D")
   Parameters parameters(parameters_filename);
   std::string geometry_filename(parameters.get_geometry_filename());
   std::string xs_filename(parameters.get_xs_filename());
+  // FE_DGQ must be created before DoFHandler, i.e., before Geometry
+  FE_DGQ<2> fe(parameters.get_fe_order());
   Geometry<2> geometry(geometry_filename);
   RTMaterialProperties material_properties(xs_filename,geometry.get_n_materials(),
       parameters.get_n_groups());
@@ -35,14 +38,25 @@ TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D")
   IndexSet index_set(dof_handler->locally_owned_dofs());
   LS quad(parameters.get_sn_order(),material_properties.get_L_max(),
       parameters.get_galerkin());
-  TrilinosWrappers::MPI::Vector flux_moments(index_set);
+  
+  std::vector<TrilinosWrappers::MPI::Vector> group_flux(1,
+      TrilinosWrappers::MPI::Vector (index_set));
   Epetra_MpiComm comm(MPI_COMM_WORLD);
   Epetra_Map map(index_set.make_trilinos_map());
+  Epetra_MultiVector flux_moments(map,quad.get_n_mom());
 
-  RadiativeTransfer<2,4> radiative_transfer(geometry.get_triangulation(),
+  // Creat the RadiativeTransfer object
+  RadiativeTransfer<2,4> radiative_transfer(&fe,geometry.get_triangulation(),
       dof_handler,&parameters,&quad,&material_properties,&comm,&map);
 
+  // Create the FECells
   radiative_transfer.setup();
+
+  // Set the current group
+  radiative_transfer.set_group(0);
+
+  // Compute the right-hand side
+
 
 
   // Reference solution
@@ -83,6 +97,7 @@ TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D")
   solution[33] = 1.66326834888;
   solution[34] = 0.974449442413;
   solution[35] = 0.97444944209;
+
 
   // Need reflective BC
 //  for (unsigned int i=0; i<36; ++i)

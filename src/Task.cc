@@ -5,9 +5,14 @@
  * license.txt for the text and further information on this license.
  */
 
-Task::Task(unsigned int idir,int id) :
+#include "Task.hh"
+
+Task::Task(unsigned int idir,int id,ui_vector &sweep_order,
+    std::vector<std::pair<types::subdomain_id,
+    std::vector<types::global_dof_index>>> &incomplete_required_tasks) :
   done(false),
   idir(idir),
-  id(id)
+  id(id),
+  sweep_order(sweep_order),
+  incomplete_required_tasks(incomplete_required_tasks)
 {}
-
