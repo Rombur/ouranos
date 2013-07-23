@@ -13,7 +13,7 @@
 #include "deal.II/base/exceptions.h"
 
 using namespace dealii;
-typedef std::vector<double> d_vector;
+
 
 /// Enum on the following time discretization methods: explicit Euler, 
 /// implicit Euler, Crank-Nicholson, explicit Runge-Kutta of order 4 and 
@@ -25,9 +25,9 @@ enum DISCRETIZATION_METHOD{EXPLICIT_EULER,IMPLICIT_EULER,CRANK_NICHOLSON,RK44,
 struct ButcherTableau
 {
   public :
-    d_vector b;
-    d_vector c;
-    std::vector<d_vector> a;
+    std::vector<double> b;
+    std::vector<double> c;
+    std::vector<std::vector<double>> a;
 };
 
 /**

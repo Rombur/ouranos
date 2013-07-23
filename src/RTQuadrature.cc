@@ -90,9 +90,11 @@ void RTQuadrature::deploy_octant()
 void RTQuadrature::compute_harmonics(const double weight_sum)
 {
   const unsigned int L_max_x(L_max+1);
-  d_vector phi(n_dir,0.);
-  std::vector<std::vector<d_vector> > Ye(L_max_x,std::vector<d_vector>(L_max_x,d_vector(n_dir,0.)));
-  std::vector<std::vector<d_vector> > Yo(L_max_x,std::vector<d_vector>(L_max_x,d_vector(n_dir,0.)));
+  std::vector<double> phi(n_dir,0.);
+  std::vector<std::vector<std::vector<double>>> Ye(L_max_x,
+      std::vector<std::vector<double>>(L_max_x,std::vector<double>(n_dir,0.)));
+  std::vector<std::vector<std::vector<double>>> Yo(L_max_x,
+      std::vector<std::vector<double>>(L_max_x,std::vector<double>(n_dir,0.)));
 
   // Compute the real spherical harmonics
   for (unsigned int i=0; i<n_dir; ++i)

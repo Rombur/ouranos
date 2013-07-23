@@ -24,7 +24,7 @@ class LS : public RTQuadrature
     void build_octant();
 
     /// Compute the different omega given a set of directions.
-    void compute_omega(d_vector const &direction);
+    void compute_omega(std::vector<double> const &direction);
 };
 
 #endif

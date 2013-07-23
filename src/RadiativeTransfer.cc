@@ -32,7 +32,7 @@ RadiativeTransfer<dim,tensor_dim>::RadiativeTransfer(FE_DGQ<dim>* fe,
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::setup()
 {
-  // Build the FECells.
+  // Build the FECells
   const unsigned int fe_order(parameters->get_fe_order());
   dof_handler->distribute_dofs(*fe);
   typename DoFHandler<dim>::active_cell_iterator cell(dof_handler->begin_active()),
@@ -56,24 +56,27 @@ void RadiativeTransfer<dim,tensor_dim>::setup()
       fecell_mesh.push_back(fecell);
     }
   n_cells = fecell_mesh.size();
+ 
+  // Compute the sweep ordering
+  compute_sweep_ordering();
 }
 
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
 {
   // First find the cells on the ''boundary'' of the processor
-  std::vector<std::set<unsigned int> > boundary_cells(dim);
+  std::vector<std::set<unsigned int> > boundary_cells(2*dim);
   const unsigned int fec_mesh_size(fecell_mesh.size());
   for (unsigned int i=0; i<fec_mesh_size; ++i)
   {
     typename DoFHandler<dim>::active_cell_iterator cell(*fecell_mesh[i].get_cell());
     for (unsigned int face=0; face<2*dim; ++face)
     {
-      // Check if the face is on the boundary of the problem
+      // Check if the face is on the boundary of the domain
       if (cell->at_boundary(face)==true)
         boundary_cells[face].insert(i);
       else
-        if (cell->neighbor(face)->is_locally_owned()==false)
+        if (cell->neighbor(face)->is_ghost()==true)
           boundary_cells[face].insert(i);
     }
   }         
@@ -89,39 +92,46 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
     std::list<unsigned int> candidate_cells;
     
     // Find the cells on the boundary
-    std::vector<double> boundary_face;
+    std::vector<unsigned int> downwind_face;
+    std::vector<unsigned int> upwind_face;
     Vector<double> const* const omega(quad->get_omega(idir)); 
     for (unsigned int i=0; i<dim; ++i)
     {
       if ((*omega)[i]>0.)
-        boundary_face.push_back(2*i);
+      {
+        downwind_face.push_back(2*i+1);
+        upwind_face.push_back(2*i);
+      }
       else
-        boundary_face.push_back(2*i+1);
+      {
+        downwind_face.push_back(2*i);
+        upwind_face.push_back(2*i+1);
+      }
     }
-    candidate_cells.resize(boundary_cells[boundary_face[0]].size()+
-        boundary_cells[boundary_face[1]].size());
+    candidate_cells.resize(boundary_cells[upwind_face[0]].size()+
+        boundary_cells[upwind_face[1]].size());
     std::list<unsigned int>::iterator list_it;
-    list_it = std::set_union(boundary_cells[boundary_face[0]].begin(),
-        boundary_cells[boundary_face[0]].end(),
-        boundary_cells[boundary_face[1]].begin(),
-        boundary_cells[boundary_face[1]].end(),candidate_cells.begin());
+    list_it = std::set_union(boundary_cells[upwind_face[0]].begin(),
+        boundary_cells[upwind_face[0]].end(),
+        boundary_cells[upwind_face[1]].begin(),
+        boundary_cells[upwind_face[1]].end(),candidate_cells.begin());
     // Resize candidate_cells
-    unsigned int new_size(1);
+    unsigned int new_size(0);
     std::list<unsigned int>::iterator tmp_it(candidate_cells.begin());
-    for (; tmp_it!=list_it; ++new_size)
+    for (; tmp_it!=list_it; ++tmp_it)
       ++new_size;
     candidate_cells.resize(new_size);
     if (dim==3)
     {
       std::list<unsigned int> tmp_list(candidate_cells);
-      candidate_cells.resize(tmp_list.size()+boundary_cells[boundary_face[2]].size());
+      candidate_cells.resize(tmp_list.size()+boundary_cells[upwind_face[2]].size());
       list_it = std::set_union(tmp_list.begin(),tmp_list.end(),
-          boundary_cells[boundary_face[2]].begin(),
-          boundary_cells[boundary_face[2]].end(),candidate_cells.begin());
+          boundary_cells[upwind_face[2]].begin(),
+          boundary_cells[upwind_face[2]].end(),candidate_cells.begin());
       // Resize candidate_cells
-      new_size = 1;
+      new_size = 0;
       tmp_it = candidate_cells.begin();
-      for (; tmp_it!=list_it; ++new_size)
+      for (; tmp_it!=list_it; ++list_it)
         ++new_size;
       candidate_cells.resize(new_size);
     }
@@ -133,7 +143,7 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
       // By changing the value of n_skipped_cells, the granularity of
       // the tasks can be changed
       unsigned int n_skipped_cells(0);
-      ui_vector sweep_order;
+      std::vector<unsigned int> sweep_order;
       // Required task but missing task_id
       std::vector<std::pair<types::subdomain_id,
         std::vector<types::global_dof_index>>>
@@ -141,34 +151,42 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
       while (n_skipped_cells<candidate_cells.size())
       {
         bool accept(true);
-        typename DoFHandler<dim>::active_cell_iterator current_cell(
+        typename DoFHandler<dim>::active_cell_iterator cell(
             *fecell_mesh[candidate_cells.front()].get_cell());
         std::vector<std::pair<types::subdomain_id,
           std::vector<types::global_dof_index>>> non_local_neighbors;
         for (unsigned int i=0; i<dim; ++i)
         {
-          typename DoFHandler<dim>::active_cell_iterator neighbor_cell(
-              current_cell->neighbor(boundary_face[i]));
           bool other_task(false);
-          if (neighbor_cell->is_locally_owned()==true)
+          if (cell->at_boundary(upwind_face[i])==false)
           { 
-            if (used_cells.count(neighbor_cell)==0)
-              accept = false;
+            if (cell->neighbor(upwind_face[i])->is_ghost()==true)
+              other_task = true;
             else
-              if (used_in_sweep_order.count(neighbor_cell)==0)
-                other_task = true;
+            {
+              typename DoFHandler<dim>::active_cell_iterator neighbor_cell(
+                  cell->neighbor(upwind_face[i]));
+              if (std::find(used_cells.begin(),used_cells.end(),neighbor_cell)==
+                  used_cells.end())
+                accept = false;
+              else
+                if (std::find(used_in_sweep_order.begin(),used_in_sweep_order.end(),
+                      neighbor_cell)==used_in_sweep_order.end())
+                  other_task = true;
+            }
           }
-          else
-            other_task = true;
+
           if (other_task==true)
           {
+            typename DoFHandler<dim>::active_cell_iterator neighbor_cell(
+                cell->neighbor(upwind_face[i]));
             std::vector<types::global_dof_index> dof_indices(tensor_dim);
             neighbor_cell->get_dof_indices(dof_indices);
             std::pair<types::subdomain_id,std::vector<types::global_dof_index>>
               subdomain_dof_pair(neighbor_cell->subdomain_id(),dof_indices);
             non_local_neighbors.push_back(subdomain_dof_pair);
           }
-        }
+        }             
         if (accept==true)
         {   
           for (unsigned int i=0; i<non_local_neighbors.size(); ++i)
@@ -176,9 +194,33 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
           // The cell is added to the sweep order
           sweep_order.push_back(candidate_cells.front());
           // The cell is removed from candidate_cells and added to used_cells
-          used_cells.insert(current_cell);
-          used_in_sweep_order.insert(current_cell);
-          candidate_cells.pop_back();
+          used_cells.insert(cell);
+          used_in_sweep_order.insert(cell);
+          candidate_cells.pop_front();
+          // Add the candidate cells
+          for (unsigned int i=0; i<dim; ++i)
+          {
+            if (cell->at_boundary(downwind_face[i])==false)
+            {
+              typename DoFHandler<dim>::active_cell_iterator neighbor_cell(
+                  cell->neighbor(downwind_face[i]));
+              if ((neighbor_cell->is_locally_owned()==true) && 
+                  (used_cells.find(neighbor_cell)==used_cells.end()))
+              {
+                const unsigned fecell_mesh_size(fecell_mesh.size());
+                for (unsigned int j=0; j<fecell_mesh_size; ++j)
+                {
+                  if (std::find(candidate_cells.begin(),candidate_cells.end(),j)==
+                      candidate_cells.end() && 
+                      (neighbor_cell==fecell_mesh[j].get_cell()))
+                  {
+                    candidate_cells.push_back(j);
+                    break;
+                  }
+                }
+              }
+            }
+          }
           // For now we only want one cell per task
           n_skipped_cells = 1e6;
         }
@@ -190,11 +232,13 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
           candidate_cells.push_back(tmp);
           ++n_skipped_cells;
         }
-      }
+      }                 
       tasks.push_back(Task(idir,task_id,sweep_order,incomplete_required_tasks));
       ++task_id;
     }
   }
+  build_waiting_tasks_map();
+  build_required_tasks_map();
 }
 
 // 1) donner au processor required la task_id avec les dofs et completer la 
@@ -233,7 +277,7 @@ void RadiativeTransfer<dim,tensor_dim>::build_waiting_tasks_map()
   int* recv_dof_disps = new int [n_proc];
   send_dof_disps[0] = send_n_dofs_buffer[0]; 
   recv_dof_disps[0] = recv_n_dofs_buffer[0];
-  i_vector offset(n_proc);
+  std::vector<int> offset(n_proc);
   for (unsigned int i=1; i<n_proc; ++i)
   {
     send_dof_disps[i] = send_dof_disps[i-1] + send_n_dofs_buffer[i-1];
@@ -335,7 +379,7 @@ void RadiativeTransfer<dim,tensor_dim>::build_local_waiting_tasks_map(Task &task
 }  
 
 template <int dim,int tensor_dim>
-void RadiativeTransfer<dim,tensor_dim>::build_required_tasks()
+void RadiativeTransfer<dim,tensor_dim>::build_required_tasks_map()
 {  
   const unsigned int n_proc(comm->NumProc());
   const unsigned int n_tasks(tasks.size());
@@ -364,7 +408,7 @@ void RadiativeTransfer<dim,tensor_dim>::build_required_tasks()
   int* recv_dof_disps = new int [n_proc];
   send_dof_disps[0] = send_n_dofs_buffer[0]; 
   recv_dof_disps[0] = recv_n_dofs_buffer[0];
-  i_vector offset(n_proc);
+  std::vector<int> offset(n_proc);
   for (unsigned int i=1; i<n_proc; ++i)
   {
     send_dof_disps[i] = send_dof_disps[i-1] + send_n_dofs_buffer[i-1];
@@ -470,14 +514,14 @@ void RadiativeTransfer<dim,tensor_dim>::get_task_local_dof_indices(Task &task,
     std::vector<types::global_dof_index> &local_dof_indices)
 {
   // Copy the dof indices associated to task
-  ui_vector const* sweep_order(task.get_sweep_order());
+  std::vector<unsigned int> const* sweep_order(task.get_sweep_order());
   const unsigned int sweep_order_size(task.get_sweep_order_size());
   for (unsigned int i=0; i<sweep_order_size; ++i)
   {
-    typename DoFHandler<dim>::active_cell_iterator const* const cell(
+    typename DoFHandler<dim>::active_cell_iterator cell(
         fecell_mesh[(*sweep_order)[i]].get_cell());
     std::vector<types::global_dof_index> cell_dof_indices(tensor_dim);
-    (*cell)->get_dof_indices(cell_dof_indices);
+    cell->get_dof_indices(cell_dof_indices);
     for (unsigned int j=0; j<tensor_dim; ++j)
       local_dof_indices[i*tensor_dim+j] = cell_dof_indices[j];
   }
@@ -521,7 +565,7 @@ void RadiativeTransfer<dim,tensor_dim>::compute_scattering_source(
   std::vector<int> local_dof_indices(tensor_dim);
   for (; fecell!=end_fecell; ++fecell)
   {
-    get_multivector_indices(local_dof_indices,*fecell->get_cell());
+//    get_multivector_indices(local_dof_indices,*fecell->get_cell());
     for (unsigned int i=0; i<tensor_dim; ++i)
       x_cell[i] = x[0][local_dof_indices[i]];
     
@@ -545,7 +589,7 @@ void RadiativeTransfer<dim,tensor_dim>::compute_outer_scattering_source(
   FullMatrix<double> const* const M2D(quad->get_M2D());
   Tensor<1,tensor_dim> x_cell;
   std::vector<int> local_dof_indices(tensor_dim);
-  get_multivector_indices(local_dof_indices,*fecell->get_cell());
+//  get_multivector_indices(local_dof_indices,*fecell->get_cell());
   for (unsigned int g=0; g<n_groups; ++g)
   {
     if (g!=group)

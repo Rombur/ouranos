@@ -12,7 +12,7 @@ Geometry<dim>::Geometry(std::string &geometry_filename) :
   triangulation(MPI_COMM_WORLD),
   dof_handler(triangulation)
 {
-  d_vector bot_left,up_right;
+  std::vector<double> bot_left,up_right;
   ParameterHandler prm;
 
   // Declare the parameters 
@@ -85,8 +85,8 @@ void Geometry<dim>::declare_parameters(ParameterHandler &prm)
 }
 
 template<int dim>
-void Geometry<dim>::parse_parameters(ParameterHandler &prm,d_vector &bot_left,
-    d_vector &up_right)
+void Geometry<dim>::parse_parameters(ParameterHandler &prm,
+    std::vector<double> &bot_left,std::vector<double> &up_right)
 {
   std::string input;
 
@@ -113,9 +113,10 @@ void Geometry<dim>::parse_parameters(ParameterHandler &prm,d_vector &bot_left,
 }
 
 template<int dim>
-ui_vector Geometry<dim>::get_list_uint(std::string &input,unsigned int n_elements)
+std::vector<unsigned int> Geometry<dim>::get_list_uint(std::string &input,
+    unsigned int n_elements)
 {
-  ui_vector values(n_elements,0.);
+  std::vector<unsigned int> values(n_elements,0.);
 
   // Replace , by blank
   for (unsigned int i=0; i<input.size(); ++i)
@@ -139,9 +140,10 @@ ui_vector Geometry<dim>::get_list_uint(std::string &input,unsigned int n_element
 }
 
 template<int dim>
-d_vector Geometry<dim>::get_list_double(std::string &input,unsigned int n_elements)
+std::vector<double> Geometry<dim>::get_list_double(std::string &input,
+    unsigned int n_elements)
 {
-  d_vector values(n_elements,0.);
+  std::vector<double> values(n_elements,0.);
 
   // Replace , by blank
   for (unsigned int i=0; i<input.size(); ++i)

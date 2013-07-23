@@ -15,7 +15,7 @@
 #include "deal.II/base/parameter_handler.h"
 
 using namespace dealii;
-typedef std::vector<double> d_vector;
+
 
 /// Enum on the different types of boundary conditions.
 enum BC_TYPE{VACUUM,ISOTROPIC,MOST_NORMAL,REFLECTIVE};
@@ -111,7 +111,7 @@ class Parameters
     void parse_parameters(ParameterHandler &prm);
 
     /// Return a list of n_elements doubles from a given string.
-    d_vector get_list_double(std::string &input,unsigned int n_elements);
+    std::vector<double> get_list_double(std::string &input,unsigned int n_elements);
 
     /// Flag for Galerkin quadrature.
     bool galerkin;
@@ -152,11 +152,11 @@ class Parameters
     /// Name of the cross sections file.
     std::string xs_filename;
     /// Intensity of the sources.
-    std::vector<d_vector> src;
+    std::vector<std::vector<double>> src;
     /// Boundary conditions (xmin,xmax,ymin,ymax,zmin,zmax).
     std::vector<BC_TYPE> bc_type;
     /// Incoming fluxes on the boundaries (faces,groups).
-    std::vector<d_vector> inc_flux;
+    std::vector<std::vector<double>> inc_flux;
 };
 
 inline bool Parameters::get_galerkin() const

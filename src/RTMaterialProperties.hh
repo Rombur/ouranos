@@ -16,7 +16,6 @@
 
 using namespace dealii;
 
-typedef std::vector<double> d_vector;
 
 /**
  * This class reads the radiative transfer material properties files.
@@ -53,7 +52,7 @@ class RTMaterialProperties
     void parse_parameters(ParameterHandler &prm);
     
     /// Return a list of n_elements doubles from a given string.
-    d_vector get_list_double(std::string &input,unsigned int n_elements);
+    std::vector<double> get_list_double(std::string &input,unsigned int n_elements);
 
     /// Number of materials.
     unsigned int n_materials;
@@ -62,9 +61,9 @@ class RTMaterialProperties
     /// Number of moments.
     unsigned int L_max;
     /// Total cross sections.
-    d_vector sigma_t;
+    std::vector<double> sigma_t;
     /// Scattering cross sections.
-    d_vector sigma_s;
+    std::vector<double> sigma_s;
 };
 
 inline unsigned int RTMaterialProperties::get_n_materials() const

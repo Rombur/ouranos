@@ -250,7 +250,7 @@ void Parameters::parse_parameters(ParameterHandler &prm)
 
     n_groups = prm.get_integer("Number of groups");
 
-    inc_flux.resize(2*dim,d_vector(n_groups,0.));
+    inc_flux.resize(2*dim,std::vector<double>(n_groups,0.));
     if ((bc_type[0]==ISOTROPIC) || (bc_type[0]==MOST_NORMAL))
     {
       input = prm.get("Xmin BC values");
@@ -287,9 +287,9 @@ void Parameters::parse_parameters(ParameterHandler &prm)
   
     n_src = prm.get_integer("Number of sources");
     
-    src.resize(n_src,d_vector(n_groups,0.));
+    src.resize(n_src,std::vector<double>(n_groups,0.));
     input = prm.get("Source intensity");
-    d_vector values(get_list_double(input,n_src*n_groups));
+    std::vector<double> values(get_list_double(input,n_src*n_groups));
     for (unsigned int i=0; i<n_src; ++i)
       for (unsigned int g=0; g<n_groups; ++g)
         src[i][g] = values[i*n_groups+g];
@@ -297,9 +297,10 @@ void Parameters::parse_parameters(ParameterHandler &prm)
   prm.leave_subsection();
 }
 
-d_vector Parameters::get_list_double(std::string &input,unsigned int n_elements)
+std::vector<double> Parameters::get_list_double(std::string &input,
+    unsigned int n_elements)
 {
-  d_vector values(n_elements,0.);
+  std::vector<double> values(n_elements,0.);
 
   // Replace , by blank
   for (unsigned int i=0; i<input.size(); ++i)

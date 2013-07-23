@@ -21,8 +21,6 @@
 
 using namespace dealii;
 
-typedef std::vector<unsigned int> ui_vector;
-typedef std::vector<double> d_vector;
 
 /**
  * This class reads the geometry file and creates the distributed
@@ -60,25 +58,26 @@ class Geometry
     void declare_parameters(ParameterHandler &prm);
 
     /// Parse the parameters.
-    void parse_parameters(ParameterHandler &prm,d_vector &bot_left,
-        d_vector &up_right);
+    void parse_parameters(ParameterHandler &prm,std::vector<double> &bot_left,
+        std::vector<double> &up_right);
 
     /// Return a list of n_elements unsigned int from a given string.
-    ui_vector get_list_uint(std::string &input,unsigned int n_elements);
+    std::vector<unsigned int> get_list_uint(std::string &input,
+        unsigned int n_elements);
     
     /// Return a list of n_elements doubles from a given string.
-    d_vector get_list_double(std::string &input,unsigned int n_elements);
+    std::vector<double> get_list_double(std::string &input,unsigned int n_elements);
 
     /// Number of materials.
     unsigned int n_materials;
     /// Number of global refinements.
     unsigned int n_global_refinements;
     /// Number of subdivisions in each direction.
-    ui_vector n_subdivisions;
+    std::vector<unsigned int> n_subdivisions;
     /// Material IDs.
-    ui_vector material_ids;
+    std::vector<unsigned int> material_ids;
     /// Source IDs.
-    ui_vector source_ids;
+    std::vector<unsigned int> source_ids;
     /// Distributed triangulation.
     parallel::distributed::Triangulation<dim> triangulation;
     /// DoF handler.

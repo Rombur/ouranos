@@ -16,7 +16,7 @@ TimeDiscretization::TimeDiscretization(DISCRETIZATION_METHOD method,
   {
     case EXPLICIT_EULER :
       {
-        b_tableau.a.resize(1,d_vector(1,0.));
+        b_tableau.a.resize(1,std::vector<double>(1,0.));
         b_tableau.b.push_back(1.);
         b_tableau.c.push_back(0.);
         implicit = false;
@@ -24,7 +24,7 @@ TimeDiscretization::TimeDiscretization(DISCRETIZATION_METHOD method,
       }
     case IMPLICIT_EULER :
       {
-        b_tableau.a.resize(1,d_vector(1,1.));
+        b_tableau.a.resize(1,std::vector<double>(1,1.));
         b_tableau.b.push_back(1.);
         b_tableau.c.push_back(0.);
         implicit = true;
@@ -32,7 +32,7 @@ TimeDiscretization::TimeDiscretization(DISCRETIZATION_METHOD method,
       }
     case CRANK_NICHOLSON :
       {
-        b_tableau.a.resize(2,d_vector(2,0.));
+        b_tableau.a.resize(2,std::vector<double>(2,0.));
         b_tableau.b.resize(2,0.);
         b_tableau.c.resize(2,0.);
         b_tableau.a[1][0] = 0.5;
@@ -45,7 +45,7 @@ TimeDiscretization::TimeDiscretization(DISCRETIZATION_METHOD method,
       }
     case RK44 :
       {
-        b_tableau.a.resize(4,d_vector(4,0.));
+        b_tableau.a.resize(4,std::vector<double>(4,0.));
         b_tableau.b.resize(4,0.);
         b_tableau.c.resize(4,0.);
         b_tableau.a[1][0] = 0.5;
@@ -64,7 +64,7 @@ TimeDiscretization::TimeDiscretization(DISCRETIZATION_METHOD method,
     case IRK42 :
       {
         const double sqrt_3(std::sqrt(3));
-        b_tableau.a.resize(2,d_vector(2,0.));
+        b_tableau.a.resize(2,std::vector<double>(2,0.));
         b_tableau.b.resize(2,0.);
         b_tableau.c.resize(2,0.);
         b_tableau.a[0][0] = 1./4.;

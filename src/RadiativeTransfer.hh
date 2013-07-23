@@ -36,9 +36,6 @@
 
 using namespace dealii;
 
-typedef std::vector<unsigned int> ui_vector;
-typedef std::vector<int> i_vector;
-
 
 /**
  *  This class derives from Epetra_Operator and implement the function Apply
@@ -64,7 +61,7 @@ class RadiativeTransfer : public Epetra_Operator
     void build_local_waiting_tasks_map(Task &task,
         types::global_dof_index* recv_dof_buffer,
         const unsigned int recv_dof_buffer_size);
-    void build_required_tasks();
+    void build_required_tasks_map();
     void build_local_required_tasks_map(Task &task,
         types::global_dof_index* recv_dof_buffer,
         const unsigned int recv_n_dofs_buffer);
@@ -164,7 +161,7 @@ class RadiativeTransfer : public Epetra_Operator
     /// Pointer to Epetra_Map associated to flux_moments and group_flux
     Epetra_Map const* map;
     /// Sweep ordering associated to the different direction.
-    std::vector<ui_vector> sweep_order;
+    std::vector<std::vector<unsigned int>> sweep_order;
     /// Scattering source for each moment.
     std::vector<Vector<double>*> scattering_source;
     /// FECells owned by the current processor.

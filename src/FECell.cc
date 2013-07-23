@@ -11,20 +11,20 @@ template <int dim,int tensor_dim>
 FECell<dim,tensor_dim>::FECell(const unsigned int n_q_points,
     const unsigned int n_face_q_points,FEValues<dim> &fe_values,
     FEFaceValues<dim> &fe_face_values,FEFaceValues<dim> &fe_neighbor_face_values,
-    typename DoFHandler<dim>::active_cell_iterator const &cell_,
+    typename DoFHandler<dim>::active_cell_iterator const &cell,
     typename DoFHandler<dim>::active_cell_iterator const &end_cell) :
-  cell(&cell_),
+  cell(cell),
   normal_vector(2*dim),
   grad_matrices(dim),
   downwind_matrices(2*dim),
   upwind_matrices(2*dim)
 {
-  source_id = cell_->material_id()/100;
-  material_id = cell_->material_id()-100*source_id;
+  source_id = cell->material_id()/100;
+  material_id = cell->material_id()-100*source_id;
   unsigned int face_map[6] = {1,0,3,2,6,5};
 
   // Reinit fe_values on the current cell
-  fe_values.reinit(cell_);
+  fe_values.reinit(cell);
 
   // Build the mass matrix
   for (unsigned int i=0; i<tensor_dim; ++i)
@@ -46,7 +46,7 @@ FECell<dim,tensor_dim>::FECell(const unsigned int n_q_points,
   for (unsigned int face=0; face<2*dim; ++face)
   {
     // Reinit fe_face_values on the current face
-    fe_face_values.reinit(cell_,face);
+    fe_face_values.reinit(cell,face);
     for (unsigned int i=0; i<tensor_dim; ++i)
       for (unsigned int j=0; j<tensor_dim; ++j)
         for (unsigned int q_point=0; q_point<n_face_q_points; ++q_point)
@@ -62,8 +62,8 @@ FECell<dim,tensor_dim>::FECell(const unsigned int n_q_points,
   for (unsigned int face=0; face<2*dim; ++face)
   {
     // Reinit fe_face_values on the current face
-    fe_face_values.reinit(cell_,face);
-    neighbor_cell = cell_->neighbor(face);
+    fe_face_values.reinit(cell,face);
+    neighbor_cell = cell->neighbor(face);
     if (neighbor_cell!=end_cell)
     {
       fe_neighbor_face_values.reinit(neighbor_cell,face_map[face]);

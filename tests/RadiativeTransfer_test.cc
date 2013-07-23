@@ -22,7 +22,7 @@
 #include "../src/Parameters.hh"
 #include "../src/RadiativeTransfer.hh"
 
-TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D")
+TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D on 4 processors")
 {
   std::string parameters_filename("./tests/rt_parameters.inp");
   Parameters parameters(parameters_filename);
@@ -38,6 +38,7 @@ TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D")
   IndexSet index_set(dof_handler->locally_owned_dofs());
   LS quad(parameters.get_sn_order(),material_properties.get_L_max(),
       parameters.get_galerkin());
+  quad.build_quadrature(parameters.get_weight_sum());
   
   std::vector<TrilinosWrappers::MPI::Vector> group_flux(1,
       TrilinosWrappers::MPI::Vector (index_set));
@@ -49,7 +50,7 @@ TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D")
   RadiativeTransfer<2,4> radiative_transfer(&fe,geometry.get_triangulation(),
       dof_handler,&parameters,&quad,&material_properties,&comm,&map);
 
-  // Create the FECells
+  // Create the FECells and compute the sweep ordering
   radiative_transfer.setup();
 
   // Set the current group

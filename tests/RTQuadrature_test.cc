@@ -74,7 +74,7 @@ TEST_CASE("RTQuadrature/GLC","Check GLC quadrature")
   unsigned int n_dir(12);
   unsigned int n_mom(15);
   const double four_pi(4.*M_PI);
-  d_vector omega(3,0.);
+  std::vector<double> omega(3,0.);
   omega[0] = 0.868846143426105;
   omega[1] = 0.35988785622265201;
   omega[2] = 0.33998104358485631;

@@ -31,7 +31,7 @@ void LS::build_octant()
     case 4:
       {
         const double w(1./3.);
-        d_vector direction(2,0.);
+        std::vector<double> direction(2,0.);
         direction[0] = 0.350021174581540677777041;
         direction[1] = 0.868890300722201205229788;
 
@@ -47,7 +47,7 @@ void LS::build_octant()
       {
         const double w_1(0.176126130863383433783565);
         const double w_2(0.157207202469949899549768);
-        d_vector direction(3,0.);
+        std::vector<double> direction(3,0.);
         
         direction[0] = 0.266635401516704720331535;
         direction[1] = 0.681507726536546927403750;
@@ -69,7 +69,7 @@ void LS::build_octant()
         const double w_1(0.120987654320987654320988);
         const double w_2(0.0907407407407407407407407);
         const double w_3(0.0925925925925925925925926);
-        d_vector direction(4,0.);
+        std::vector<double> direction(4,0.);
 
         direction[0] = 0.218217890235992381266097;
         direction[1] = 0.577350269189625764509149;
@@ -97,7 +97,7 @@ void LS::build_octant()
         const double w_2(0.0725291517123655242296233);
         const double w_3(0.0450437674364086390490892);
         const double w_4(0.0539281144878369243545650);
-        d_vector direction(5,0.);
+        std::vector<double> direction(5,0.);
 
         direction[0] = 0.189321326478010476671494;
         direction[1] = 0.508881755582618974382711;
@@ -132,7 +132,7 @@ void LS::build_octant()
         const double w_3(0.0373376737588285824652402);
         const double w_4(0.0502819010600571181385765);
         const double w_5(0.0258512916557503911218290);
-        d_vector direction(6,0.);
+        std::vector<double> direction(6,0.);
 
         direction[0] = 0.167212652822713264084504; 
         direction[1] = 0.459547634642594690016761; 
@@ -176,7 +176,7 @@ void LS::build_octant()
         const double w_5(0.0380990861440121712365891); 
         const double w_6(0.0258394076418900119611012); 
         const double w_7(0.00826957997262252825269908);
-        d_vector direction(7,0.);
+        std::vector<double> direction(7,0.);
         
         direction[0] = 0.151985861461031912404799;
         direction[1] = 0.422156982304796966896263;
@@ -228,7 +228,7 @@ void LS::build_octant()
         const double w_6(0.0135295047786756344371600);
         const double w_7(0.0326369372026850701318409);
         const double w_8(0.0103769578385399087825920);
-        d_vector direction(8,0.);
+        std::vector<double> direction(8,0.);
 
         direction[0] = 0.138956875067780344591732;
         direction[1] = 0.392289261444811712294197;
@@ -292,7 +292,7 @@ void LS::build_octant()
         const double w_8(0.0200484595308572875885066);  
         const double w_9(0.000111409402059638628382279);
         const double w_10(0.0163797038522425240494567);
-        d_vector direction(9,0.);
+        std::vector<double> direction(9,0.);
 
         direction[0] = 0.129344504545924818514086;
         direction[1] = 0.368043816053393605686086;
@@ -367,7 +367,7 @@ void LS::build_octant()
         const double w_10(0.00544675187330776223879437);
         const double w_11(0.00474564692642379971238396);
         const double w_12(0.0277298541009064049325246);
-        d_vector direction(10,0.);
+        std::vector<double> direction(10,0.);
 
         direction[0] = 0.120603343036693597409418;
         direction[1] = 0.347574292315847257336779;
@@ -456,7 +456,7 @@ void LS::build_octant()
         const double w_12(0.0156214785078803432781324);
         const double w_13(-0.0101774221315738297143270); 
         const double w_14(0.0135061258938431808485310);
-        d_vector direction(11,0.);
+        std::vector<double> direction(11,0.);
 
         direction[0] = 0.113888641383070838173488;
         direction[1] = 0.330271760593086736334651;
@@ -559,7 +559,7 @@ void LS::build_octant()
         const double w_14(0.00228403610697848813660369); 
         const double w_15(0.0338971925236628645848122);  
         const double w_16(-0.00644725595698339499416262);
-        d_vector direction(12,0.);
+        std::vector<double> direction(12,0.);
 
         direction[0] = 0.107544208775147285552086;
         direction[1] = 0.315151630853896874875332;
@@ -664,7 +664,7 @@ void LS::build_octant()
   } 
 }
 
-void LS::compute_omega(d_vector const &direction)
+void LS::compute_omega(std::vector<double> const &direction)
 {
   unsigned int offset(0);
   const unsigned int size(direction.size());

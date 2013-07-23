@@ -54,10 +54,10 @@ void RTMaterialProperties::parse_parameters(ParameterHandler &prm)
 }
 
 
-d_vector RTMaterialProperties::get_list_double(std::string &input,
+std::vector<double> RTMaterialProperties::get_list_double(std::string &input,
     unsigned int n_elements)
 {
-  d_vector values(n_elements,0.);
+  std::vector<double> values(n_elements,0.);
 
   // Replace , by blank
   for (unsigned int i=0; i<input.size(); ++i)

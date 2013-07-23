@@ -13,10 +13,10 @@ GLC::GLC(unsigned int sn,unsigned int L_max,bool galerkin) :
 
 void GLC::build_octant()
 {
-  d_vector azimuthal_nodes((sn*(sn+2))/8);
-  d_vector azimuthal_weight((sn*(sn+2))/8);
-  d_vector cos_theta(sn/2,0.);
-  d_vector polar_weight(sn/2,0.);
+  std::vector<double> azimuthal_nodes((sn*(sn+2))/8);
+  std::vector<double> azimuthal_weight((sn*(sn+2))/8);
+  std::vector<double> cos_theta(sn/2,0.);
+  std::vector<double> polar_weight(sn/2,0.);
 
   // Build the Chebyshev quadrature
   build_chebyshev_quadrature(azimuthal_nodes,azimuthal_weight);
@@ -41,7 +41,8 @@ void GLC::build_octant()
   }
 }
 
-void GLC::build_chebyshev_quadrature(d_vector &nodes,d_vector &weight)
+void GLC::build_chebyshev_quadrature(std::vector<double> &nodes,
+    std::vector<double> &weight)
 {
   unsigned int pos(0);
   for (unsigned int i=0; i<sn/2; ++i)
@@ -56,7 +57,8 @@ void GLC::build_chebyshev_quadrature(d_vector &nodes,d_vector &weight)
   }
 }
 
-void GLC::build_gauss_legendre_quadrature(d_vector &nodes,d_vector &weight)
+void GLC::build_gauss_legendre_quadrature(std::vector<double> &nodes,
+    std::vector<double> &weight)
 {
   switch (sn)
   {

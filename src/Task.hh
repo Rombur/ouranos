@@ -15,12 +15,11 @@
 
 using namespace dealii;
 
-typedef std::vector<unsigned int> ui_vector;
 
 class Task
 {
   public :
-    Task(unsigned int idir,int id,ui_vector &sweep_order,
+    Task(unsigned int idir,unsigned int id,std::vector<unsigned int> &sweep_order,
         std::vector<std::pair<types::subdomain_id,
         std::vector<types::global_dof_index>>> &incomplete_required_tasks);
 
@@ -47,7 +46,7 @@ class Task
     // Rajouter le const
     unsigned int get_waiting_subdomain_id(unsigned int i);
 
-    ui_vector const* get_sweep_order() const;
+    std::vector<unsigned int> const* get_sweep_order() const;
 
     std::vector<types::global_dof_index> const* get_incomplete_dofs(unsigned int i) 
       const;
@@ -58,7 +57,7 @@ class Task
     unsigned int weight;
     // Number not unique globally only per processor
     unsigned int id;
-    ui_vector sweep_order;
+    std::vector<unsigned int> sweep_order;
     std::vector<std::pair<types::subdomain_id,std::vector<types::global_dof_index>>> 
       incomplete_required_tasks;
     // Pair (subdomain_id, task_id (unsigned int)), dof of the flux passed
@@ -128,7 +127,7 @@ inline unsigned int Task::get_waiting_subdomain_id(unsigned int i)
   return std::get<0>(std::get<1>(*map_it));
 }
 
-inline ui_vector const* Task::get_sweep_order() const
+inline std::vector<unsigned int> const* Task::get_sweep_order() const
 {
   return &sweep_order;
 }

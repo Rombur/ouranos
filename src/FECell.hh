@@ -39,7 +39,7 @@ class FECell
     unsigned int get_source_id() const;
 
     /// Return the active_cell_iterator of the current cell.
-    typename DoFHandler<dim>::active_cell_iterator const* const get_cell() const;
+    typename DoFHandler<dim>::active_cell_iterator get_cell() const;
 
     /// Return a pointer to the normal vector of a given face.
     Point<dim> const* const get_normal_vector(unsigned int face) const;
@@ -62,7 +62,7 @@ class FECell
     /// Source id of the current cell.
     unsigned int source_id;
     /// Current cell.
-    typename DoFHandler<dim>::active_cell_iterator const* cell;
+    typename DoFHandler<dim>::active_cell_iterator cell;
     /// Vector of normal vectors to the faces.
     std::vector<Point<dim>> normal_vector;
     /// Mass matrix \f$\int_D b_i\ b_j\ dr\f$.
@@ -91,7 +91,7 @@ inline unsigned int FECell<dim,tensor_dim>::get_source_id() const
 }
 
 template <int dim,int tensor_dim>
-inline typename DoFHandler<dim>::active_cell_iterator const* const 
+inline typename DoFHandler<dim>::active_cell_iterator 
 FECell<dim,tensor_dim>::get_cell() const
 {
   return cell;

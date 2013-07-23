@@ -18,7 +18,6 @@
 
 using namespace dealii;
 
-typedef std::vector<double> d_vector;
 
 /**
  * This class is the base class for the quadrature used for radiative
@@ -74,7 +73,7 @@ class RTQuadrature
     unsigned int n_mom;
     /// Store the degree of the scattering cross section expansion associated
     /// to the number of the moment.
-    d_vector moment_to_order;
+    std::vector<double> moment_to_order;
     /// Weights of the quadrature when a non-Galerkin quadrature is used.
     Vector<double> weight;
     /// Moments to directions matrix.

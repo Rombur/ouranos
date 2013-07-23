@@ -19,7 +19,7 @@ src_path = Dir('..').abspath+'/src/'
 objects = [src_path+'GLC.o',src_path+'RTQuadrature.o',src_path+'LS.o',
   src_path+'Parameters.o',src_path+'Geometry.o',src_path+'FECell.o',
   src_path+'TimeDiscretization.o',src_path+'RTMaterialProperties.o',
-  src_path+'RadiativeTransfer.o']
+  src_path+'RadiativeTransfer.o',src_path+'Task.o']
 
 # Create the environment
 env = Environment(
@@ -47,5 +47,6 @@ programs = [quadrature_test,parameters_test,geometry_test,fecell_test,
 tests_alias = Alias('tests',programs,
   [programs[0][0].abspath,programs[1][0].abspath,
   'mpirun -np 1 '+programs[2][0].abspath,programs[3][0].abspath,
-  programs[4][0].abspath,programs[5][0].abspath,programs[6][0].abspath])
+  programs[4][0].abspath,programs[5][0].abspath,
+  'mpirun -np 3 '+programs[6][0].abspath])
 AlwaysBuild(tests_alias)
