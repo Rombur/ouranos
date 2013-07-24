@@ -45,6 +45,9 @@ class Task
 
     // Rajouter le const
     unsigned int get_waiting_subdomain_id(unsigned int i);
+    std::pair<types::subdomain_id,unsigned int> get_waiting_task(unsigned int i);
+    std::map<types::global_dof_index,std::pair<types::subdomain_id,unsigned int>> 
+    get_waiting_tasks_map();
 
     std::vector<unsigned int> const* get_sweep_order() const;
 
@@ -124,7 +127,24 @@ inline unsigned int Task::get_waiting_subdomain_id(unsigned int i)
 
   for (unsigned int j=0; j<i; ++j,++map_it);
 
-  return std::get<0>(std::get<1>(*map_it));
+  return std::get<0>(map_it->second);
+}
+
+inline std::map<types::global_dof_index,std::pair<types::subdomain_id,unsigned int>> 
+    Task::get_waiting_tasks_map()
+{
+  return waiting_tasks;
+}
+    
+inline std::pair<types::subdomain_id,unsigned int> Task::get_waiting_task(
+    unsigned int i)
+{
+  std::map<types::global_dof_index,std::pair<types::subdomain_id,
+    unsigned int>>::iterator map_it(waiting_tasks.begin());
+
+  for (unsigned int j=0; j<i; ++j,++map_it);
+  
+  return map_it->second;
 }
 
 inline std::vector<unsigned int> const* Task::get_sweep_order() const

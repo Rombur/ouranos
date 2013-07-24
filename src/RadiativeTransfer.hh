@@ -59,7 +59,7 @@ class RadiativeTransfer : public Epetra_Operator
 
     void build_waiting_tasks_map();
     void build_local_waiting_tasks_map(Task &task,
-        types::global_dof_index* recv_dof_buffer,
+        types::global_dof_index* recv_dof_buffer,int* recv_dof_disps_x,
         const unsigned int recv_dof_buffer_size);
     void build_required_tasks_map();
     void build_local_required_tasks_map(Task &task,
