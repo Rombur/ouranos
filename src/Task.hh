@@ -8,6 +8,7 @@
 #ifndef _TASK_HH_
 #define _TASK_HH_
 
+#include <iostream>
 #include <map>
 #include <utility>
 #include <vector>
@@ -44,10 +45,11 @@ class Task
     unsigned int get_waiting_tasks_size() const;
 
     // Rajouter le const
-    unsigned int get_waiting_subdomain_id(unsigned int i);
-    std::pair<types::subdomain_id,unsigned int> get_waiting_task(unsigned int i);
-    std::map<types::global_dof_index,std::pair<types::subdomain_id,unsigned int>> 
+    std::vector<unsigned int> get_waiting_subdomain_id(unsigned int i);
+    std::vector<std::pair<types::subdomain_id,unsigned int>> get_waiting_tasks(unsigned int i);
+    std::map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,unsigned int>>>
     get_waiting_tasks_map();
+    void print();
 
     std::vector<unsigned int> const* get_sweep_order() const;
 
@@ -68,8 +70,8 @@ class Task
     std::map<std::pair<types::subdomain_id,unsigned int>,
       std::vector<types::global_dof_index>> required_tasks;
     // Tasks waiting for this task to be done
-    std::map<types::global_dof_index,std::pair<types::subdomain_id,unsigned int>> 
-      waiting_tasks;
+    std::map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,
+      unsigned int>>> waiting_tasks;
 };
 
 inline void Task::add_to_required_tasks(std::pair<types::subdomain_id,unsigned int>
@@ -81,8 +83,13 @@ inline void Task::add_to_required_tasks(std::pair<types::subdomain_id,unsigned i
 inline void Task::add_to_waiting_tasks(types::global_dof_index dof,
     std::pair<types::subdomain_id,unsigned int> &subdomain_task_pair)
 {
-  waiting_tasks.insert(std::pair<types::global_dof_index,
-      std::pair<types::subdomain_id,unsigned int>> (dof,subdomain_task_pair));
+  if (waiting_tasks.count(dof)==0)
+    waiting_tasks.insert(std::pair<types::global_dof_index,
+        std::vector<std::pair<types::subdomain_id,unsigned int>>>
+        (dof,std::vector<std::pair<types::subdomain_id,unsigned int>> 
+         (1,subdomain_task_pair)));
+  else
+    waiting_tasks[dof].push_back(subdomain_task_pair);
 }
 
 inline unsigned int Task::get_id() const
@@ -120,27 +127,31 @@ inline unsigned int Task::get_waiting_tasks_size() const
   return waiting_tasks.size();
 }
 
-inline unsigned int Task::get_waiting_subdomain_id(unsigned int i) 
+inline std::vector<unsigned int> Task::get_waiting_subdomain_id(unsigned int i) 
 {
-  std::map<types::global_dof_index,std::pair<types::subdomain_id,
-    unsigned int>>::iterator map_it(waiting_tasks.begin());
+  std::vector<unsigned int> vector;
+  std::map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,
+    unsigned int>>>::iterator map_it(waiting_tasks.begin());
 
   for (unsigned int j=0; j<i; ++j,++map_it);
 
-  return std::get<0>(map_it->second);
+  for (unsigned int j=0; j<map_it->second.size(); ++j)
+    vector.push_back(std::get<0>(map_it->second[j]));
+
+  return vector;
 }
 
-inline std::map<types::global_dof_index,std::pair<types::subdomain_id,unsigned int>> 
+inline std::map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,unsigned int>>>
     Task::get_waiting_tasks_map()
 {
   return waiting_tasks;
 }
     
-inline std::pair<types::subdomain_id,unsigned int> Task::get_waiting_task(
+inline std::vector<std::pair<types::subdomain_id,unsigned int>> Task::get_waiting_tasks(
     unsigned int i)
 {
-  std::map<types::global_dof_index,std::pair<types::subdomain_id,
-    unsigned int>>::iterator map_it(waiting_tasks.begin());
+  std::map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,
+    unsigned int>>>::iterator map_it(waiting_tasks.begin());
 
   for (unsigned int j=0; j<i; ++j,++map_it);
   
