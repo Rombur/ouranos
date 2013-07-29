@@ -86,7 +86,7 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
   for (unsigned int idir=0; idir<n_dir; ++idir)
   { 
     // Cells already used in a task
-    std::set<typename DoFHandler<dim>::active_cell_iterator> used_cells;
+    std::unordered_set<typename DoFHandler<dim>::active_cell_iterator> used_cells;
     // Candidate cells for the sweep order
     std::list<unsigned int> candidate_cells;
     
@@ -184,7 +184,7 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
               typename DoFHandler<dim>::active_cell_iterator neighbor_cell(
                   cell->neighbor(downwind_face[i]));
               if ((neighbor_cell->is_locally_owned()==true) && 
-                  (used_cells.find(neighbor_cell)==used_cells.end()))
+                  (used_cells.count(neighbor_cell)==0))
               {
                 const unsigned fecell_mesh_size(fecell_mesh.size());
                 for (unsigned int j=0; j<fecell_mesh_size; ++j)
@@ -382,7 +382,7 @@ void RadiativeTransfer<dim,tensor_dim>::build_required_tasks_map()
   
   for (unsigned int i=0; i<n_tasks; ++i)
   {
-    std::set<std::pair<types::subdomain_id,unsigned int>> existing_tasks;
+    std::unordered_set<std::pair<types::subdomain_id,unsigned int>> existing_tasks;
     const unsigned int waiting_tasks_size(tasks[i].get_waiting_tasks_size());
     for (unsigned int j=0; j<waiting_tasks_size; ++j)
     {         
@@ -429,16 +429,16 @@ void RadiativeTransfer<dim,tensor_dim>::build_required_tasks_map()
 
 
   // Processor, sender id, receiver_id
-  std::map<types::subdomain_id,std::map<unsigned int,std::map<unsigned int,
+  std::unordered_map<types::subdomain_id,std::unordered_map<unsigned int,std::unordered_map<unsigned int,
     std::vector<types::global_dof_index>>>> buffer;
   for (unsigned int i=0; i<n_tasks; ++i)
   {
     const unsigned int sender_id(tasks[i].get_id());
-    std::map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,unsigned int>>>
+    std::unordered_map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,unsigned int>>>
       waiting_tasks(tasks[i].get_waiting_tasks_map());
-    std::map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,unsigned int>>>
+    std::unordered_map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,unsigned int>>>
       ::iterator map_it(waiting_tasks.begin());
-    std::map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,unsigned int>>>
+    std::unordered_map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,unsigned int>>>
       ::iterator map_end(waiting_tasks.end());
     for (; map_it!=map_end; ++map_it)
     {
@@ -455,25 +455,23 @@ void RadiativeTransfer<dim,tensor_dim>::build_required_tasks_map()
   }
 
   unsigned int pos(0);
-  std::map<types::subdomain_id,std::map<unsigned int,std::map<unsigned int,
-    std::vector<types::global_dof_index>>>>::iterator
-    p_map_it(buffer.begin());
-  std::map<types::subdomain_id,std::map<unsigned int,std::map<unsigned int,
-    std::vector<types::global_dof_index>>>>::iterator
-    p_map_end(buffer.end());
+  std::unordered_map<types::subdomain_id,std::unordered_map<unsigned int,std::unordered_map<unsigned int,
+    std::vector<types::global_dof_index>>>>::iterator p_map_it(buffer.begin());
+  std::unordered_map<types::subdomain_id,std::unordered_map<unsigned int,std::unordered_map<unsigned int,
+    std::vector<types::global_dof_index>>>>::iterator p_map_end(buffer.end());
   // Loop on the subdomain
   for (; p_map_it!=p_map_end; ++p_map_it)
   {
-    std::map<unsigned int,std::map<unsigned int,std::vector<types::global_dof_index>>>
-      ::iterator s_map_it(p_map_it->second.begin());
-    std::map<unsigned int,std::map<unsigned int,std::vector<types::global_dof_index>>>
-      ::iterator s_map_end(p_map_it->second.end());
+    std::unordered_map<unsigned int,std::unordered_map<unsigned int,
+      std::vector<types::global_dof_index>>>::iterator s_map_it(p_map_it->second.begin());
+    std::unordered_map<unsigned int,std::unordered_map<unsigned int,
+      std::vector<types::global_dof_index>>>::iterator s_map_end(p_map_it->second.end());
     // Loop on the sender task id
     for (; s_map_it!=s_map_end; ++s_map_it)
     {
-      std::map<unsigned int,std::vector<types::global_dof_index>>::iterator r_map_it(
+      std::unordered_map<unsigned int,std::vector<types::global_dof_index>>::iterator r_map_it(
           s_map_it->second.begin());
-      std::map<unsigned int,std::vector<types::global_dof_index>>::iterator r_map_end(
+      std::unordered_map<unsigned int,std::vector<types::global_dof_index>>::iterator r_map_end(
           s_map_it->second.end());
       // Loop on the receiver task id
       for (; r_map_it!=r_map_end; ++r_map_it)
@@ -573,6 +571,14 @@ void RadiativeTransfer<dim,tensor_dim>::get_task_local_dof_indices(Task &task,
       local_dof_indices[i*tensor_dim+j] = cell_dof_indices[j];
   }
 }
+
+// this function returns a pointer to the task to execute
+template <int dim,int tensor_dim>
+Task* RadiativeTransfer<dim,tensor_dim>::get_next_task()
+{
+
+}
+
 
 template <int dim,int tensor_dim>
 int RadiativeTransfer<dim,tensor_dim>::Apply(Epetra_MultiVector const &x,
@@ -771,6 +777,9 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Epetra_MultiVector &flux_moments,
     for (unsigned int i=0; i<n_local_dofs; ++i)
       flux_moments[mom][i] += d2m*psi[0][i];
   }
+
+
+  // BESOIN D'ECRIRE UNE FONCTION POUR ENVOYE PSI AUX TASKS QUI EN ONT BESOIN
 }
 
 template <int dim,int tensor_dim>

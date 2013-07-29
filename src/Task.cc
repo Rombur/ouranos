@@ -25,9 +25,9 @@ void Task::print()
   for (unsigned int i=0; i<sweep_order.size(); ++i)
     std::cout<<sweep_order[i]<<std::endl;
   std::cout<<"waiting tasks"<<std::endl;
-  std::map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,
+  std::unordered_map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,
     unsigned int>>>::iterator waiting_map_it(waiting_tasks.begin());
-  std::map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,
+  std::unordered_map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,
     unsigned int>>>::iterator waiting_map_end(waiting_tasks.end());
   for (; waiting_map_it!=waiting_map_end; ++waiting_map_it)
   {
@@ -36,10 +36,10 @@ void Task::print()
         <<" "<<std::get<1>(waiting_map_it->second[i])<<std::endl;
   }
   std::cout<<"required tasks"<<std::endl;
-  std::map<std::pair<types::subdomain_id,unsigned int>,
+  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
     std::vector<types::global_dof_index>>::iterator required_map_it(
         required_tasks.begin());
-  std::map<std::pair<types::subdomain_id,unsigned int>,
+  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
     std::vector<types::global_dof_index>>::iterator required_map_end(
         required_tasks.end());
   for (; required_map_it!=required_map_end; ++required_map_it)
