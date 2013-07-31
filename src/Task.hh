@@ -8,10 +8,12 @@
 #ifndef _TASK_HH_
 #define _TASK_HH_
 
+#include <algorithm>
 #include <iostream>
 #include <map>
 #include <utility>
 #include <vector>
+#include "deal.II/base/exceptions.h"
 #include "deal.II/base/types.h"
 
 using namespace dealii;
@@ -20,15 +22,28 @@ using namespace dealii;
 class Task
 {
   public :
-    Task(unsigned int idir,unsigned int id,std::vector<unsigned int> &sweep_order,
+    Task(unsigned int idir,unsigned int id,types::subdomain_id subdomain_id,
+        std::vector<unsigned int> &sweep_order,
         std::vector<std::pair<types::subdomain_id,
         std::vector<types::global_dof_index>>> &incomplete_required_tasks);
+
+    ~Task();
 
     void add_to_required_tasks(std::pair<types::subdomain_id,unsigned int> 
         &subdomain_task_pair,types::global_dof_index dof);
 
-    void add_to_waiting_tasks(types::global_dof_index dof,
-        std::pair<types::subdomain_id,unsigned int> &subdomain_task_pair);
+    void add_to_waiting_tasks(std::pair<types::subdomain_id,
+        unsigned int> &subdomain_task_pair,types::global_dof_index dof);
+
+    void add_to_waiting_subdomains(types::subdomain_id subdomain_id,
+        types::global_dof_index dof);
+
+    void compress_waiting_subdomains();
+
+    bool is_ready() const;
+
+    bool is_task_required(std::pair<types::subdomain_id,unsigned int> &current_task)
+      const;
 
     unsigned int get_id() const;
 
@@ -42,14 +57,21 @@ class Task
 
     unsigned int get_incomplete_n_dofs(unsigned int i) const;
 
-    unsigned int get_waiting_tasks_size() const;
+    unsigned int get_n_waiting_tasks() const;
+
+    unsigned int get_n_required_tasks() const;
+
+    type::subdomain_id get_subdomain_id() const;
 
     // Rajouter le const
-    std::vector<unsigned int> get_waiting_subdomain_id(unsigned int i);
-    std::vector<std::pair<types::subdomain_id,unsigned int>> get_waiting_tasks(unsigned int i);
-    std::unordered_map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,unsigned int>>>
-    get_waiting_tasks_map();
+    unsigned int get_waiting_tasks_subdomain_id(unsigned int i);
+    std::unordered_map<types::subdomain_id,std::vector<types::global_dof_index>> 
+      const* const get_waiting_subdomains() const;
     void print();
+    void clear_tempory_data();
+    std::vector<types::global_dof_index> const* const get_required_dofs(
+        std::pair<types::global_dof_index,unsigned int> const &current_task) const;
+    void set_ghost_dof(types::global_dof_index dof,double value) const;
 
     std::vector<unsigned int> const* get_sweep_order() const;
 
@@ -57,12 +79,14 @@ class Task
       const;
 
   private :
-    bool done;
-    bool ready;
     unsigned int idir;
     unsigned int weight;
     // Number not unique globally only per processor
     unsigned int id;
+    unsigned int n_ghost_dofs;
+    // pointer because of trilinos
+    unsigned int* n_missing_dofs;
+    types::subdomain_id subdomain_id;
     std::vector<unsigned int> sweep_order;
     std::vector<std::pair<types::subdomain_id,std::vector<types::global_dof_index>>> 
       incomplete_required_tasks;
@@ -70,27 +94,41 @@ class Task
     // Required tasks before we can start this task
     std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
       std::vector<types::global_dof_index>> required_tasks;
-    // Tasks waiting for this task to be done
-    std::unordered_map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,
-      unsigned int>>> waiting_tasks;
+    // Tasks waiting for this task to be done, needed for required_tasks
+    std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
+      std::vector<types::global_dof_index>> waiting_tasks;
+    // Subdomains waiting angular fluxes from this task, dofs have to be
+    // sorted
+    std::unordered_map<types::subdomain_id,std::vector<types::global_dof_index> 
+      waiting_subdomains;
+
+    // Need a pointer because of Trilinos
+    std::unorder_map<types::global_dof_index,double>* ghost_dofs;
 };
 
 inline void Task::add_to_required_tasks(std::pair<types::subdomain_id,unsigned int>
     &subdomain_task_pair,types::global_dof_index dof)
 {
   required_tasks[subdomain_task_pair].push_back(dof);
+  ++n_ghost_dofs;
 }
 
-inline void Task::add_to_waiting_tasks(types::global_dof_index dof,
-    std::pair<types::subdomain_id,unsigned int> &subdomain_task_pair)
+inline void Task::add_to_waiting_tasks(std::pair<types::subdomain_id,unsigned int> 
+    &subdomain_task_pair,types::global_dof_index dof)
 {
-  if (waiting_tasks.count(dof)==0)
-    waiting_tasks.insert(std::pair<types::global_dof_index,
-        std::vector<std::pair<types::subdomain_id,unsigned int>>>
-        (dof,std::vector<std::pair<types::subdomain_id,unsigned int>> 
-         (1,subdomain_task_pair)));
-  else
-    waiting_tasks[dof].push_back(subdomain_task_pair);
+  waiting_tasks[subdomain_task_pair].push_back(dof);
+}
+
+inline void Task::add_to_waiting_subdomains(types::subdomain_id,
+    types::global_dof_index dof)
+{
+  waiting_subdomains[subdomain_id].push_back(dof);
+}
+    
+inline bool Task::is_task_required(std::pair<types::subdomain_id,unsigned int> 
+    &current_task) const
+{
+  return required_tasks.count(current_task);
 }
 
 inline unsigned int Task::get_id() const
@@ -115,11 +153,13 @@ inline unsigned int Task::get_incomplete_n_required_tasks() const
 
 inline unsigned int Task::get_incomplete_subdomain_id(unsigned int i) const
 {
+  AssertIndexRange(i,incomplete_required_tasks.size());
   return std::get<0>(incomplete_required_tasks[i]);
 }
 
 inline unsigned int Task::get_incomplete_n_dofs(unsigned int i) const
 {
+  AssertIndexRange(i,incomplete_required_tasks.size());
   return std::get<1>(incomplete_required_tasks[i]).size();
 }
 
@@ -128,35 +168,53 @@ inline unsigned int Task::get_waiting_tasks_size() const
   return waiting_tasks.size();
 }
 
-inline std::vector<unsigned int> Task::get_waiting_subdomain_id(unsigned int i) 
+inline unsigned int Task:get_n_required_tasks() const
 {
-  std::vector<unsigned int> vector;
-  std::unordered_map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,
-    unsigned int>>>::iterator map_it(waiting_tasks.begin());
+  return required_tasks.size();
+}
+
+inline types::subdomain_id Task::get_waiting_tasks_subdomain_id(unsigned int i) const
+{
+  AssertIndexRange(i,waiting_tasks.size());
+  const std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
+    std::vector<types::global_dof_index>>::iterator map_it(waiting_tasks.cbegin());
 
   for (unsigned int j=0; j<i; ++j,++map_it);
 
-  for (unsigned int j=0; j<map_it->second.size(); ++j)
-    vector.push_back(std::get<0>(map_it->second[j]));
-
-  return vector;
+  return std::get<0>(map_it->first);
 }
 
-inline std::unordered_map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,unsigned int>>>
-    Task::get_waiting_tasks_map()
+inline unsigned int Task::get_waiting_tasks_id(unsigned int i) const
 {
-  return waiting_tasks;
-}
-    
-inline std::vector<std::pair<types::subdomain_id,unsigned int>> Task::get_waiting_tasks(
-    unsigned int i)
-{
-  std::unordered_map<types::global_dof_index,std::vector<std::pair<types::subdomain_id,
-    unsigned int>>>::iterator map_it(waiting_tasks.begin());
+  AssertIndexRange(i,waiting_tasks.size());
+  const std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
+    std::vector<types::global_dof_index>>::iterator map_it(waiting_tasks.cbegin());
 
   for (unsigned int j=0; j<i; ++j,++map_it);
-  
-  return map_it->second;
+
+  return std::get<1>(map_it->first);
+}
+
+inline unsigned int Task::get_waiting_tasks_n_dofs(unsigned int i) const
+{
+  AssertIndexRange(i,waiting_tasks.size());
+  const std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
+    std::vector<types::global_dof_index>>::iterator map_it(waiting_tasks.cbegin());
+
+  for (unsigned int j=0; j<i; ++j,++map_it);
+
+  return map_it->second.size()
+}
+ 
+inline type::subdomain_id Task::get_subdomain_id() const
+{
+  return subdomain_id;
+}
+
+inline std::unordered_map<types::subdomain_id,std::vector<types::global_dof_index>>
+  const* const Task::get_waiting_subdomains() const
+{
+  return &waiting_subdomains;
 }
 
 inline std::vector<unsigned int> const* Task::get_sweep_order() const
@@ -167,7 +225,21 @@ inline std::vector<unsigned int> const* Task::get_sweep_order() const
 inline std::vector<types::global_dof_index> const* Task::get_incomplete_dofs(
     unsigned int i) const
 {
+  AssertIndexRange(i,incomplete_required_tasks.size());
   return &std::get<1>(incomplete_required_tasks[i]);
+}
+
+inline std::vector<types::global_dof_index> const* const 
+Task::get_required_dofs(std::pair<types::global_dof_index,unsigned int> 
+    const &current_task) const
+{
+  return required_tasks[current_task];
+}
+
+inline void Task::clear_temporary_data()
+{
+  incomplete_required_tasks.clear();
+  waiting_tasks.clear();
 }
 
 #endif

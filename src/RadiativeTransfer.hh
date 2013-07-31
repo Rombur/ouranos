@@ -37,6 +37,14 @@
 using namespace dealii;
 
 
+struct message
+{
+  unsigned int task_id;
+  types::subdomain_id subdomain;
+  std::vector<types::global_dof_types> dofs;
+  std::vector<double> angular_flux;
+}
+
 /**
  *  This class derives from Epetra_Operator and implement the function Apply
  *  needed by the AztecOO solvers.
@@ -67,6 +75,7 @@ class RadiativeTransfer : public Epetra_Operator
         const unsigned int recv_n_dofs_buffer);
     void get_task_local_dof_indices(Task &task,std::vector<types::global_dof_index> 
         &local_dof_indices);
+    Task const* const get_next_task() const;
 
     /// Return the result of the transport operator applied to x in. Return 0
     /// if successful.
@@ -118,6 +127,8 @@ class RadiativeTransfer : public Epetra_Operator
     void set_group(unsigned int g);    
 
   private :
+    void free_buffers(std::list<double*> &buffers,std::list<MPI_Request*> &requests) const;
+
     /// Compute the ordering of the cell for the sweeps.
     void compute_sweep_ordering();
     
@@ -148,6 +159,9 @@ class RadiativeTransfer : public Epetra_Operator
     void LU_solve(Tensor<2,tensor_dim> const &A,Tensor<1,tensor_dim> &b,
         Tensor<1,tensor_dim> &x,Tensor<1,tensor_dim,unsigned int> const &pivot) const;
 
+    unsigned int tasks_to_execute;
+    std::list<unsigned int>* tasks_ready;
+
     /// Number of moments.
     unsigned int n_mom;
     /// Current group.
@@ -160,6 +174,9 @@ class RadiativeTransfer : public Epetra_Operator
     Epetra_MpiComm const* comm;
     /// Pointer to Epetra_Map associated to flux_moments and group_flux
     Epetra_Map const* map;
+
+    std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
+      std::unordered_map<types::global_dof_index,unsigned int>> global_required_tasks;
     /// Sweep ordering associated to the different direction.
     std::vector<std::vector<unsigned int>> sweep_order;
     /// Scattering source for each moment.
