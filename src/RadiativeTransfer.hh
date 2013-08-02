@@ -37,14 +37,6 @@
 using namespace dealii;
 
 
-struct message
-{
-  unsigned int task_id;
-  types::subdomain_id subdomain;
-  std::vector<types::global_dof_types> dofs;
-  std::vector<double> angular_flux;
-}
-
 /**
  *  This class derives from Epetra_Operator and implement the function Apply
  *  needed by the AztecOO solvers.
@@ -60,6 +52,7 @@ class RadiativeTransfer : public Epetra_Operator
         RTMaterialProperties* material_properties,Epetra_MpiComm const* comm,
         Epetra_Map const* map);
 
+    ~RadiativeTransfer();
 
     /// Create all the matrices that are need to solve the transport equation
     /// and compute the sweep ordering.
@@ -76,6 +69,8 @@ class RadiativeTransfer : public Epetra_Operator
     void get_task_local_dof_indices(Task &task,std::vector<types::global_dof_index> 
         &local_dof_indices);
     Task const* const get_next_task() const;
+    void initialize_scheduler() const;
+    void clear_scheduler() const;
 
     /// Return the result of the transport operator applied to x in. Return 0
     /// if successful.
@@ -88,7 +83,8 @@ class RadiativeTransfer : public Epetra_Operator
     /// the volumetric sources are not included in the sweep.
     /// @todo The sweep can be optimized to use less memory (only keep the
     /// front wave).
-    void sweep(Epetra_MultiVector &flux_moments,unsigned int idir,
+    void sweep(Task const &task,std::list<double*> &buffers,
+        std::list<MPI_Request*> &requests,Epetra_MultiVector &flux_moments,
         std::vector<Epetra_MultiVector> const* const group_flux=nullptr) const;
 
     /// This method is not implemented.
@@ -127,7 +123,13 @@ class RadiativeTransfer : public Epetra_Operator
     void set_group(unsigned int g);    
 
   private :
-    void free_buffers(std::list<double*> &buffers,std::list<MPI_Request*> &requests) const;
+    void build_global_required_tasks();
+    void free_buffers(std::list<double*> &buffers,std::list<MPI_Request*> &requests) 
+      const;
+    void receive_angular_flux() const;
+    void send_angular_flux(Task const &task,std::list<double*> &buffers,
+        std::list<MPI_Request*> &requests,
+        std::unordered_map<types::global_dof_index,double> &angular_flux) const;
 
     /// Compute the ordering of the cell for the sweeps.
     void compute_sweep_ordering();
@@ -159,7 +161,8 @@ class RadiativeTransfer : public Epetra_Operator
     void LU_solve(Tensor<2,tensor_dim> const &A,Tensor<1,tensor_dim> &b,
         Tensor<1,tensor_dim> &x,Tensor<1,tensor_dim,unsigned int> const &pivot) const;
 
-    unsigned int tasks_to_execute;
+    // Pointers because of Trilinos
+    unsigned int* tasks_to_execute;
     std::list<unsigned int>* tasks_ready;
 
     /// Number of moments.
@@ -168,17 +171,14 @@ class RadiativeTransfer : public Epetra_Operator
     unsigned int group;
     /// Number of groups.
     unsigned int n_groups;
-    /// Number of cells owned by the current processor.
-    unsigned int n_cells;
     /// Epetra communicator.
     Epetra_MpiComm const* comm;
     /// Pointer to Epetra_Map associated to flux_moments and group_flux
     Epetra_Map const* map;
 
-    std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-      std::unordered_map<types::global_dof_index,unsigned int>> global_required_tasks;
-    /// Sweep ordering associated to the different direction.
-    std::vector<std::vector<unsigned int>> sweep_order;
+    mutable std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
+      std::unordered_map<types::global_dof_index,unsigned int>,
+      boost::hash<std::pair<types::subdomain_id,unsigned int>>> global_required_tasks;
     /// Scattering source for each moment.
     std::vector<Vector<double>*> scattering_source;
     /// FECells owned by the current processor.
