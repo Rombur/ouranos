@@ -18,7 +18,6 @@ TEST_CASE("Parameters","Check the parameters handler")
   std::string filename("./tests/parameters.inp");
   Parameters parameters(filename);
 
-  REQUIRE(parameters.get_verbose()==0);
   REQUIRE(parameters.get_dimension()==2);
   REQUIRE(parameters.get_fe_order()==4);
   REQUIRE(parameters.get_geometry_filename()=="geometry.inp");

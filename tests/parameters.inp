@@ -1,4 +1,3 @@
-set Verbose = 0
 set Dimension = 2
 set FE order = 4
 set Geometry file = geometry.inp

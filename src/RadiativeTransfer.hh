@@ -27,6 +27,7 @@
 #include "deal.II/fe/fe_dgq.h"
 #include "deal.II/fe/fe_values.h"
 #include "deal.II/lac/full_matrix.h"
+#include "deal.II/lac/trilinos_vector.h"
 #include "deal.II/lac/vector.h"
 #include "FECell.hh"
 #include "Parameters.hh"
@@ -71,6 +72,9 @@ class RadiativeTransfer : public Epetra_Operator
     Task const* const get_next_task() const;
     void initialize_scheduler() const;
     void clear_scheduler() const;
+    unsigned int get_n_tasks_to_execute() const;
+    void free_buffers(std::list<double*> &buffers,std::list<MPI_Request*> &requests) 
+      const;
 
     /// Return the result of the transport operator applied to x in. Return 0
     /// if successful.
@@ -85,7 +89,8 @@ class RadiativeTransfer : public Epetra_Operator
     /// front wave).
     void sweep(Task const &task,std::list<double*> &buffers,
         std::list<MPI_Request*> &requests,Epetra_MultiVector &flux_moments,
-        std::vector<Epetra_MultiVector> const* const group_flux=nullptr) const;
+        std::vector<TrilinosWrappers::MPI::Vector> const* const group_flux=nullptr) 
+      const;
 
     /// This method is not implemented.
     int SetUseTranspose(bool UseTranspose) {return 0;};
@@ -124,8 +129,6 @@ class RadiativeTransfer : public Epetra_Operator
 
   private :
     void build_global_required_tasks();
-    void free_buffers(std::list<double*> &buffers,std::list<MPI_Request*> &requests) 
-      const;
     void receive_angular_flux() const;
     void send_angular_flux(Task const &task,std::list<double*> &buffers,
         std::list<MPI_Request*> &requests,
@@ -137,7 +140,7 @@ class RadiativeTransfer : public Epetra_Operator
     /// Compute the scattering source due to the upscattering and the
     /// downscattering to the current group.
     void compute_outer_scattering_source(Tensor<1,tensor_dim> &b,
-        std::vector<Epetra_MultiVector> const* const group_flux,
+        std::vector<TrilinosWrappers::MPI::Vector> const* const group_flux,
         FECell<dim,tensor_dim> const* const fecell,const unsigned int idir) const;
 
     /// Get the local indices (used by the Epetra_MultiVector) of the dof 
@@ -162,8 +165,8 @@ class RadiativeTransfer : public Epetra_Operator
         Tensor<1,tensor_dim> &x,Tensor<1,tensor_dim,unsigned int> const &pivot) const;
 
     // Pointers because of Trilinos
-    unsigned int* tasks_to_execute;
-    std::list<unsigned int>* tasks_ready;
+    mutable unsigned int n_tasks_to_execute;
+    mutable std::list<unsigned int> tasks_ready;
 
     /// Number of moments.
     unsigned int n_mom;
@@ -221,6 +224,12 @@ template <int dim,int tensor_dim>
 inline void RadiativeTransfer<dim,tensor_dim>::set_group(unsigned int g)
 {
   group = g;
+}
+
+template <int dim,int tensor_dim>
+inline unsigned int RadiativeTransfer<dim,tensor_dim>::get_n_tasks_to_execute() const
+{
+  return n_tasks_to_execute;
 }
 
 #endif

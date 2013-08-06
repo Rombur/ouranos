@@ -15,6 +15,7 @@
 #include "deal.II/base/parameter_handler.h"
 #include "deal.II/distributed/tria.h"
 #include "deal.II/dofs/dof_handler.h"
+#include "deal.II/fe/fe_dgq.h"
 #include "deal.II/grid/grid_generator.h"
 #include "deal.II/grid/tria_accessor.h"
 #include "deal.II/grid/tria_iterator.h"
@@ -31,7 +32,7 @@ template<int dim>
 class Geometry
 {
   public :
-    Geometry(std::string &geometry_filename);
+    Geometry(std::string &geometry_filename,FE_DGQ<dim> &fe);
 
     /// Return the number of subdivisions of dimension i.
     unsigned int get_n_subdivisions(unsigned int i) const;

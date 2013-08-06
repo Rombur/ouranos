@@ -1,4 +1,7 @@
-# Check is the debug or the release version must be compile
+# www.scons.org/doc/1.1.0/HTML/scons-user/x2361.html
+
+
+# Check if the debug or the release version must be compile
 debug = ARGUMENTS.get('debug',1)
 
 # Path to deal.II

@@ -51,9 +51,6 @@ class Parameters
     /// Return Sn order.
     unsigned int get_sn_order() const;
 
-    /// Return the level of verbosity of the code.
-    unsigned int get_verbose() const;
-
     /// Return the number of adaptive refinement to perform.
     unsigned int get_n_refinements() const;
 
@@ -121,8 +118,6 @@ class Parameters
     unsigned fe_order;
     /// Sn order.
     unsigned int sn_order;
-    /// Verbosity of the code.
-    unsigned int verbose;
     /// Maximum number of outer iterations for RT solver.
     unsigned int max_out_it;
     /// Maximum number of inner iterations for RT solver.
@@ -184,11 +179,6 @@ inline unsigned int Parameters::get_sn_order() const
   return sn_order;
 }
 
-inline unsigned int Parameters::get_verbose() const
-{
-  return verbose;
-}
-
 inline unsigned int Parameters::get_n_refinements() const
 {
   return n_refinements;
@@ -231,8 +221,8 @@ inline double Parameters::get_outer_tolerance() const
 
 inline double Parameters::get_inc_flux(unsigned int face,unsigned int group) const
 {
-  AssertIndexRange(face,in_flux.size());
-  AssertIndexRange(group,inc_fluc[face].size());
+  AssertIndexRange(face,inc_flux.size());
+  AssertIndexRange(group,inc_flux[face].size());
   return inc_flux[face][group];
 }
 
@@ -260,7 +250,7 @@ inline double Parameters::get_src(unsigned int i,unsigned int g) const
 
 inline BC_TYPE Parameters::get_bc_type(unsigned int face) const
 {
-  AssertIndexRange(face,bc_type);
+  AssertIndexRange(face,2*dim);
   return bc_type[face];
 }
     

@@ -27,7 +27,6 @@ Parameters::Parameters(const std::string &parameters_filename)
 
 void Parameters::declare_parameters(ParameterHandler &prm)
 {  
-  prm.declare_entry("Verbose","0",Patterns::Integer(0),"Verbosity of the code.");
   prm.declare_entry("Dimension","2",Patterns::Integer(2,3),
       "Dimension of the problem.");
   prm.declare_entry("FE order","1",Patterns::Integer(1,5),
@@ -101,7 +100,6 @@ void Parameters::declare_parameters(ParameterHandler &prm)
 
 void Parameters::parse_parameters(ParameterHandler &prm)
 {
-  verbose = prm.get_integer("Verbose");
   dim = prm.get_integer("Dimension");
   fe_order = prm.get_integer("FE order");
   geometry_filename = prm.get("Geometry file");

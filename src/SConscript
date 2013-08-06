@@ -15,8 +15,10 @@ src_files = Split('ouranos.cc GLC.cc LS.cc RTQuadrature.cc Parameters.cc '+
   'RTMaterialProperties.cc Task.cc')
 
 # Create the environment
+# CPPFLAGS are for C PreProcessing
+# CXXFLAGS are for C++ compiler
 env = Environment(
-  CPPFLAGS=['-Wall','-std=c++0x'],
+  CXXFLAGS=['-Wall','-std=c++0x'],
   CPPPATH=[deal_II_path+'/include',deal_II_path+'/deal.II/include',
   deal_II_path+'/deal.II/deal.II/bundled',boost_path,trilinos_path+'/include',
   mpi_path,p4est_path+'/include'],
@@ -27,6 +29,7 @@ env = Environment(
 
 # Check if the debug or the release version should be compiled
 if int(debug) :
+  env.Append(CPPFLAGS=['-DDEBUG'])
   env.Append(CXXFLAGS=['-g'])
   env.Append(LIBS=['deal_II.g'])
 else :

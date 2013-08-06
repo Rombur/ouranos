@@ -8,7 +8,7 @@
 #include "Geometry.hh"
 
 template<int dim>
-Geometry<dim>::Geometry(std::string &geometry_filename) :
+Geometry<dim>::Geometry(std::string &geometry_filename,FE_DGQ<dim> &fe) :
   triangulation(MPI_COMM_WORLD),
   dof_handler(triangulation)
 {
@@ -58,13 +58,16 @@ Geometry<dim>::Geometry(std::string &geometry_filename) :
       const Point<dim> cell_center(cell->center());
       unsigned int i(cell_center[0]/delta_x);
       unsigned int j(cell_center[1]/delta_y);
-      unsigned int k(dim==2 ? 0 : cell_center[3]/delta_z);
+      unsigned int k(dim==2 ? 0 : cell_center[2]/delta_z);
       unsigned int current_material_id(material_ids[i+j*n_subdivisions[0]+
           k*n_subdivisions[0]*n_subdivisions[1]]);
       unsigned int current_source_id(source_ids[i+j*n_subdivisions[0]+
           k*n_subdivisions[0]*n_subdivisions[1]]);
       cell->set_material_id(current_material_id+100*current_source_id);
     }
+
+  // Distribute the degrees of freedom on the DoFHandler
+  dof_handler.distribute_dofs(fe);
 }
   
 template<int dim>

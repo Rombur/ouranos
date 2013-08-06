@@ -11,12 +11,14 @@
 #include <string>
 #include "deal.II/base/utilities.h"
 #include "deal.II/base/mpi.h"
+#include "deal.II/fe/fe_dgq.h"
 #include "../src/Geometry.hh"
 
 TEST_CASE("Geometry/2D","Check Geometry for 2D")
 {
   std::string filename("./tests/geometry_2D.inp");
-  Geometry<2> geometry(filename);
+  FE_DGQ<2> fe(1);
+  Geometry<2> geometry(filename,fe);
   // Check the number of divisions
   REQUIRE(geometry.get_n_subdivisions(0)==2);
   REQUIRE(geometry.get_n_subdivisions(1)==3);
@@ -36,16 +38,13 @@ TEST_CASE("Geometry/2D","Check Geometry for 2D")
   REQUIRE(geometry.get_source_ids(1,1)==0);
   REQUIRE(geometry.get_source_ids(0,2)==1);
   REQUIRE(geometry.get_source_ids(1,2)==0);
-  // Check that the pointer to the triangulation is not empty
-  REQUIRE(geometry.get_triangulation());
-  // Check that the pointer to the dof handler is not empty
-  REQUIRE(geometry.get_dof_handler());
 }
 
 TEST_CASE("Geometry/3D","Check Geometry for 3D")
 {
   std::string filename("./tests/geometry_3D.inp");
-  Geometry<3> geometry(filename);
+  FE_DGQ<3> fe(1);
+  Geometry<3> geometry(filename,fe);
   // Check the number of divisions
   REQUIRE(geometry.get_n_subdivisions(0)==2);
   REQUIRE(geometry.get_n_subdivisions(1)==3);
@@ -78,10 +77,6 @@ TEST_CASE("Geometry/3D","Check Geometry for 3D")
   REQUIRE(geometry.get_source_ids(1,1,1)==1);
   REQUIRE(geometry.get_source_ids(0,2,1)==2);
   REQUIRE(geometry.get_source_ids(1,2,1)==1);
-  // Check that the pointer to the triangulation is not empty
-  REQUIRE(geometry.get_triangulation());
-  // Check that the pointer to the dof handler is not empty
-  REQUIRE(geometry.get_dof_handler());
 }
 
 int main (int argc, char** argv)

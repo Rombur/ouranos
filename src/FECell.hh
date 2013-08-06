@@ -115,7 +115,7 @@ template <int dim,int tensor_dim>
 inline Tensor<2,tensor_dim> const* const 
 FECell<dim,tensor_dim>::get_grad_matrix(unsigned int k) const
 {
-  AssertIndexRange(i,dim);
+  AssertIndexRange(k,dim);
   return &grad_matrices[k];
 }
 
@@ -123,7 +123,7 @@ template <int dim,int tensor_dim>
 inline Tensor<2,tensor_dim> const* const
 FECell<dim,tensor_dim>::get_downwind_matrix(unsigned int face) const
 {
-  AssertIndexRange(i,2*dim);
+  AssertIndexRange(face,2*dim);
   return &downwind_matrices[face];
 }
 
@@ -131,7 +131,7 @@ template <int dim,int tensor_dim>
 inline Tensor<2,tensor_dim> const* const
 FECell<dim,tensor_dim>::get_upwind_matrix(unsigned int face) const
 {
-  AssertIndexRange(i,2*dim);
+  AssertIndexRange(face,2*dim);
   return &upwind_matrices[face];
 }
 

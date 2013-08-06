@@ -22,8 +22,11 @@ objects = [src_path+'GLC.o',src_path+'RTQuadrature.o',src_path+'LS.o',
   src_path+'RadiativeTransfer.o',src_path+'Task.o']
 
 # Create the environment
+# CPPFLAGS are for C PreProcessing
+# CXXFLAGS are for C++ compiler
 env = Environment(
-  CPPFLAGS=['-Wall','-std=c++0x'],
+  CPPFLAGS=['-DDEBUG'],
+  CXXFLAGS=['-Wall','-std=c++0x'],
   CPPPATH=[deal_II_path+'/include',deal_II_path+'/deal.II/include',
   deal_II_path+'/deal.II/deal.II/bundled',boost_path,trilinos_path+'/include',
   mpi_path,p4est_path+'/include'],

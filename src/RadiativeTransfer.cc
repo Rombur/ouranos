@@ -27,17 +27,21 @@ RadiativeTransfer<dim,tensor_dim>::RadiativeTransfer(FE_DGQ<dim>* fe,
   quad(quad),
   material_properties(material_properties)
 {
-  tasks_to_execute = new unsigned int;
-  tasks_ready = new std::list<unsigned int>;
+  const unsigned int n_mom(quad->get_n_mom());
+  scattering_source.resize(n_mom,nullptr);
+  for (unsigned int i=0; i<n_mom; ++i)
+    scattering_source[i] = new Vector<double>(dof_handler->n_dofs());
 }
 
 template <int dim,int tensor_dim>
 RadiativeTransfer<dim,tensor_dim>::~RadiativeTransfer()
 {
-  delete tasks_ready;
-  delete tasks_to_execute;
-  tasks_ready = nullptr;
-  tasks_to_execute = nullptr;
+  for (unsigned int i=0; i<scattering_source.size(); ++i)
+    if (scattering_source[i]!=nullptr)
+    {
+      delete scattering_source[i];
+      scattering_source[i] = nullptr;
+    }
 }
 
 template <int dim,int tensor_dim>
@@ -423,7 +427,7 @@ void RadiativeTransfer<dim,tensor_dim>::build_required_tasks_map()
     recv_dof_disps[i] = recv_dof_disps[i-1] + recv_n_dofs_buffer[i-1];
     offset[i] = send_dof_disps[i];
   }
-  
+ 
   const unsigned int recv_dof_buffer_size(recv_dof_disps[n_proc-1]+
       recv_n_dofs_buffer[n_proc-1]);
   types::global_dof_index* send_dof_buffer = 
@@ -434,8 +438,8 @@ void RadiativeTransfer<dim,tensor_dim>::build_required_tasks_map()
 
   for (unsigned int i=0; i<n_tasks; ++i)
   {
-    const unsigned int n_required_tasks(tasks[i].get_incomplete_n_required_tasks());
-    for (unsigned int j=0; j<n_required_tasks; ++j)
+    const unsigned int n_waiting_tasks(tasks[i].get_n_waiting_tasks());
+    for (unsigned int j=0; j<n_waiting_tasks; ++j)
     {
       const unsigned int subdomain_id(tasks[i].get_waiting_tasks_subdomain_id(j));
       const unsigned int current_offset(offset[subdomain_id]);
@@ -451,7 +455,7 @@ void RadiativeTransfer<dim,tensor_dim>::build_required_tasks_map()
       for (unsigned int k=0; k<n_dofs_task; ++k)
         send_dof_buffer[current_offset+k+3] = (*task_dof)[k];
       offset[subdomain_id] += n_dofs_task+3;
-    }
+    }  
   }
 
   MPI_Alltoallv(send_dof_buffer,send_n_dofs_buffer,send_dof_disps,
@@ -575,7 +579,7 @@ void RadiativeTransfer<dim,tensor_dim>::build_global_required_tasks()
     std::vector<types::global_dof_index>,
     boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
       tmp_map_end(tmp_map.end());
-  for (; tmp_map_it!=tmp_map_end; ++tmp_map_end)
+  for (; tmp_map_it!=tmp_map_end; ++tmp_map_it)
   {
     const unsigned int i_max(tmp_map_it->second.size());
     for (unsigned int i=0; i<i_max; ++i)
@@ -604,16 +608,16 @@ void RadiativeTransfer<dim,tensor_dim>::get_task_local_dof_indices(Task &task,
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::initialize_scheduler() const
 {
-  *tasks_to_execute = tasks.size();
-  for (unsigned int i=0; i<*tasks_to_execute; ++i)
+  n_tasks_to_execute = tasks.size();
+  for (unsigned int i=0; i<n_tasks_to_execute; ++i)
     if (tasks[i].get_n_required_tasks()==0)
-      tasks_ready->push_back(i);
+      tasks_ready.push_back(i);
 }
 
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::clear_scheduler() const
 {
-  tasks_ready->clear();
+  tasks_ready.clear();
 }
 
 // this function returns a pointer to the task to execute
@@ -621,14 +625,14 @@ template <int dim,int tensor_dim>
 Task const* const RadiativeTransfer<dim,tensor_dim>::get_next_task() const
 {
   // If tasks_ready is empty, we need to wait to receive data
-  while (tasks_ready->size()==0)
+  while (tasks_ready.size()==0)
   {
     receive_angular_flux();
   }
 
-  --(*tasks_to_execute);
-  unsigned int i(tasks_ready->front());
-  tasks_ready->pop_front();
+  --n_tasks_to_execute;
+  unsigned int i(tasks_ready.front());
+  tasks_ready.pop_front();
   return &tasks[i];
 }
 
@@ -683,7 +687,7 @@ void RadiativeTransfer<dim,tensor_dim>::send_angular_flux(Task const &task,
         }
 
         if (tasks[i].is_ready()==true)
-          tasks_ready->push_back(i);
+          tasks_ready.push_back(i);
       }
     }
   }
@@ -744,7 +748,7 @@ void RadiativeTransfer<dim,tensor_dim>::receive_angular_flux() const
 
         // If the task has all the ghost dofs needed, it goes into the list
         if (tasks[i].is_ready()==true)
-          (*tasks_ready).push_back(i);
+          tasks_ready.push_back(i);
       }
       delete [] buffer;
     }
@@ -758,7 +762,7 @@ void RadiativeTransfer<dim,tensor_dim>::free_buffers(
   std::list<double*>::iterator buffers_it(buffers.begin());
   std::list<double*>::iterator buffers_end(buffers.end());
   std::list<MPI_Request*>::iterator requests_it(requests.begin());
-  while (buffers_it!=buffers_end); 
+  while (buffers_it!=buffers_end)
   {  
     int flag;
     MPI_Test(*requests_it,&flag,MPI_STATUS_IGNORE);
@@ -799,7 +803,7 @@ int RadiativeTransfer<dim,tensor_dim>::Apply(Epetra_MultiVector const &x,
   std::list<double*> buffers;
   std::list<MPI_Request*> requests;
   initialize_scheduler();
-  while (*tasks_to_execute!=0)
+  while (n_tasks_to_execute!=0)
   {
     sweep(*get_next_task(),buffers,requests,y);
     free_buffers(buffers,requests);
@@ -848,8 +852,9 @@ void RadiativeTransfer<dim,tensor_dim>::compute_scattering_source(
 
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::compute_outer_scattering_source( 
-    Tensor<1,tensor_dim> &b,std::vector<Epetra_MultiVector> const* const group_flux,
-    FECell<dim,tensor_dim> const* const fecell,const unsigned int idir) const
+    Tensor<1,tensor_dim> &b,std::vector<TrilinosWrappers::MPI::Vector> const* const 
+    group_flux,FECell<dim,tensor_dim> const* const fecell,const unsigned int idir) 
+  const
 {
   FullMatrix<double> const* const M2D(quad->get_M2D());
   Tensor<1,tensor_dim> x_cell;
@@ -863,7 +868,7 @@ void RadiativeTransfer<dim,tensor_dim>::compute_outer_scattering_source(
       {
         double m2d((*M2D)(idir,i));
         for (unsigned int j=0; j<tensor_dim; ++j)
-          x_cell[j] = (*group_flux)[g*n_mom+i][0][local_dof_indices[j]];
+          x_cell[j] = (*group_flux)[g*n_mom+i][local_dof_indices[j]];
 
         Tensor<1,tensor_dim> scat_src_cell((*(fecell->get_mass_matrix()))*x_cell);
 
@@ -879,8 +884,8 @@ void RadiativeTransfer<dim,tensor_dim>::compute_outer_scattering_source(
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
     std::list<double*> &buffers,std::list<MPI_Request*> &requests,
-    Epetra_MultiVector &flux_moments,
-    std::vector<Epetra_MultiVector> const* const group_flux) const
+    Epetra_MultiVector &flux_moments,std::vector<TrilinosWrappers::MPI::Vector> 
+    const* const group_flux) const
 {
   const unsigned int idir(task.get_idir());
   std::vector<unsigned int> const* sweep_order(task.get_sweep_order());
@@ -891,7 +896,7 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
   std::vector<int> multivector_indices(tensor_dim);
  
   // Sweep on the spatial cells
-  for (unsigned int i=0 : *sweep_order)
+  for (unsigned int i : *sweep_order)
   {
     FECell<dim,tensor_dim> const* const fecell = &fecell_mesh[i];
     typename DoFHandler<dim>::active_cell_iterator const cell(fecell->get_cell());
@@ -994,6 +999,7 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
   {
     const double d2m((*D2M)(mom,idir));
     for (unsigned int i=0; i<n_local_dofs; ++i)
+  
       flux_moments[mom][i] += d2m*psi[0][i];
   }
 

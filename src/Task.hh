@@ -34,7 +34,7 @@ class Task
     void add_to_waiting_tasks(std::pair<types::subdomain_id,
         unsigned int> &subdomain_task_pair,types::global_dof_index dof);
 
-    void add_to_waiting_subdomains(types::subdomain_id subdomain_id,
+    void add_to_waiting_subdomains(types::subdomain_id other_subdomain_id,
         types::global_dof_index dof);
 
     void compress_waiting_subdomains();
@@ -119,6 +119,7 @@ inline void Task::add_to_required_tasks(std::pair<types::subdomain_id,unsigned i
 {
   required_tasks[subdomain_task_pair].push_back(dof);
   ++n_ghost_dofs;
+  n_missing_dofs = n_ghost_dofs;
 }
 
 inline void Task::add_to_waiting_tasks(std::pair<types::subdomain_id,unsigned int> 
@@ -127,10 +128,10 @@ inline void Task::add_to_waiting_tasks(std::pair<types::subdomain_id,unsigned in
   waiting_tasks[subdomain_task_pair].push_back(dof);
 }
 
-inline void Task::add_to_waiting_subdomains(types::subdomain_id,
+inline void Task::add_to_waiting_subdomains(types::subdomain_id other_subdomain_id,
     types::global_dof_index dof)
 {
-  waiting_subdomains[subdomain_id].push_back(dof);
+  waiting_subdomains[other_subdomain_id].push_back(dof);
 }
     
 inline bool Task::is_task_required(std::pair<types::subdomain_id,unsigned int> 
@@ -188,6 +189,11 @@ inline types::subdomain_id Task::get_waiting_tasks_subdomain_id(unsigned int i)
     std::vector<types::global_dof_index>,
     boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator map_it(
         waiting_tasks.cbegin());
+
+  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
+    std::vector<types::global_dof_index>,
+    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator p_it(
+        waiting_tasks.cend());
 
   for (unsigned int j=0; j<i; ++j,++map_it);
 

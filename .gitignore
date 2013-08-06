@@ -1,6 +1,7 @@
 *.un~
 *.swp
 *.swo
+*.txt
 bin
 *.dblite
 *.o
@@ -12,7 +13,6 @@ fecell_test
 geometry_test
 timediscretization_test
 rtmaterialproperties_test
-results.txt
 tags
 html
 radiativetransfer_test

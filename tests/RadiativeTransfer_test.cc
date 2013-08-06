@@ -13,6 +13,7 @@
 #include <vector>
 #include "Epetra_Map.h"
 #include "Epetra_MpiComm.h"
+#include "Epetra_MultiVector.h"
 #include "deal.II/base/utilities.h"
 #include "deal.II/base/mpi.h"
 #include "deal.II/fe/fe_dgq.h"
@@ -22,15 +23,15 @@
 #include "../src/Parameters.hh"
 #include "../src/RadiativeTransfer.hh"
 
+
 TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D on 4 processors")
 {
   std::string parameters_filename("./tests/rt_parameters.inp");
   Parameters parameters(parameters_filename);
   std::string geometry_filename(parameters.get_geometry_filename());
   std::string xs_filename(parameters.get_xs_filename());
-  // FE_DGQ must be created before DoFHandler, i.e., before Geometry
   FE_DGQ<2> fe(parameters.get_fe_order());
-  Geometry<2> geometry(geometry_filename);
+  Geometry<2> geometry(geometry_filename,fe);
   RTMaterialProperties material_properties(xs_filename,geometry.get_n_materials(),
       parameters.get_n_groups());
 
@@ -45,6 +46,7 @@ TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D on 4 p
   Epetra_MpiComm comm(MPI_COMM_WORLD);
   Epetra_Map map(index_set.make_trilinos_map());
   Epetra_MultiVector flux_moments(map,quad.get_n_mom());
+  Epetra_MultiVector group_flux_moments(map,quad.get_n_mom());
 
   // Creat the RadiativeTransfer object
   RadiativeTransfer<2,4> radiative_transfer(&fe,geometry.get_triangulation(),
@@ -57,6 +59,20 @@ TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D on 4 p
   radiative_transfer.set_group(0);
 
   // Compute the right-hand side
+  Epetra_MultiVector rhs(flux_moments);
+  std::list<double*> buffers;
+  std::list<MPI_Request*> requests;
+  radiative_transfer.initialize_scheduler();
+  while (radiative_transfer.get_n_tasks_to_execute()!=0)
+  {
+    radiative_transfer.sweep(*(radiative_transfer.get_next_task()),buffers,
+        requests,rhs,&group_flux);
+    radiative_transfer.free_buffers(buffers,requests);
+  }
+
+  while (buffers.size()!=0)
+    radiative_transfer.free_buffers(buffers,requests);
+  radiative_transfer.clear_scheduler();
 
 
 
@@ -100,7 +116,7 @@ TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D on 4 p
   solution[35] = 0.97444944209;
 
 
-  // Need reflective BC
+//  // Need reflective BC
 //  for (unsigned int i=0; i<36; ++i)
 //    REQUIRE(std::fabs(flux_moments[0][i]-solution[i])<1e-3);
 }
