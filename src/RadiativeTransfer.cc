@@ -309,15 +309,15 @@ void RadiativeTransfer<dim,tensor_dim>::build_waiting_tasks_map()
       send_dof_buffer[current_offset+2] = static_cast<types::global_dof_index>(
           n_dofs_task);
       for (unsigned int k=0; k<n_dofs_task; ++k)
-        send_dof_buffer[current_offset+k+3] = (*task_dof)[k];
+        send_dof_buffer[current_offset+k+3] = (*task_dof)[k];   
       offset[subdomain_id] += n_dofs_task+3;
     }
   }
 
   MPI_Alltoallv(send_dof_buffer,send_n_dofs_buffer,send_dof_disps,
       DEAL_II_DOF_INDEX_MPI_TYPE,recv_dof_buffer,recv_n_dofs_buffer,recv_dof_disps,
-      DEAL_II_DOF_INDEX_MPI_TYPE,mpi_comm);
-  
+      DEAL_II_DOF_INDEX_MPI_TYPE,mpi_comm);           
+
   // Extended recv_dof_disps
   int* recv_dof_disps_x = new int [n_proc+1];
   for (unsigned int i=0; i<n_proc; ++i)
@@ -362,7 +362,7 @@ void RadiativeTransfer<dim,tensor_dim>::build_local_waiting_tasks_map(Task &task
     const unsigned int idir(recv_dof_buffer[i+1]);
     const unsigned int n_dofs(recv_dof_buffer[i+2]);
     // Increment the subdomain ID of the waiting task if necessary
-    if (i==next_subdomain_disps)
+    while (i==next_subdomain_disps)
     {
       ++subdomain_id;
       next_subdomain_disps = recv_dof_disps_x[subdomain_id+1];
@@ -504,7 +504,7 @@ void RadiativeTransfer<dim,tensor_dim>::build_local_required_tasks_map(Task &tas
     const unsigned int recv_task_id(recv_dof_buffer[i+1]);
     const unsigned int n_dofs(recv_dof_buffer[i+2]);
     // Increment the subdomain ID of the required task if necessary
-    if (i==next_subdomain_disps)
+    while (i==next_subdomain_disps)
     {
       ++subdomain_id;
       next_subdomain_disps = recv_dof_disps_x[subdomain_id+1];
@@ -541,8 +541,8 @@ void RadiativeTransfer<dim,tensor_dim>::build_global_required_tasks()
           tasks[i].get_required_tasks());
     std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
       std::vector<types::global_dof_index>,
-      boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator map_it(
-          required_tasks->cbegin());
+      boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator 
+        map_it(required_tasks->cbegin());
     std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
       std::vector<types::global_dof_index>,
       boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator 
