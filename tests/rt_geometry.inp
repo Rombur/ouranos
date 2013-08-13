@@ -1,5 +1,6 @@
 set Bottom left point = 0.,0.
-set Upper right point = 3.,3.
-set Number of subdivisions = 3,3
-set Material IDs = 0,0,0,0,0,0,0,0,0
-set Source IDs = 0,0,0,0,0,0,0,0,0
+set Upper right point = 2.,2.
+set Number of subdivisions = 1,1
+set Number of global refinements = 2
+set Material IDs = 0
+set Source IDs = 0

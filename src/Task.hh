@@ -78,6 +78,8 @@ class Task
     std::vector<types::global_dof_index>* const get_required_dofs(
         std::pair<types::global_dof_index,unsigned int> const &current_task) const;
     void set_ghost_dof(types::global_dof_index dof,double value) const;
+    // Must be deleted when the task is done otherwise the memory usage is
+    // goig to be insane
     double get_ghost_angular_flux(types::global_dof_index) const;
 
     std::vector<unsigned int> const* get_sweep_order() const;

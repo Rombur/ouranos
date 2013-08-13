@@ -9,6 +9,9 @@
 
 template<int dim>
 Geometry<dim>::Geometry(std::string &geometry_filename,FE_DGQ<dim> &fe) :
+  delta_x(0.),
+  delta_y(0.),
+  delta_z(0.),
   triangulation(MPI_COMM_WORLD),
   dof_handler(triangulation)
 {
@@ -43,12 +46,18 @@ Geometry<dim>::Geometry(std::string &geometry_filename,FE_DGQ<dim> &fe) :
     GridGenerator::subdivided_hyper_rectangle(triangulation,n_subdivisions,
         bottom_left,upper_right,true);
   }
-  triangulation.refine_global(n_global_refinements);
 
-  // Set material ids
-  double delta_x((up_right[0]-bot_left[0])/n_subdivisions[0]);
-  double delta_y((up_right[1]-bot_left[1])/n_subdivisions[1]);
-  double delta_z(dim==2 ? 0 : (up_right[0]-bot_left[0])/n_subdivisions[2]);
+  // Attach the function to set material ids after refinement to post
+  // refinement
+  triangulation.signals.post_refinement.connect(std_cxx1x::bind(
+        &Geometry<dim>::set_material_src_ids,std_cxx1x::cref(*this),
+        std_cxx1x::ref(triangulation)));
+
+  // Set material ids and source ids
+  delta_x = (up_right[0]-bot_left[0])/n_subdivisions[0];
+  delta_y = (up_right[1]-bot_left[1])/n_subdivisions[1];
+  if (dim==3)
+    delta_z = (up_right[2]-bot_left[2])/n_subdivisions[2];
   typename Triangulation<dim>::active_cell_iterator cell(
       triangulation.begin_active());
   typename Triangulation<dim>::active_cell_iterator end_cell(triangulation.end());
@@ -63,8 +72,11 @@ Geometry<dim>::Geometry(std::string &geometry_filename,FE_DGQ<dim> &fe) :
           k*n_subdivisions[0]*n_subdivisions[1]]);
       unsigned int current_source_id(source_ids[i+j*n_subdivisions[0]+
           k*n_subdivisions[0]*n_subdivisions[1]]);
-      cell->set_material_id(current_material_id+100*current_source_id);
+      cell->set_material_id(current_material_id);
+      cell->set_user_index(current_source_id);
     }
+
+  triangulation.refine_global(n_global_refinements);
 
   // Distribute the degrees of freedom on the DoFHandler
   dof_handler.distribute_dofs(fe);
@@ -81,9 +93,9 @@ void Geometry<dim>::declare_parameters(ParameterHandler &prm)
       Patterns::List(Patterns::Integer(1)),"Number of subdivisions in x,y,z.");
   prm.declare_entry("Number of global refinements","0",Patterns::Integer(0),
       "Number of global refinements");
-  prm.declare_entry("Material IDs","0",Patterns::List(Patterns::Integer(0,100)),
+  prm.declare_entry("Material IDs","0",Patterns::List(Patterns::Integer(0)),
       "Material IDs.");
-  prm.declare_entry("Source IDs","0",Patterns::List(Patterns::Integer(0,100)),
+  prm.declare_entry("Source IDs","0",Patterns::List(Patterns::Integer(0)),
       "Source IDs.");
 }
 
@@ -167,6 +179,29 @@ std::vector<double> Geometry<dim>::get_list_double(std::string &input,
   }
 
   return values;
+}
+
+template <int dim>
+void Geometry<dim>::set_material_src_ids(parallel::distributed::Triangulation<dim> 
+    &triangulation) const
+{
+  typename Triangulation<dim>::active_cell_iterator cell(
+      triangulation.begin_active());
+  typename Triangulation<dim>::active_cell_iterator end_cell(triangulation.end());
+  for (; cell!=end_cell; ++cell)
+    if (cell->is_locally_owned())
+    {
+      const Point<dim> cell_center(cell->center());
+      unsigned int i(cell_center[0]/delta_x);
+      unsigned int j(cell_center[1]/delta_y);
+      unsigned int k(dim==2 ? 0 : cell_center[2]/delta_z);
+      unsigned int current_material_id(material_ids[i+j*n_subdivisions[0]+
+          k*n_subdivisions[0]*n_subdivisions[1]]);
+      unsigned int current_source_id(source_ids[i+j*n_subdivisions[0]+
+          k*n_subdivisions[0]*n_subdivisions[1]]);
+      cell->set_material_id(current_material_id);
+      cell->set_user_index(current_source_id);
+    }
 }
 
 //*****Explicit instantiations*****//

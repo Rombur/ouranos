@@ -13,6 +13,7 @@
 #include <vector>
 #include "deal.II/base/exceptions.h"
 #include "deal.II/base/parameter_handler.h"
+#include "deal.II/base/std_cxx1x/bind.h"
 #include "deal.II/distributed/tria.h"
 #include "deal.II/dofs/dof_handler.h"
 #include "deal.II/fe/fe_dgq.h"
@@ -69,10 +70,20 @@ class Geometry
     /// Return a list of n_elements doubles from a given string.
     std::vector<double> get_list_double(std::string &input,unsigned int n_elements);
 
+    /// Set the material IDs and the source IDs after refinement.
+    void set_material_src_ids(parallel::distributed::Triangulation<dim> &tringulation)
+      const;
+
     /// Number of materials.
     unsigned int n_materials;
     /// Number of global refinements.
     unsigned int n_global_refinements;
+    /// Length of the divisions of the grid in the x direction.
+    double delta_x;
+    /// Length of the divisions of the grid in the y direction.
+    double delta_y;
+    /// Length of the divisions of the grid in the z direction.
+    double delta_z;
     /// Number of subdivisions in each direction.
     std::vector<unsigned int> n_subdivisions;
     /// Material IDs.

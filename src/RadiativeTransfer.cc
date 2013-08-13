@@ -788,6 +788,9 @@ int RadiativeTransfer<dim,tensor_dim>::Apply(Epetra_MultiVector const &x,
   y = x;
   Epetra_MultiVector z(y);
 
+  // Need to change that because it is terrible
+  Epetra_MultiVector psi(*map,quad->get_n_dir());
+
   // Compute the scattering source
   compute_scattering_source(y);
 
@@ -805,7 +808,7 @@ int RadiativeTransfer<dim,tensor_dim>::Apply(Epetra_MultiVector const &x,
   initialize_scheduler();
   while (n_tasks_to_execute!=0)
   {
-    sweep(*get_next_task(),buffers,requests,y);
+    sweep(*get_next_task(),buffers,requests,y,psi);
     free_buffers(buffers,requests);
   }
 
@@ -884,16 +887,16 @@ void RadiativeTransfer<dim,tensor_dim>::compute_outer_scattering_source(
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
     std::list<double*> &buffers,std::list<MPI_Request*> &requests,
-    Epetra_MultiVector &flux_moments,std::vector<TrilinosWrappers::MPI::Vector> 
-    const* const group_flux) const
+    Epetra_MultiVector &flux_moments,Epetra_MultiVector &psi,
+    std::vector<TrilinosWrappers::MPI::Vector> const* const group_flux) const
 {
   const unsigned int idir(task.get_idir());
   std::vector<unsigned int> const* sweep_order(task.get_sweep_order());
   FullMatrix<double> const* const M2D(quad->get_M2D());
   FullMatrix<double> const* const D2M(quad->get_D2M());
-  Epetra_MultiVector psi(*map,1);
   Vector<double> const* const omega(quad->get_omega(idir));
   std::vector<int> multivector_indices(tensor_dim);
+  std::unordered_map<types::global_dof_index,double> angular_flux;
  
   // Sweep on the spatial cells
   for (unsigned int i : *sweep_order)
@@ -903,7 +906,7 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
     Tensor<1,tensor_dim> b;
     Tensor<2,tensor_dim> A(*(fecell->get_mass_matrix()));
     get_multivector_indices(multivector_indices,cell);
-    // Volumetrix terms of the lhs: -omega dot grad_matrix + sigma_t mass
+    // Volumetric terms of the lhs: -omega dot grad_matrix + sigma_t mass
     A *= material_properties->get_sigma_t(fecell_mesh[i].get_material_id(),group);
     for (unsigned int d=0; d<dim; ++d)
       A += (-(*omega)[d]*(*(fecell->get_grad_matrix(d))));
@@ -919,7 +922,10 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
     {
       // Divide the source by the sum of the weights to the input source is
       // easier to set
-      Tensor<1,tensor_dim> src(parameters->get_src(fecell->get_source_id(),group));
+      Tensor<1,tensor_dim> src;
+      for (unsigned int j=0; j<tensor_dim; ++j)
+        src[j] = parameters->get_src(fecell->get_source_id(),group)/
+          parameters->get_weight_sum();
       b += (*fecell->get_mass_matrix())*src;
       // Compute the scattering source due to the other groups
       compute_outer_scattering_source(b,group_flux,fecell,idir);
@@ -948,7 +954,7 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
             std::vector<int> neighbor_local_dof_indices(tensor_dim);
             get_multivector_indices(neighbor_local_dof_indices,neighbor_cell);
             for (unsigned int j=0; j<tensor_dim; ++j)
-              psi_cell[j] *= psi[0][neighbor_local_dof_indices[j]];
+              psi_cell[j] *= psi[idir][neighbor_local_dof_indices[j]];
           }
           else
           {
@@ -966,12 +972,15 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
           {
             double inc_flux_val(0.);
             Tensor<2,tensor_dim> const* const downwind_matrix(
-              fecell->get_downwind_matrix(face));
-            if ((parameters->get_bc_type(face)==MOST_NORMAL) ||
+                fecell->get_downwind_matrix(face));
+            if (((parameters->get_bc_type(face)==MOST_NORMAL) &&
+                  (quad->is_most_normal_direction(idir)==true))||
                 (parameters->get_bc_type(face)==ISOTROPIC))
               inc_flux_val = parameters->get_inc_flux(face,group);
             inc_flux_val /= parameters->get_weight_sum();
-            Tensor<1,tensor_dim> inc_flux(inc_flux_val);
+            Tensor<1,tensor_dim> inc_flux;
+            for (unsigned int j=0; j<tensor_dim; ++j)
+              inc_flux[j] = inc_flux_val;
             b += (-n_dot_omega)*(*downwind_matrix)*inc_flux;
           }
         }
@@ -988,29 +997,29 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
     Tensor<1,tensor_dim> x;
     LU_decomposition(A,pivot);
     LU_solve(A,b,x,pivot);
-   
     for (unsigned int j=0; j<tensor_dim; ++j)
-      psi[0][multivector_indices[j]] = x[j];
-  }
+      psi[idir][multivector_indices[j]] = x[j];
 
-  // Update flux moments
-  const unsigned int n_local_dofs(tensor_dim*task.get_sweep_order_size());
-  for (unsigned int mom=0; mom<n_mom; ++mom)
-  {
-    const double d2m((*D2M)(mom,idir));
-    for (unsigned int i=0; i<n_local_dofs; ++i)
-  
-      flux_moments[mom][i] += d2m*psi[0][i];
-  }
+    // Update flux moments
+    for (unsigned int mom=0; mom<n_mom; ++mom)
+    {
+      const double d2m((*D2M)(mom,idir));
+      for (unsigned int j=0; j<tensor_dim; ++j)
+        flux_moments[mom][multivector_indices[j]] += d2m*
+          psi[idir][multivector_indices[j]];
+    }
 
-  // Send the angular flux to the others processors
-  std::unordered_map<types::global_dof_index,double> angular_flux;
-  for (unsigned int i=0; i<n_local_dofs; ++i)
+    // Send the angular flux to the others processors
+    for (unsigned int j=0; j<tensor_dim; ++j)
 #ifdef DEAL_II_USE_LARGE_INDEX_TYPE
-    angular_flux[map->GID64(i)] = psi[0][i];
+      angular_flux[map->GID64(multivector_indices[j])] = psi[idir][
+        multivector_indices[j]];
 #else
-    angular_flux[map->GID(i)] = psi[0][i];
+      angular_flux[map->GID(multivector_indices[j])] = psi[idir][
+        multivector_indices[j]];
 #endif 
+  }
+
   send_angular_flux(task,buffers,requests,angular_flux);
 }
 
@@ -1057,7 +1066,7 @@ void RadiativeTransfer<dim,tensor_dim>::LU_decomposition(
     }
 
     // Find the upper triangular matrix elements for row k
-    for (unsigned int j=k+1; j<k; ++j)
+    for (unsigned int j=k+1; j<tensor_dim; ++j)
       A[k][j] /= A[k][k];
 
     // Update remaining matrix
@@ -1083,7 +1092,7 @@ void RadiativeTransfer<dim,tensor_dim>::LU_solve(Tensor<2,tensor_dim> const &A,
       b[pivot[k]] = tmp;
     }
     x[k] = b[k];
-    for (unsigned int i=0; i<tensor_dim; ++i)
+    for (unsigned int i=0; i<k; ++i)
       x[k] -= x[i]*A[k][i];
     x[k] /= A[k][k];
   }

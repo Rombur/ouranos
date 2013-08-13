@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Bruno Turcksin.
+/* Copyright (:c) 2013, Bruno Turcksin.
  *
  * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
@@ -46,6 +46,9 @@ void RTQuadrature::build_quadrature(const double weight_sum)
 
     M2D.Tmmult(D2M,weight_matrix);
   }  
+
+  // Compute the most normal directions
+  compute_most_normal_directions();
 }
 
 void RTQuadrature::deploy_octant()
@@ -117,9 +120,11 @@ void RTQuadrature::compute_harmonics(const double weight_sum)
         // Condon-Shortley phase is included in the associated Legendre
         // polynomial.
         Ye[l][m][idir] = w_sph*
-          boost::math::spherical_harmonic_r<double,double>(l,m,omega[idir][2],phi[idir]);
+          boost::math::spherical_harmonic_r<double,double>(l,m,omega[idir][2],
+              phi[idir]);
         Yo[l][m][idir] = w_sph*
-          boost::math::spherical_harmonic_i<double,double>(l,m,omega[idir][2],phi[idir]);
+          boost::math::spherical_harmonic_i<double,double>(l,m,omega[idir][2],
+              phi[idir]);
       } 
     }
   }
@@ -183,6 +188,43 @@ void RTQuadrature::compute_harmonics(const double weight_sum)
             ++pos;
           }
         }
+      }
+    }
+  }
+}
+
+void RTQuadrature::compute_most_normal_directions()
+{
+  std::vector<double> most_normal(6,0.);
+
+  // Find the most normal directions
+  for (Vector<double> direction : omega)
+  {
+    if (direction[0]>most_normal[0])
+      most_normal[0] = direction[0];
+    if (direction[0]<most_normal[1])
+      most_normal[1] = direction[0];
+    if (direction[1]>most_normal[2])
+      most_normal[2] = direction[1];
+    if (direction[1]<most_normal[3])
+      most_normal[3] = direction[1];
+    if (direction[2]>most_normal[4])
+      most_normal[4] = direction[2];
+    if (direction[2]<most_normal[5])
+      most_normal[5] = direction[2];
+  }
+
+  // Store the direction in an unordered set
+  for (unsigned int idir=0; idir<n_dir; ++idir)
+  {
+    std::vector<double>::iterator it;
+    for (unsigned int i=0; i<3; ++i)
+    {
+      it = std::find(most_normal.begin(),most_normal.end(),omega[idir][i]);
+      if (it!=most_normal.end())
+      {
+        most_n_directions.insert(idir);
+        break;
       }
     }
   }

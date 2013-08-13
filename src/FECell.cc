@@ -19,8 +19,8 @@ FECell<dim,tensor_dim>::FECell(const unsigned int n_q_points,
   downwind_matrices(2*dim),
   upwind_matrices(2*dim)
 {
-  source_id = cell->material_id()/100;
-  material_id = cell->material_id()-100*source_id;
+  source_id = cell->user_index();
+  material_id = cell->material_id();
   unsigned int face_map[6] = {1,0,3,2,6,5};
 
   // Reinit fe_values on the current cell

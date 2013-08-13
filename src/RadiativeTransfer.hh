@@ -89,6 +89,7 @@ class RadiativeTransfer : public Epetra_Operator
     /// front wave).
     void sweep(Task const &task,std::list<double*> &buffers,
         std::list<MPI_Request*> &requests,Epetra_MultiVector &flux_moments,
+        Epetra_MultiVector &psi,
         std::vector<TrilinosWrappers::MPI::Vector> const* const group_flux=nullptr) 
       const;
 

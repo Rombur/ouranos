@@ -10,13 +10,13 @@ subsection Radiative Transfer parameters
   set Max outer iterations = 1
   set Max inner iterations = 100
   set Tolerance outer solver = 1e-4
-  set Tolerance inner solver = 1e-6
+  set Tolerance inner solver = 1e-9
   set Sn order = 4
   set Quadrature type = LS
-  set Sum weight = 2PI
+  set Sum weight = 1
   set Galerkin = false
-  set Xmin BC = reflective
-  set Xmax BC = reflective
+  set Xmin BC = vacuum
+  set Xmax BC = vacuum
   set Ymin BC = vacuum
   set Ymax BC = vacuum
   set Number of sources = 1
