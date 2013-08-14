@@ -946,7 +946,9 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
         {
           Tensor<2,tensor_dim> const* const upwind_matrix(
               fecell->get_upwind_matrix(face));
-          Tensor<1,tensor_dim> psi_cell(-n_dot_omega);
+          Tensor<1,tensor_dim> psi_cell;
+          for (unsigned int j=0; j<tensor_dim; ++j)
+            psi_cell[j] = -n_dot_omega;
           typename DoFHandler<dim>::active_cell_iterator neighbor_cell;
           neighbor_cell = cell->neighbor(face);
           if (neighbor_cell->is_locally_owned()==true)

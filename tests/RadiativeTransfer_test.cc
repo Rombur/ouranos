@@ -22,7 +22,7 @@
 #include "deal.II/lac/trilinos_solver.h"
 #include "deal.II/lac/trilinos_vector.h"
 #include "../src/Geometry.hh"
-#include "../src/LS.hh"
+#include "../src/GLC.hh"
 #include "../src/Parameters.hh"
 #include "../src/RadiativeTransfer.hh"
 
@@ -40,7 +40,7 @@ TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D on 4 p
 
   DoFHandler<2>* dof_handler(geometry.get_dof_handler());
   IndexSet index_set(dof_handler->locally_owned_dofs());
-  LS quad(parameters.get_sn_order(),material_properties.get_L_max(),
+  GLC quad(parameters.get_sn_order(),material_properties.get_L_max(),
       parameters.get_galerkin());
   quad.build_quadrature(parameters.get_weight_sum());
   
@@ -83,78 +83,76 @@ TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D on 4 p
   solver.solve(radiative_transfer,flux_moments,rhs,
       preconditioner);
 
-  std::cout<<flux_moments.trilinos_vector()<<std::endl;
-
   // Reference solution
   std::vector<double> solution(64,0.);
-  solution[0]=0.431292;
-  solution[1]=0.660557;
-  solution[2]=1.04838;
-  solution[3]=0.660557;
-  solution[4]=0.663296;
-  solution[5]=0.698176;
-  solution[6]=1.11381;
-  solution[7]=1.05284;
-  solution[8]=0.698176;
-  solution[9]=0.663296;
-  solution[10]=1.05284;
-  solution[11]=1.11381;
-  solution[12]=0.660557;
-  solution[13]=0.431292;
-  solution[14]=0.660557;
-  solution[15]=1.04838;
-  solution[16]=0.663296;
-  solution[17]=1.05284;
-  solution[18]=1.11381;
-  solution[19]=0.698176;
-  solution[20]=1.05753;
-  solution[21]=1.11944;
-  solution[22]=1.18834;
-  solution[23]=1.11944;
-  solution[24]=1.11944;
-  solution[25]=1.05753;
-  solution[26]=1.11944;
-  solution[27]=1.18834;
-  solution[28]=1.05284;
-  solution[29]=0.663296;
-  solution[30]=0.698176;
-  solution[31]=1.11381;
-  solution[32]=0.698176;
-  solution[33]=1.11381;
-  solution[34]=1.05284;
-  solution[35]=0.663296;
-  solution[36]=1.11944;
-  solution[37]=1.18834;
-  solution[38]=1.11944;
-  solution[39]=1.05753;
-  solution[40]=1.18834;
-  solution[41]=1.11944;
-  solution[42]=1.05753;
-  solution[43]=1.11944;
-  solution[44]=1.11381;
-  solution[45]=0.698176;
-  solution[46]=0.663296;
-  solution[47]=1.05284;
-  solution[48]=0.660557;
-  solution[49]=1.04838;
-  solution[50]=0.660557;
-  solution[51]=0.431292;
-  solution[52]=1.05284;
-  solution[53]=1.11381;
-  solution[54]=0.698176;
-  solution[55]=0.663296;
-  solution[56]=1.11381;
-  solution[57]=1.05284;
-  solution[58]=0.663296;
-  solution[59]=0.698176;
-  solution[60]=1.04838;
-  solution[61]=0.660557;
-  solution[62]=0.431292;
-  solution[63]=0.660557;
+  solution[0]=0.407787;
+  solution[1]= 0.62897;
+  solution[2]= 0.62897;
+  solution[3]= 1.02715;
+  solution[4]=0.634493;
+  solution[5]=0.680499;
+  solution[6]= 1.03841;
+  solution[7]= 1.11156;
+  solution[8]=0.634493;
+  solution[9]= 1.03841;
+  solution[10]=0.680499;
+  solution[11]= 1.11156;
+  solution[12]= 1.05037;
+  solution[13]= 1.12519;
+  solution[14]= 1.12519;
+  solution[15]= 1.20627;
+  solution[16]=0.680499;
+  solution[17]=0.634493;
+  solution[18]= 1.11156;
+  solution[19]= 1.03841;
+  solution[20]= 0.62897;
+  solution[21]=0.407787;
+  solution[22]= 1.02715;
+  solution[23]= 0.62897;
+  solution[24]= 1.12519;
+  solution[25]= 1.05037;
+  solution[26]= 1.20627;
+  solution[27]= 1.12519;
+  solution[28]= 1.03841;
+  solution[29]=0.634493;
+  solution[30]= 1.11156;
+  solution[31]=0.680499;
+  solution[32]=0.680499;
+  solution[33]= 1.11156;
+  solution[34]=0.634493;
+  solution[35]= 1.03841;
+  solution[36]= 1.12519;
+  solution[37]= 1.20627;
+  solution[38]= 1.05037;
+  solution[39]= 1.12519;
+  solution[40]= 0.62897;
+  solution[41]= 1.02715;
+  solution[42]=0.407787;
+  solution[43]= 0.62897;
+  solution[44]= 1.03841;
+  solution[45]= 1.11156;
+  solution[46]=0.634493;
+  solution[47]=0.680499;
+  solution[48]= 1.20627;
+  solution[49]= 1.12519;
+  solution[50]= 1.12519;
+  solution[51]= 1.05037;
+  solution[52]= 1.11156;
+  solution[53]=0.680499;
+  solution[54]= 1.03841;
+  solution[55]=0.634493;
+  solution[56]= 1.11156;
+  solution[57]= 1.03841;
+  solution[58]=0.680499;
+  solution[59]=0.634493;
+  solution[60]= 1.02715;
+  solution[61]= 0.62897;
+  solution[62]= 0.62897;
+  solution[63]=0.407787;
 
-
-//  for (unsigned int i=0; i<64; ++i)
-//    REQUIRE(std::fabs(flux_moments[0][i]-solution[i])<1e-3);
+  for (unsigned int i=0; i<64; ++i)
+    if (index_set.is_element(i)==true)
+      REQUIRE(std::fabs(flux_moments[i]-solution[i])<1e-3);
 }
 
 int main (int argc, char** argv)

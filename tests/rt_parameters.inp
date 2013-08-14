@@ -12,7 +12,7 @@ subsection Radiative Transfer parameters
   set Tolerance outer solver = 1e-4
   set Tolerance inner solver = 1e-9
   set Sn order = 4
-  set Quadrature type = LS
+  set Quadrature type = GLC
   set Sum weight = 1
   set Galerkin = false
   set Xmin BC = vacuum
