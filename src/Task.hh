@@ -28,101 +28,149 @@ class Task
         std::vector<std::pair<types::subdomain_id,
         std::vector<types::global_dof_index>>> &incomplete_required_tasks);
 
+    /// Add a dof index to the given required task.
     void add_to_required_tasks(std::pair<types::subdomain_id,unsigned int> 
         &subdomain_task_pair,types::global_dof_index dof);
 
+    /// Add a dof index to the given waiting task.
     void add_to_waiting_tasks(std::pair<types::subdomain_id,
         unsigned int> &subdomain_task_pair,types::global_dof_index dof);
 
+    /// Add a dof index to the given waiting subdomain.
     void add_to_waiting_subdomains(types::subdomain_id other_subdomain_id,
         types::global_dof_index dof);
 
+    /// Clear the required_dofs map.
+    void clear_required_dofs() const;
+
+    /// Clear incomplete_required_tasks and waiting_tasks.
+    void clear_temporary_data();
+
+    /// Sort the dofs associated to waiting processors (subdomains) and
+    /// suppress duplicates.
     void compress_waiting_subdomains();
 
+    /// Output the data for debug purpose.
+    void print();
+
+    /// Set the given angular flux value to the given dof index. 
+    void set_required_dof(types::global_dof_index dof,double value) const;
+
+    /// Return true if the task is ready for sweep.
     bool is_ready() const;
 
+    /// Return true is the given task is required by the current task.
     bool is_task_required(std::pair<types::subdomain_id,unsigned int> const 
         &current_task) const;
 
+    /// Return the task ID.
     unsigned int get_id() const;
 
+    /// Return the direction associated with the task.
     unsigned int get_idir() const;
 
-    unsigned int get_sweep_order_size() const;
-
-    unsigned int get_incomplete_n_required_tasks() const;
-
-    unsigned int get_incomplete_subdomain_id(unsigned int i) const;
-
+    /// Return the number of dofs of the ith element of
+    /// incomplete_required_tasks.
     unsigned int get_incomplete_n_dofs(unsigned int i) const;
 
-    unsigned int get_n_waiting_tasks() const;
+    /// Return the number of required tasks in in incomplete_required_tasks,
+    /// i.e, the size of incomplete_required_tasks.
+    unsigned int get_incomplete_n_required_tasks() const;
 
+    /// Return the subdomain ID oth the ith element of
+    /// incomplete_required_tasks.
+    unsigned int get_incomplete_subdomain_id(unsigned int i) const;
+
+    /// Return the number of tasks required before the current task is ready.
     unsigned int get_n_required_tasks() const;
 
+    /// Return the number of tasks that are waiting for the current task to
+    /// finish.
+    unsigned int get_n_waiting_tasks() const;
+  
+    /// Return the size of sweep_order, i.e., the number of cells in the task.
+    unsigned int get_sweep_order_size() const;
+
+    /// Return the ID of the ith element in waiting_tasks.
+    unsigned int get_waiting_tasks_id(unsigned int i) const;
+    
+    /// Return the number of dofs of the ith element in waiting_tasks.
+    unsigned int get_waiting_tasks_n_dofs(unsigned int i) const;
+
+    /// Return the subdomain ID of the ith element in waiting_tasks.
+    types::subdomain_id get_waiting_tasks_subdomain_id(unsigned int i) const;
+    
+    /// Retun the ID of the task.
     types::subdomain_id get_subdomain_id() const;
 
-    // Rajouter le const
-    unsigned int get_waiting_tasks_subdomain_id(unsigned int i);
-    unsigned int get_waiting_tasks_id(unsigned int i) const;
-    unsigned int get_waiting_tasks_n_dofs(unsigned int i) const;
+    /// Return the value of the angular flux associated to given dof.
+    double get_required_angular_flux(types::global_dof_index dof) const;
+
+    /// Return a pointer to required_tasks.
     std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
       std::vector<types::global_dof_index>,
       boost::hash<std::pair<types::subdomain_id,unsigned int>>>* get_required_tasks();
-    std::vector<types::global_dof_index> const* get_waiting_tasks_dofs(
-        unsigned int i);
+
+    /// Return a pointer to waiting_subdomains.
     std::unordered_map<types::subdomain_id,std::vector<types::global_dof_index>>*
       const get_waiting_subdomains() const;
-    void print();
-    void clear_temporary_data();
+
+    /// Return a pointer to the dofs of the ith element of waiting_tasks.
+    std::vector<types::global_dof_index> const* get_waiting_tasks_dofs(
+        unsigned int i);
+
+    /// Return a pointer to the dofs of the given required task.
     std::vector<types::global_dof_index>* const get_required_dofs(
         std::pair<types::global_dof_index,unsigned int> const &current_task) const;
-    void set_ghost_dof(types::global_dof_index dof,double value) const;
-    // Must be deleted when the task is done otherwise the memory usage is
-    // goig to be insane
-    double get_ghost_angular_flux(types::global_dof_index) const;
 
+    /// Return a pointer to sweep_order.
     std::vector<unsigned int> const* get_sweep_order() const;
 
+    /// Return a pointer to the dofs of the ith element of
+    /// incomplete_required_dofs.
     std::vector<types::global_dof_index> const* get_incomplete_dofs(unsigned int i) 
       const;
 
   private :
+    /// Direction associated to the task.
     unsigned int idir;
-    unsigned int weight;
-    // Number not unique globally only per processor
+    /// Task Id not unique globally but unique per processor.
     unsigned int id;
-    unsigned int n_ghost_dofs;
+    /// Number of required dofs before the task is ready.
+    unsigned int n_required_dofs;
+    /// Current number of required dofs that are still missing before 
+    /// the task is ready. Because of the Trilinos interface in Epetra_Operator, 
+    /// n_missing_dofs is made mutable so it can be changed in a const function.
     mutable unsigned int n_missing_dofs;
+    /// Subdomain ID associated to the task.
     types::subdomain_id subdomain_id;
-    std::vector<unsigned int> sweep_order;
-    std::vector<std::pair<types::subdomain_id,std::vector<types::global_dof_index>>> 
-      incomplete_required_tasks;
-    // Pair (subdomain_id, task_id (unsigned int)), dof of the flux passed
-    // Required tasks before we can start this task
+    /// Map of the required task for this task to be ready using for key the 
+    /// subdomain_id and the task id of the required task and for value the 
+    /// required dofs indices.
     mutable std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
       std::vector<types::global_dof_index>,
       boost::hash<std::pair<types::subdomain_id,unsigned int>>> required_tasks;
-    // Tasks waiting for this task to be done, needed for required_tasks
+    /// Map of the tasks waiting this task to be done using for key the 
+    /// subdomain_id and the task id of the waiting task and for value the dofs 
+    /// indices that are waited. 
     std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
       std::vector<types::global_dof_index>,
       boost::hash<std::pair<types::subdomain_id,unsigned int>>> waiting_tasks;
-    // Subdomains waiting angular fluxes from this task, dofs have to be
-    // sorted
+    /// Subdomains waiting angular fluxes from this task, dofs have to be
+    /// sorted
     std::unordered_map<types::subdomain_id,std::vector<types::global_dof_index>>
       waiting_subdomains;
-
-    // Need a pointer because of Trilinos
-    mutable std::unordered_map<types::global_dof_index,double> ghost_dofs;
+    /// Map using for key the required dof indices and for values the angular
+    /// flux associated to the indices. Because of the Trilinos interface in 
+    /// Epetra_Operator, required_dofs is made mutable so it can be changed 
+    /// in a const function.
+    mutable std::unordered_map<types::global_dof_index,double> required_dofs;
+    /// Vector containing the order in which the cells of this task are swept.
+    std::vector<unsigned int> sweep_order;
+    /// Temporary data used to build the required_tasks map.
+    std::vector<std::pair<types::subdomain_id,std::vector<types::global_dof_index>>> 
+      incomplete_required_tasks;
 };
-
-inline void Task::add_to_required_tasks(std::pair<types::subdomain_id,unsigned int>
-    &subdomain_task_pair,types::global_dof_index dof)
-{
-  required_tasks[subdomain_task_pair].push_back(dof);
-  ++n_ghost_dofs;
-  n_missing_dofs = n_ghost_dofs;
-}
 
 inline void Task::add_to_waiting_tasks(std::pair<types::subdomain_id,unsigned int> 
     &subdomain_task_pair,types::global_dof_index dof)
@@ -134,6 +182,11 @@ inline void Task::add_to_waiting_subdomains(types::subdomain_id other_subdomain_
     types::global_dof_index dof)
 {
   waiting_subdomains[other_subdomain_id].push_back(dof);
+}
+
+inline void Task::clear_required_dofs() const
+{
+  required_dofs.clear();
 }
     
 inline bool Task::is_task_required(std::pair<types::subdomain_id,unsigned int> 
@@ -184,67 +237,9 @@ inline unsigned int Task::get_n_required_tasks() const
   return required_tasks.size();
 }
 
-inline types::subdomain_id Task::get_waiting_tasks_subdomain_id(unsigned int i)
+inline double Task::get_required_angular_flux(types::global_dof_index dof) const
 {
-  AssertIndexRange(i,waiting_tasks.size());
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator map_it(
-        waiting_tasks.cbegin());
-
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator p_it(
-        waiting_tasks.cend());
-
-  for (unsigned int j=0; j<i; ++j,++map_it);
-
-  return std::get<0>(map_it->first);
-}
-
-inline unsigned int Task::get_waiting_tasks_id(unsigned int i) const
-{
-  AssertIndexRange(i,waiting_tasks.size());
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator map_it(
-        waiting_tasks.cbegin());
-
-  for (unsigned int j=0; j<i; ++j,++map_it);
-
-  return std::get<1>(map_it->first);
-}
-
-inline unsigned int Task::get_waiting_tasks_n_dofs(unsigned int i) const
-{
-  AssertIndexRange(i,waiting_tasks.size());
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator map_it(
-        waiting_tasks.cbegin());
-
-  for (unsigned int j=0; j<i; ++j,++map_it);
-
-  return map_it->second.size();
-}
-
-inline double Task::get_ghost_angular_flux(types::global_dof_index dof) const
-{
-  return ghost_dofs[dof];
-}
-
-inline std::vector<types::global_dof_index> const* Task::get_waiting_tasks_dofs(
-    unsigned int i)
-{
-  AssertIndexRange(i,waiting_tasks.size());
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator map_it(
-        waiting_tasks.cbegin());
-
-  for (unsigned int j=0; j<i; ++j,++map_it);
-
-  return &(map_it->second);
+  return required_dofs[dof];
 }
  
 inline types::subdomain_id Task::get_subdomain_id() const
@@ -285,12 +280,6 @@ Task::get_required_dofs(std::pair<types::global_dof_index,unsigned int>
 {   
   return const_cast<std::vector<types::global_dof_index>* const> (
       &(required_tasks[current_task]));
-}
-
-inline void Task::clear_temporary_data()
-{
-  incomplete_required_tasks.clear();
-  waiting_tasks.clear();
 }
 
 #endif

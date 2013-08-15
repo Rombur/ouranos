@@ -55,43 +55,43 @@ class RadiativeTransfer : public Epetra_Operator
 
     ~RadiativeTransfer();
 
+    /// Free the buffers and MPI_Request used to send MPI messages.
+    void free_buffers(std::list<double*> &buffers,std::list<MPI_Request*> &requests) 
+      const;
+
+    /// Initialize the scheduler
+    void initialize_scheduler() const;
+
+    /// Get a pointer to the next ready task.
+    Task const* const get_next_task() const;
+
+    /// Get all the dof indices associated to the given task.
+    void get_task_local_dof_indices(Task &task,std::vector<types::global_dof_index> 
+        &local_dof_indices);
+    
+    /// Set the current group.
+    void set_group(unsigned int g);    
+
     /// Create all the matrices that are need to solve the transport equation
     /// and compute the sweep ordering.
     void setup();
 
-    void build_waiting_tasks_map();
-    void build_local_waiting_tasks_map(Task &task,
-        types::global_dof_index* recv_dof_buffer,int* recv_dof_disps_x,
-        const unsigned int recv_dof_buffer_size);
-    void build_required_tasks_map();
-    void build_local_required_tasks_map(Task &task,
-        types::global_dof_index* recv_dof_buffer,int* recv_dof_disps_x,
-        const unsigned int recv_n_dofs_buffer);
-    void get_task_local_dof_indices(Task &task,std::vector<types::global_dof_index> 
-        &local_dof_indices);
-    Task const* const get_next_task() const;
-    void initialize_scheduler() const;
-    void clear_scheduler() const;
-    unsigned int get_n_tasks_to_execute() const;
-    void free_buffers(std::list<double*> &buffers,std::list<MPI_Request*> &requests) 
+    /// Perform a sweep. If group_flux is nullptr is false, the surfacic and 
+    /// the volumetric sources are not included in the sweep.
+    void sweep(Task const &task,std::list<double*> &buffers,
+        std::list<MPI_Request*> &requests,Epetra_MultiVector &flux_moments,
+        std::vector<TrilinosWrappers::MPI::Vector> const* const group_flux=nullptr) 
       const;
 
-    /// Return the result of the transport operator applied to x in. Return 0
-    /// if successful.
-    int Apply(Epetra_MultiVector const &x,Epetra_MultiVector &y) const;
+    /// Return the number of tasks left to execute.
+    unsigned int get_n_tasks_to_execute() const;
 
     /// Compute the scattering given a flux.
     void compute_scattering_source(Epetra_MultiVector const &x) const;
 
-    /// Perform a sweep. If group_flux is nullptr is false, the surfacic and 
-    /// the volumetric sources are not included in the sweep.
-    /// @todo The sweep can be optimized to use less memory (only keep the
-    /// front wave).
-    void sweep(Task const &task,std::list<double*> &buffers,
-        std::list<MPI_Request*> &requests,Epetra_MultiVector &flux_moments,
-        Epetra_MultiVector &psi,
-        std::vector<TrilinosWrappers::MPI::Vector> const* const group_flux=nullptr) 
-      const;
+    /// Return the result of the transport operator applied to x in. Return 0
+    /// if successful.
+    int Apply(Epetra_MultiVector const &x,Epetra_MultiVector &y) const;
 
     /// This method is not implemented.
     int SetUseTranspose(bool UseTranspose) {return 0;};
@@ -124,16 +124,26 @@ class RadiativeTransfer : public Epetra_Operator
     /// Return the Epetra_Map object associated with the range of this
     /// operator.
     Epetra_Map const& OperatorRangeMap() const;
-    
-    /// Set the current group.
-    void set_group(unsigned int g);    
 
   private :
+    /// Build the required_tasks map associated to the given task.
+    void build_local_required_tasks_map(Task &task,
+        types::global_dof_index* recv_dof_buffer,int* recv_dof_disps_x,
+        const unsigned int recv_n_dofs_buffer);
+
+    /// Build the waiting_tasks map associated to the task.
+    void build_local_waiting_tasks_map(Task &task,
+        types::global_dof_index* recv_dof_buffer,int* recv_dof_disps_x,
+        const unsigned int recv_dof_buffer_size);
+
+    /// Build the global_required_tasks map.
     void build_global_required_tasks();
-    void receive_angular_flux() const;
-    void send_angular_flux(Task const &task,std::list<double*> &buffers,
-        std::list<MPI_Request*> &requests,
-        std::unordered_map<types::global_dof_index,double> &angular_flux) const;
+
+    /// Build the required_tasks maps for all the tasks owned by a processor.
+    void build_required_tasks_maps();
+
+    /// Build the waiting_tasks maps for all the tasks owned by a processor.
+    void build_waiting_tasks_maps();                                       
 
     /// Compute the ordering of the cell for the sweeps.
     void compute_sweep_ordering();
@@ -165,9 +175,13 @@ class RadiativeTransfer : public Epetra_Operator
     void LU_solve(Tensor<2,tensor_dim> const &A,Tensor<1,tensor_dim> &b,
         Tensor<1,tensor_dim> &x,Tensor<1,tensor_dim,unsigned int> const &pivot) const;
 
-    // Pointers because of Trilinos
-    mutable unsigned int n_tasks_to_execute;
-    mutable std::list<unsigned int> tasks_ready;
+    /// Received the angular flux from a required tasks.
+    void receive_angular_flux() const;
+
+    /// Send the angular flux computed in task to all the waiting tasks.
+    void send_angular_flux(Task const &task,std::list<double*> &buffers,
+        std::list<MPI_Request*> &requests,
+        std::unordered_map<types::global_dof_index,double> &angular_flux) const;
 
     /// Number of moments.
     unsigned int n_mom;
@@ -175,11 +189,22 @@ class RadiativeTransfer : public Epetra_Operator
     unsigned int group;
     /// Number of groups.
     unsigned int n_groups;
+    /// Number of tasks left to execute. Because of the Trilinos interface
+    /// in Epetra_Operator, n_tasks_to_execute is made mutable so it
+    /// can be changed in a const function.
+    mutable unsigned int n_tasks_to_execute;
     /// Epetra communicator.
     Epetra_MpiComm const* comm;
     /// Pointer to Epetra_Map associated to flux_moments and group_flux
     Epetra_Map const* map;
-
+    /// List of tasks that are ready to be used by sweep. Because of the 
+    /// Trilinos interface in Epetra_Operator, tasks_ready is made mutable 
+    /// so it can be changed in a const function.
+    mutable std::list<unsigned int> tasks_ready;
+    /// This map is used to store the position in a received MPI message from
+    /// a given task of a given dof. Because of the Trilinos interface in
+    /// Epetra_Operator, global_required_tasks is made mutable so it can be
+    /// can be changed in a const function.
     mutable std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
       std::unordered_map<types::global_dof_index,unsigned int>,
       boost::hash<std::pair<types::subdomain_id,unsigned int>>> global_required_tasks;

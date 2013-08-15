@@ -65,16 +65,12 @@ TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D on 4 p
   std::list<double*> buffers;
   std::list<MPI_Request*> requests;
   radiative_transfer.initialize_scheduler();
-  Epetra_MultiVector psi(map,quad.get_n_dir());
   while (radiative_transfer.get_n_tasks_to_execute()!=0)
   {
     radiative_transfer.sweep(*(radiative_transfer.get_next_task()),buffers,
-        requests,rhs.trilinos_vector(),psi,&group_flux);
+        requests,rhs.trilinos_vector(),&group_flux);
     radiative_transfer.free_buffers(buffers,requests);
   }
-  while (buffers.size()!=0)
-    radiative_transfer.free_buffers(buffers,requests);
-  radiative_transfer.clear_scheduler();
 
   SolverControl solver_control(parameters.get_max_inner_it(),
       parameters.get_inner_tolerance());

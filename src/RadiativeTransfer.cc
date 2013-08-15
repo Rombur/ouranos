@@ -30,7 +30,7 @@ RadiativeTransfer<dim,tensor_dim>::RadiativeTransfer(FE_DGQ<dim>* fe,
   const unsigned int n_mom(quad->get_n_mom());
   scattering_source.resize(n_mom,nullptr);
   for (unsigned int i=0; i<n_mom; ++i)
-    scattering_source[i] = new Vector<double>(dof_handler->n_dofs());
+    scattering_source[i] = new Vector<double>(dof_handler->n_locally_owned_dofs());
 }
 
 template <int dim,int tensor_dim>
@@ -152,108 +152,91 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
     // Build the sweep order
     while (candidate_cells.size()!=0)
     {
-      // By changing the value of n_skipped_cells, the granularity of
-      // the tasks can be changed
-      unsigned int n_skipped_cells(0);
-      types::subdomain_id subdomain_id;
+      // For now there is only one cell per task, sweep_order contains only
+      // one element
       std::vector<unsigned int> sweep_order;
       // Required task but missing task_id
-      std::vector<std::pair<types::subdomain_id,
-        std::vector<types::global_dof_index>>>
-        incomplete_required_tasks;
-      while (n_skipped_cells<candidate_cells.size())
+      std::vector<std::pair<types::subdomain_id,std::vector<types::global_dof_index>>>
+          incomplete_required_tasks;
+
+      typename DoFHandler<dim>::active_cell_iterator cell(
+          fecell_mesh[candidate_cells.front()].get_cell());
+      for (unsigned int i=0; i<dim; ++i)
       {
-        bool accept(true);
-        typename DoFHandler<dim>::active_cell_iterator cell(
-            fecell_mesh[candidate_cells.front()].get_cell());
-        std::vector<std::pair<types::subdomain_id,
-          std::vector<types::global_dof_index>>> non_local_neighbors;
-        for (unsigned int i=0; i<dim; ++i)
+        bool other_task(cell->at_boundary(upwind_face[i]) ? false : true);
+        if (other_task==true)
         {
-          bool other_task(cell->at_boundary(upwind_face[i]) ? false : true);
-          if (other_task==true)
+          typename DoFHandler<dim>::active_cell_iterator neighbor_cell(
+              cell->neighbor(upwind_face[i]));
+          std::vector<types::global_dof_index> dof_indices(tensor_dim);
+          neighbor_cell->get_dof_indices(dof_indices);
+          std::pair<types::subdomain_id,std::vector<types::global_dof_index>>
+            subdomain_dof_pair(neighbor_cell->subdomain_id(),dof_indices);
+          incomplete_required_tasks.push_back(subdomain_dof_pair);
+        }
+      }             
+      types::subdomain_id subdomain_id(cell->subdomain_id());
+      // The cell is added to the sweep order
+      sweep_order.push_back(candidate_cells.front());
+      // The cell is removed from candidate_cells and added to used_cells
+      used_cells.insert(cell);
+      candidate_cells.pop_front();
+      // Add the candidate cells
+      for (unsigned int i=0; i<dim; ++i)
+      {
+        if (cell->at_boundary(downwind_face[i])==false)
+        {
+          typename DoFHandler<dim>::active_cell_iterator neighbor_cell(
+              cell->neighbor(downwind_face[i]));
+          if ((neighbor_cell->is_locally_owned()==true) && 
+              (used_cells.count(neighbor_cell)==0))
           {
-            typename DoFHandler<dim>::active_cell_iterator neighbor_cell(
-                cell->neighbor(upwind_face[i]));
-            std::vector<types::global_dof_index> dof_indices(tensor_dim);
-            neighbor_cell->get_dof_indices(dof_indices);
-            std::pair<types::subdomain_id,std::vector<types::global_dof_index>>
-              subdomain_dof_pair(neighbor_cell->subdomain_id(),dof_indices);
-            non_local_neighbors.push_back(subdomain_dof_pair);
-          }
-        }             
-        if (accept==true)
-        {   
-          // Do sth better here
-          subdomain_id = cell->subdomain_id();
-          for (unsigned int i=0; i<non_local_neighbors.size(); ++i)
-            incomplete_required_tasks.push_back(non_local_neighbors[i]);
-          // The cell is added to the sweep order
-          sweep_order.push_back(candidate_cells.front());
-          // The cell is removed from candidate_cells and added to used_cells
-          used_cells.insert(cell);
-          candidate_cells.pop_front();
-          // Add the candidate cells
-          for (unsigned int i=0; i<dim; ++i)
-          {
-            if (cell->at_boundary(downwind_face[i])==false)
+            const unsigned fecell_mesh_size(fecell_mesh.size());
+            for (unsigned int j=0; j<fecell_mesh_size; ++j)
             {
-              typename DoFHandler<dim>::active_cell_iterator neighbor_cell(
-                  cell->neighbor(downwind_face[i]));
-              if ((neighbor_cell->is_locally_owned()==true) && 
-                  (used_cells.count(neighbor_cell)==0))
+              if ((fecell_mesh[j].get_cell()==neighbor_cell) &&
+                  (std::find(candidate_cells.begin(),candidate_cells.end(),j)==
+                   candidate_cells.end()))
               {
-                const unsigned fecell_mesh_size(fecell_mesh.size());
-                for (unsigned int j=0; j<fecell_mesh_size; ++j)
-                {
-                  if ((fecell_mesh[j].get_cell()==neighbor_cell) &&
-                      (std::find(candidate_cells.begin(),candidate_cells.end(),j)==
-                       candidate_cells.end()))
-                  {
-                    candidate_cells.push_back(j);
-                    break;
-                  }
-                }
+                candidate_cells.push_back(j);
+                break;
               }
             }
           }
-          // For now we only want one cell per task
-          n_skipped_cells = 1e6;
         }
-        else
-        {
-          // The cell is put at the end of the list.
-          unsigned int tmp(candidate_cells.front());
-          candidate_cells.pop_front();
-          candidate_cells.push_back(tmp);
-          ++n_skipped_cells;
-        }
-      }                 
+      }
+
       tasks.push_back(Task(idir,task_id,subdomain_id,sweep_order,
             incomplete_required_tasks));
       ++task_id;
     }
   }
-  build_waiting_tasks_map();
-  build_required_tasks_map();
-  for (Task task : tasks)
-    task.clear_temporary_data();
+
+  // Build the maps of tasks waiting for a given task to be done
+  build_waiting_tasks_maps();
+
+  // Build the maps of task required for a given task to start
+  build_required_tasks_maps();
+ 
+  // Loop over the tasks and clear the temporary data that are not needed
+  // anymore
+  for (unsigned int i=0; i<tasks.size(); ++i)
+    tasks[i].clear_temporary_data();
+
+  // Build an unique map per processor which given a required task by one of
+  // the task owned by the processor and a dof return the position this dof in
+  // the MPI buffer.
   build_global_required_tasks();
 }
 
-// 1) donner au processor required la task_id avec les dofs et completer la 
-// waiting_tasks 
-// 2) donner au processor waiting la task_id avec les dofs 
-// 3) faire un sweep dans l'ordre inverse pour determiner les poids
-// etape 3 pas obligatoire
 template <int dim,int tensor_dim>
-void RadiativeTransfer<dim,tensor_dim>::build_waiting_tasks_map()
+void RadiativeTransfer<dim,tensor_dim>::build_waiting_tasks_maps()
 {
   const unsigned int n_proc(comm->NumProc());
   const unsigned int n_tasks(tasks.size());
   MPI_Comm mpi_comm(comm->GetMpiComm());
 
-  // Send the number of dofs that each processor will receive
+  // Send the number of elements that each processor will receive
   int* send_n_dofs_buffer = new int [n_proc];
   int* recv_n_dofs_buffer = new int [n_proc];
   const int send_n_dofs_count(1);
@@ -271,7 +254,7 @@ void RadiativeTransfer<dim,tensor_dim>::build_waiting_tasks_map()
   MPI_Alltoall(send_n_dofs_buffer,send_n_dofs_count,MPI_INT,recv_n_dofs_buffer,
       recv_n_dofs_count,MPI_INT,mpi_comm);
 
-  // Send the dofs and the task IDs. The buffer looks like: 
+  // Send the task IDs, the directions, and the dofs. The buffer looks like: 
   // [task_id,idir,n_dofs,dof,dof,dof,task_id,idir,n_dofs,dof,dof,...]
   int* send_dof_disps = new int [n_proc];
   int* recv_dof_disps = new int [n_proc];
@@ -318,11 +301,13 @@ void RadiativeTransfer<dim,tensor_dim>::build_waiting_tasks_map()
       DEAL_II_DOF_INDEX_MPI_TYPE,recv_dof_buffer,recv_n_dofs_buffer,recv_dof_disps,
       DEAL_II_DOF_INDEX_MPI_TYPE,mpi_comm);           
 
-  // Extended recv_dof_disps
+  // Build the extended recv_dof_disps, i.e., recv_dof_disps plus
+  // recv_dof_buffer_size
   int* recv_dof_disps_x = new int [n_proc+1];
   for (unsigned int i=0; i<n_proc; ++i)
      recv_dof_disps_x[i] = recv_dof_disps[i];
   recv_dof_disps_x[n_proc] = recv_dof_buffer_size;
+  
   // Now every processor can fill in the waiting_tasks map of each task
   for (unsigned int i=0; i<n_tasks; ++i)
     build_local_waiting_tasks_map(tasks[i],recv_dof_buffer,recv_dof_disps_x,
@@ -349,6 +334,7 @@ void RadiativeTransfer<dim,tensor_dim>::build_local_waiting_tasks_map(Task &task
     types::global_dof_index* recv_dof_buffer,int* recv_dof_disps_x,
     const unsigned int recv_dof_buffer_size)
 {
+  // Get the dofs associated to the current task
   const unsigned int sweep_order_size(task.get_sweep_order_size());
   std::vector<types::global_dof_index> local_dof_indices(sweep_order_size*tensor_dim);
   get_task_local_dof_indices(task,local_dof_indices);
@@ -386,17 +372,20 @@ void RadiativeTransfer<dim,tensor_dim>::build_local_waiting_tasks_map(Task &task
     }
     i += n_dofs+3;
   }
+
+  // Sort the dofs associated to waiting processors (subdomains) and suppress
+  // duplicates
   task.compress_waiting_subdomains();
 }  
 
 template <int dim,int tensor_dim>
-void RadiativeTransfer<dim,tensor_dim>::build_required_tasks_map()
+void RadiativeTransfer<dim,tensor_dim>::build_required_tasks_maps()
 {  
   const unsigned int n_proc(comm->NumProc());
   const unsigned int n_tasks(tasks.size());
   MPI_Comm mpi_comm(comm->GetMpiComm());
 
-  // Send the number of dofs that each processor will receive
+  // Send the number of elements that each processor will receive
   int* send_n_dofs_buffer = new int [n_proc];
   int* recv_n_dofs_buffer = new int [n_proc];
   const int send_n_dofs_count(1);
@@ -441,7 +430,8 @@ void RadiativeTransfer<dim,tensor_dim>::build_required_tasks_map()
     const unsigned int n_waiting_tasks(tasks[i].get_n_waiting_tasks());
     for (unsigned int j=0; j<n_waiting_tasks; ++j)
     {
-      const unsigned int subdomain_id(tasks[i].get_waiting_tasks_subdomain_id(j));
+      const types::subdomain_id subdomain_id(tasks[i].get_waiting_tasks_subdomain_id(
+            j));
       const unsigned int current_offset(offset[subdomain_id]);
       const unsigned int n_dofs_task(tasks[i].get_waiting_tasks_n_dofs(j));
       std::vector<types::global_dof_index> const* task_dof(
@@ -462,11 +452,13 @@ void RadiativeTransfer<dim,tensor_dim>::build_required_tasks_map()
       DEAL_II_DOF_INDEX_MPI_TYPE,recv_dof_buffer,recv_n_dofs_buffer,recv_dof_disps,
       DEAL_II_DOF_INDEX_MPI_TYPE,mpi_comm);
   
-  // Extended recv_dof_disps
+  // Build the extended recv_dof_disps, i.e., recv_dof_disps plus
+  // recv_dof_buffer_size
   int* recv_dof_disps_x = new int [n_proc+1];
   for (unsigned int i=0; i<n_proc; ++i)
      recv_dof_disps_x[i] = recv_dof_disps[i];
   recv_dof_disps_x[n_proc] = recv_dof_buffer_size;
+  
   // Now every processor can fill in the required_tasks map of each task
   for (unsigned int i=0; i<n_tasks; ++i)
     build_local_required_tasks_map(tasks[i],recv_dof_buffer,recv_dof_disps_x,
@@ -509,6 +501,7 @@ void RadiativeTransfer<dim,tensor_dim>::build_local_required_tasks_map(Task &tas
       ++subdomain_id;
       next_subdomain_disps = recv_dof_disps_x[subdomain_id+1];
     }
+    // If the receiver task is the current task, add the dofs to required_tasks_map
     if (recv_task_id==current_task_id)
     {
       for (unsigned int j=0; j<n_dofs; ++j)
@@ -570,7 +563,8 @@ void RadiativeTransfer<dim,tensor_dim>::build_global_required_tasks()
     }
   }
 
-  // Build the global_required_tasks map
+  // Build the global_required_tasks map, by looping over the tmp_map and
+  // adding the position of the dofs in the MIP messages
   std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
     std::vector<types::global_dof_index>,
     boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
@@ -591,11 +585,12 @@ template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::get_task_local_dof_indices(Task &task,
     std::vector<types::global_dof_index> &local_dof_indices)
 {
-  // Copy the dof indices associated to task
   std::vector<unsigned int> const* sweep_order(task.get_sweep_order());
   const unsigned int sweep_order_size(task.get_sweep_order_size());
+  // Loop over the cells in the sweep associated to this task
   for (unsigned int i=0; i<sweep_order_size; ++i)
   {
+    // Copy the dofs associated to the cell to local_dof_indices
     typename DoFHandler<dim>::active_cell_iterator cell(
         fecell_mesh[(*sweep_order)[i]].get_cell());
     std::vector<types::global_dof_index> cell_dof_indices(tensor_dim);
@@ -609,18 +604,13 @@ template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::initialize_scheduler() const
 {
   n_tasks_to_execute = tasks.size();
+  // Add to the tasks_ready list all the tasks that do not require another
+  // task to start
   for (unsigned int i=0; i<n_tasks_to_execute; ++i)
     if (tasks[i].get_n_required_tasks()==0)
       tasks_ready.push_back(i);
 }
 
-template <int dim,int tensor_dim>
-void RadiativeTransfer<dim,tensor_dim>::clear_scheduler() const
-{
-  tasks_ready.clear();
-}
-
-// this function returns a pointer to the task to execute
 template <int dim,int tensor_dim>
 Task const* const RadiativeTransfer<dim,tensor_dim>::get_next_task() const
 {
@@ -630,14 +620,14 @@ Task const* const RadiativeTransfer<dim,tensor_dim>::get_next_task() const
     receive_angular_flux();
   }
 
+  // Pop a task from the tasks_ready list and decrease the number of tasks
+  // that are left to execute by
   --n_tasks_to_execute;
   unsigned int i(tasks_ready.front());
   tasks_ready.pop_front();
   return &tasks[i];
 }
 
-// il faut que les buffer et les requests soient hors de la loop pour pouvoir
-// faire de la comm.
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::send_angular_flux(Task const &task,
     std::list<double*> &buffers,std::list<MPI_Request*> &requests,
@@ -653,16 +643,18 @@ void RadiativeTransfer<dim,tensor_dim>::send_angular_flux(Task const &task,
   std::unordered_map<types::subdomain_id,std::vector<types::global_dof_index>>
     ::iterator map_end(waiting_subdomains->end());
 
+  // Loop over all the waiting processors
   types::subdomain_id source(task.get_subdomain_id());
   unsigned int tag(task.get_id());
   for (; map_it!=map_end; ++map_it)
   {
     types::subdomain_id destination(map_it->first);
-    // If source and destination are different, MPI is used
+    // If source and destination processors are different, MPI is used
     if (source!=destination)
     {
       int count(map_it->second.size());
       double* buffer = new double [count];
+      // Copy the requested dofs to the buffer
       for (int i=0; i<count; ++i)
         buffer[i] = angular_flux[map_it->second[i]];
       buffers.push_back(buffer);
@@ -673,6 +665,8 @@ void RadiativeTransfer<dim,tensor_dim>::send_angular_flux(Task const &task,
     }                                               
     else
     {
+      // If source and destination processors are the same, loop over the
+      // tasks and set the required dofs if necessary
       std::pair<types::subdomain_id,unsigned int> current_task(source,tag);
       for (unsigned int i=0; i<n_tasks; ++i)
       {
@@ -682,10 +676,12 @@ void RadiativeTransfer<dim,tensor_dim>::send_angular_flux(Task const &task,
               tasks[i].get_required_dofs(current_task));
           const unsigned int required_dofs_size(required_dofs->size());
           for (unsigned int j=0; j<required_dofs_size; ++j)
-            tasks[i].set_ghost_dof((*required_dofs)[j],
+            tasks[i].set_required_dof((*required_dofs)[j],
                 angular_flux[(*required_dofs)[j]]);
         }
 
+        // If all the required dofs are known, i.e., the task is ready, the
+        // tasks is added to the tasks_ready list
         if (tasks[i].is_ready()==true)
           tasks_ready.push_back(i);
       }
@@ -693,18 +689,13 @@ void RadiativeTransfer<dim,tensor_dim>::send_angular_flux(Task const &task,
   }
 }
 
-// creer un global_required_tasks au niveau du processor qui ressemble a
-// unordered_map<pair<subdomain_id,source_task_id>,
-// unordered_map<global_dof_index,position dans le message> il faut aussi
-// que chaque task possede un ghost_dof:
-// unordered_map<global_dof_index,flux_value> a cause de Trilinos, il
-// faudra avoir un pointer vers la map pour pouvoir changer les valeurs
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::receive_angular_flux() const 
 {
   MPI_Comm mpi_comm(comm->GetMpiComm());
   const unsigned int n_tasks(tasks.size());
 
+  // Loop on the global_required_tasks map
   std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
     std::unordered_map<types::global_dof_index,unsigned int>,
     boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
@@ -730,7 +721,7 @@ void RadiativeTransfer<dim,tensor_dim>::receive_angular_flux() const
       // Receive the message
       MPI_Recv(buffer,count,MPI_DOUBLE,source,tag,mpi_comm,MPI_STATUS_IGNORE);
 
-      // Set the ghost dofs
+      // Set the required dofs
       for (unsigned int i=0; i<n_tasks; ++i)
       {
         if (tasks[i].is_task_required(global_map_it->first)==true)
@@ -742,11 +733,12 @@ void RadiativeTransfer<dim,tensor_dim>::receive_angular_flux() const
           {
             const unsigned int required_dof((*required_dofs)[j]);
             const unsigned int buffer_pos(global_map_it->second[required_dof]);
-            tasks[i].set_ghost_dof(required_dof,buffer[buffer_pos]);
+            tasks[i].set_required_dof(required_dof,buffer[buffer_pos]);
           }
         }
 
-        // If the task has all the ghost dofs needed, it goes into the list
+        // If the task has all the required dofs, it goes into the tasks_ready
+        // list
         if (tasks[i].is_ready()==true)
           tasks_ready.push_back(i);
       }
@@ -764,6 +756,8 @@ void RadiativeTransfer<dim,tensor_dim>::free_buffers(
   std::list<MPI_Request*>::iterator requests_it(requests.begin());
   while (buffers_it!=buffers_end)
   {  
+    // If the message has been received, the buffer and the request are delete. 
+    // Otherwise, we just try the next buffer.
     int flag;
     MPI_Test(*requests_it,&flag,MPI_STATUS_IGNORE);
     if (flag==true)
@@ -788,33 +782,23 @@ int RadiativeTransfer<dim,tensor_dim>::Apply(Epetra_MultiVector const &x,
   y = x;
   Epetra_MultiVector z(y);
 
-  // Need to change that because it is terrible
-  Epetra_MultiVector psi(*map,quad->get_n_dir());
-
   // Compute the scattering source
   compute_scattering_source(y);
 
   // Clear flux_moments
   y.PutScalar(0.);
-  // Creer un vector de requests et de buffers quand on fait le send il faut
-  // agrandir les vectors, il faut une fonction qui check qu'on peut desallouer 
-  // les buffers. Il faut etre sur que tous les buffers soient desalloues
-  // avant de rentrer dans le for. Il faut utiliser MPI_Request_get_status ou
-  // MPI_Test pour faire les check et puis finir avec un MPI_Wait pour etre
-  // sur qu'on ne quitte pas la fonction trop tot. Ici il faut initialiser
-  // missing_dofs a n_ghost_dofs.
+
+  // Create the buffers and the MPI_Request
   std::list<double*> buffers;
   std::list<MPI_Request*> requests;
+  // Initialize the scheduler by creating the tasks_ready list
   initialize_scheduler();
+  // Sweep through the mesh
   while (n_tasks_to_execute!=0)
   {
-    sweep(*get_next_task(),buffers,requests,y,psi);
+    sweep(*get_next_task(),buffers,requests,y);
     free_buffers(buffers,requests);
   }
-
-  while (buffers.size()!=0)
-    free_buffers(buffers,requests);
-  clear_scheduler();
 
   for (int i=0; i<y.MyLength(); ++i)
     y[0][i] = z[0][i]-y[0][i];
@@ -830,6 +814,7 @@ void RadiativeTransfer<dim,tensor_dim>::compute_scattering_source(
   for (unsigned int i=0; i<n_mom; ++i)
     (*scattering_source[i]) = 0.;
 
+  // Loop over the FECells 
   typedef typename std::vector<FECell<dim,tensor_dim> >::const_iterator fecell_it;
   fecell_it fecell(fecell_mesh.cbegin());
   fecell_it end_fecell(fecell_mesh.cend());
@@ -847,6 +832,8 @@ void RadiativeTransfer<dim,tensor_dim>::compute_scattering_source(
       scat_src_cell *= material_properties->get_sigma_s(fecell->get_material_id(),
           group,group,j);
 
+      // scatter_source used multivector indices because multivector indices
+      // are just the local indices, i.e, in [0,n_locally_owned_dofs[
       for (unsigned int i=0; i<tensor_dim; ++i)
         (*scattering_source[j])[local_dof_indices[i]] += scat_src_cell[i];
     }
@@ -859,6 +846,8 @@ void RadiativeTransfer<dim,tensor_dim>::compute_outer_scattering_source(
     group_flux,FECell<dim,tensor_dim> const* const fecell,const unsigned int idir) 
   const
 {
+  // Does the same thing that compute_scattering_source but on the other
+  // groups
   FullMatrix<double> const* const M2D(quad->get_M2D());
   Tensor<1,tensor_dim> x_cell;
   std::vector<int> local_dof_indices(tensor_dim);
@@ -887,10 +876,11 @@ void RadiativeTransfer<dim,tensor_dim>::compute_outer_scattering_source(
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
     std::list<double*> &buffers,std::list<MPI_Request*> &requests,
-    Epetra_MultiVector &flux_moments,Epetra_MultiVector &psi,
+    Epetra_MultiVector &flux_moments,
     std::vector<TrilinosWrappers::MPI::Vector> const* const group_flux) const
 {
   const unsigned int idir(task.get_idir());
+  const unsigned int sweep_order_size(task.get_sweep_order_size());
   std::vector<unsigned int> const* sweep_order(task.get_sweep_order());
   FullMatrix<double> const* const M2D(quad->get_M2D());
   FullMatrix<double> const* const D2M(quad->get_D2M());
@@ -898,16 +888,17 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
   std::vector<int> multivector_indices(tensor_dim);
   std::unordered_map<types::global_dof_index,double> angular_flux;
  
-  // Sweep on the spatial cells
-  for (unsigned int i : *sweep_order)
+  // Sweep on the spatial cells of the current task
+  for (unsigned int i=0; i<sweep_order_size; ++i)
   {
-    FECell<dim,tensor_dim> const* const fecell = &fecell_mesh[i];
+    FECell<dim,tensor_dim> const* const fecell = &fecell_mesh[(*sweep_order)[i]];
     typename DoFHandler<dim>::active_cell_iterator const cell(fecell->get_cell());
     Tensor<1,tensor_dim> b;
     Tensor<2,tensor_dim> A(*(fecell->get_mass_matrix()));
     get_multivector_indices(multivector_indices,cell);
     // Volumetric terms of the lhs: -omega dot grad_matrix + sigma_t mass
-    A *= material_properties->get_sigma_t(fecell_mesh[i].get_material_id(),group);
+    A *= material_properties->get_sigma_t(fecell_mesh[
+        (*sweep_order)[i]].get_material_id(),group);
     for (unsigned int d=0; d<dim; ++d)
       A += (-(*omega)[d]*(*(fecell->get_grad_matrix(d))));
     
@@ -951,25 +942,19 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
             psi_cell[j] = -n_dot_omega;
           typename DoFHandler<dim>::active_cell_iterator neighbor_cell;
           neighbor_cell = cell->neighbor(face);
-          if (neighbor_cell->is_locally_owned()==true)
-          {
-            std::vector<int> neighbor_local_dof_indices(tensor_dim);
-            get_multivector_indices(neighbor_local_dof_indices,neighbor_cell);
-            for (unsigned int j=0; j<tensor_dim; ++j)
-              psi_cell[j] *= psi[idir][neighbor_local_dof_indices[j]];
-          }
-          else
-          {
-            std::vector<types::global_dof_index> neighbor_dof_indices(tensor_dim);
-            neighbor_cell->get_dof_indices(neighbor_dof_indices);
-            for (unsigned int j=0; j<tensor_dim; ++j)
-              psi_cell[j] *= task.get_ghost_angular_flux(neighbor_dof_indices[j]);
-          }
+          std::vector<types::global_dof_index> neighbor_dof_indices(tensor_dim);
+          neighbor_cell->get_dof_indices(neighbor_dof_indices);
+          // This assumes that there is only one cell per task. If there are
+          // more than one cell per task, a local angular flux vector is
+          // needed.
+          for (unsigned int j=0; j<tensor_dim; ++j)
+            psi_cell[j] *= task.get_required_angular_flux(neighbor_dof_indices[j]);
 
           b += (*upwind_matrix)*psi_cell;
         }
         else
         {
+          // Use only to build the rhs of GMRES
           if (group_flux!=nullptr)
           {
             double inc_flux_val(0.);
@@ -999,29 +984,28 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
     Tensor<1,tensor_dim> x;
     LU_decomposition(A,pivot);
     LU_solve(A,b,x,pivot);
-    for (unsigned int j=0; j<tensor_dim; ++j)
-      psi[idir][multivector_indices[j]] = x[j];
 
     // Update flux moments
     for (unsigned int mom=0; mom<n_mom; ++mom)
     {
       const double d2m((*D2M)(mom,idir));
       for (unsigned int j=0; j<tensor_dim; ++j)
-        flux_moments[mom][multivector_indices[j]] += d2m*
-          psi[idir][multivector_indices[j]];
+        flux_moments[mom][multivector_indices[j]] += d2m*x[j];
     }
 
     // Send the angular flux to the others processors
     for (unsigned int j=0; j<tensor_dim; ++j)
 #ifdef DEAL_II_USE_LARGE_INDEX_TYPE
-      angular_flux[map->GID64(multivector_indices[j])] = psi[idir][
-        multivector_indices[j]];
+      angular_flux[map->GID64(multivector_indices[j])] = x[j];
 #else
-      angular_flux[map->GID(multivector_indices[j])] = psi[idir][
-        multivector_indices[j]];
+      angular_flux[map->GID(multivector_indices[j])] = x[j];
 #endif 
   }
 
+  // Delete all required_dofs map that is now useless
+  task.clear_required_dofs();
+
+  // Send angular_flux to the waiting task
   send_angular_flux(task,buffers,requests,angular_flux);
 }
 
@@ -1099,8 +1083,8 @@ void RadiativeTransfer<dim,tensor_dim>::LU_solve(Tensor<2,tensor_dim> const &A,
     x[k] /= A[k][k];
   }
 
-  // Solve the linear equation \f$Ux=y\$, where \f$y\f$ is the solution
-  // obtained above of \f$Lx=b\f$ and \f$U\f$ is an upper triangular matrix.
+  // Solve the linear equation Ux=y, where y is the solution
+  // obtained above of x=b and U is an upper triangular matrix.
   // The elements of the diagonal of the upper triangular part of the matrix are 
   // assumed to be ones.
   // To avoid warning about comparison between unsigned int and int, k is
