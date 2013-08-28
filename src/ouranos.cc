@@ -25,6 +25,19 @@
 
 using namespace dealii;
 
+void create_epetra_map(std::vector<TrilinosWrappers::types::int_type> &indices,
+    IndexSet const &index_set,unsigned int const n_locally_owned_dofs,
+    unsigned int const n_mom,types::global_dof_index const n_dofs)
+{
+  std::vector<types::global_dof_index> deal_ii_indices;
+  index_set.fill_index_vector(deal_ii_indices);
+  indices.resize(n_locally_owned_dofs*n_mom);
+  for (unsigned int mom=0; mom<n_mom; ++mom)
+    for (unsigned int i=0; i<n_locally_owned_dofs; ++i)
+      indices[mom*n_locally_owned_dofs+i] = deal_ii_indices[i]+mom*n_dofs;
+}
+
+
 template<int dim,int tensor_dim>
 void solve(RadiativeTransfer<dim,tensor_dim> &radiative_transfer,
     Parameters const &parameters,IndexSet &index_set,
@@ -189,7 +202,9 @@ int main(int argc,char **argv)
 
       // Create the DoFHandler
       DoFHandler<2>* dof_handler(geometry.get_dof_handler());
-      IndexSet index_set(dof_handler->locally_owned_dofs());
+      types::global_dof_index n_dofs(dof_handler->n_dofs());
+      unsigned int n_locally_owned_dofs(dof_handler->n_locally_owned_dofs());
+      IndexSet index_set(n_locally_owned_dofs);
 
       // Buil the quadrature
       RTQuadrature* quad(nullptr);
@@ -204,52 +219,57 @@ int main(int argc,char **argv)
       std::vector<TrilinosWrappers::MPI::Vector> group_flux(parameters.get_n_groups(),
           TrilinosWrappers::MPI::Vector (index_set,MPI_COMM_WORLD));
       Epetra_MpiComm comm(MPI_COMM_WORLD);
-      Epetra_Map map(index_set.make_trilinos_map());
+      // The map is different than the index_set because each moment of the
+      // flux has n_dofs
+      std::vector<TrilinosWrappers::types::int_type> indices;
+      create_epetra_map(indices,index_set,n_locally_owned_dofs,quad->get_n_mom(),
+          n_dofs);
+      Epetra_Map map(n_dofs,n_locally_owned_dofs,&indices[0],0,comm);
 
       // Create the RadiativeTransfer object and solve the problem
       switch (parameters.get_fe_order())
       {
         case 1 :
           {
-            RadiativeTransfer<2,4> radiative_transfer(&fe,
-                geometry.get_triangulation(),dof_handler,&parameters,quad,
-                &material_properties,&comm,&map);
+            RadiativeTransfer<2,4> radiative_transfer(parameters.get_n_groups(),
+                n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
+                quad,&material_properties,&comm,&map);
             solve(radiative_transfer,parameters,index_set,group_flux);
             break;
           }
         case 2 :
           {
-            RadiativeTransfer<2,9> radiative_transfer(&fe,
-                geometry.get_triangulation(),dof_handler,&parameters,quad,
-                &material_properties,&comm,&map);
+            RadiativeTransfer<2,9> radiative_transfer(parameters.get_n_groups(),
+                n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
+                quad,&material_properties,&comm,&map);
             solve(radiative_transfer,parameters,index_set,group_flux);
             break;
           }
         case 3 :
           {
-            RadiativeTransfer<2,16> radiative_transfer(&fe,
-                geometry.get_triangulation(),dof_handler,&parameters,quad,
-                &material_properties,&comm,&map);
+            RadiativeTransfer<2,16> radiative_transfer(parameters.get_n_groups(),
+                n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
+                quad,&material_properties,&comm,&map);
             solve(radiative_transfer,parameters,index_set,group_flux);
             break;
           }
         case 4 :
           {
-            RadiativeTransfer<2,25> radiative_transfer(&fe,
-                geometry.get_triangulation(),dof_handler,&parameters,quad,
-                &material_properties,&comm,&map);
+            RadiativeTransfer<2,25> radiative_transfer(parameters.get_n_groups(),
+                n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
+                quad,&material_properties,&comm,&map);
             solve(radiative_transfer,parameters,index_set,group_flux);
             break;
           }
         case 5 :
           {
-            RadiativeTransfer<2,36> radiative_transfer(&fe,
-                geometry.get_triangulation(),dof_handler,&parameters,quad,
-                &material_properties,&comm,&map);
+            RadiativeTransfer<2,36> radiative_transfer(parameters.get_n_groups(),
+                n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
+                quad,&material_properties,&comm,&map);
             solve(radiative_transfer,parameters,index_set,group_flux);
             break;
           }
-      }
+      }         
 
       if (quad!=nullptr)
       {
@@ -268,7 +288,9 @@ int main(int argc,char **argv)
 
       // Create the DoFHandler
       DoFHandler<3>* dof_handler(geometry.get_dof_handler());
-      IndexSet index_set(dof_handler->locally_owned_dofs());
+      types::global_dof_index n_dofs(dof_handler->n_dofs());
+      unsigned int n_locally_owned_dofs(dof_handler->n_locally_owned_dofs());
+      IndexSet index_set(n_locally_owned_dofs);
 
       // Buil the quadrature
       RTQuadrature* quad(nullptr);
@@ -283,47 +305,53 @@ int main(int argc,char **argv)
       std::vector<TrilinosWrappers::MPI::Vector> group_flux(parameters.get_n_groups(),
           TrilinosWrappers::MPI::Vector (index_set,MPI_COMM_WORLD));
       Epetra_MpiComm comm(MPI_COMM_WORLD);
-      Epetra_Map map(index_set.make_trilinos_map());
+      // The map is different than the index_set because each moment of the
+      // flux has n_dofs
+      std::vector<TrilinosWrappers::types::int_type> indices;
+      create_epetra_map(indices,index_set,n_locally_owned_dofs,quad->get_n_mom(),
+          n_dofs);
+      Epetra_Map map(n_dofs,n_locally_owned_dofs,&indices[0],0,comm);
 
       // Create the RadiativeTransfer object and solve the problem
       switch (parameters.get_fe_order())
       {
         case 1 :
           {
-            RadiativeTransfer<3,8> radiative_transfer(&fe,geometry.get_triangulation(),
-                dof_handler,&parameters,quad,&material_properties,&comm,&map);
+            RadiativeTransfer<3,8> radiative_transfer(parameters.get_n_groups(),
+                n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
+                quad,&material_properties,&comm,&map);
             solve(radiative_transfer,parameters,index_set,group_flux);
             break;
           }
         case 2 :
           {
-            RadiativeTransfer<3,27> radiative_transfer(&fe,
-                geometry.get_triangulation(),dof_handler,&parameters,quad,
-                &material_properties,&comm,&map);
+            RadiativeTransfer<3,27> radiative_transfer(parameters.get_n_groups(),
+                n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
+                quad,&material_properties,&comm,&map);
             solve(radiative_transfer,parameters,index_set,group_flux);
             break;
           }
         case 3 :
           {
-            RadiativeTransfer<3,64> radiative_transfer(&fe,
-                geometry.get_triangulation(),dof_handler,&parameters,quad,
-                &material_properties,&comm,&map);
+            RadiativeTransfer<3,64> radiative_transfer(parameters.get_n_groups(),
+                n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
+                quad,&material_properties,&comm,&map);
             solve(radiative_transfer,parameters,index_set,group_flux);
             break;
           }
         case 4 :
           {
-            RadiativeTransfer<3,125> radiative_transfer(&fe,
-                geometry.get_triangulation(),dof_handler,&parameters,quad,
-                &material_properties,&comm,&map);
+            RadiativeTransfer<3,125> radiative_transfer(parameters.get_n_groups(),
+                n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
+                quad,&material_properties,&comm,&map);
             solve(radiative_transfer,parameters,index_set,group_flux);
             break;
           }
         case 5 :
           {
-            RadiativeTransfer<3,216> radiative_transfer(&fe,
-                geometry.get_triangulation(),dof_handler,&parameters,quad,
-                &material_properties,&comm,&map);
+            RadiativeTransfer<3,216> radiative_transfer(parameters.get_n_groups(),
+                n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
+                quad,&material_properties,&comm,&map);
             solve(radiative_transfer,parameters,index_set,group_flux);
             break;
           }

@@ -1,5 +1,7 @@
-# Import variables
+# Import the environment
 Import('env')
+# Clone the environment so it does not interfere with the other SConscript
+env = env.Clone()
 
 # Source files
 src_files = Split('ouranos.cc GLC.cc LS.cc RTQuadrature.cc Parameters.cc '+

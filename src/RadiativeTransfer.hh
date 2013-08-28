@@ -47,8 +47,8 @@ template <int dim,int tensor_dim>
 class RadiativeTransfer : public Epetra_Operator
 {
   public :
-    RadiativeTransfer(FE_DGQ<dim>* fe,
-        parallel::distributed::Triangulation<dim>* triangulation,
+    RadiativeTransfer(unsigned int n_groups,types::global_dof_index n_dofs,
+        FE_DGQ<dim>* fe,parallel::distributed::Triangulation<dim>* triangulation,
         DoFHandler<dim>* dof_handler,Parameters* parameters,RTQuadrature* quad,
         RTMaterialProperties* material_properties,Epetra_MpiComm const* comm,
         Epetra_Map const* map);
@@ -154,8 +154,8 @@ class RadiativeTransfer : public Epetra_Operator
         std::vector<TrilinosWrappers::MPI::Vector> const* const group_flux,
         FECell<dim,tensor_dim> const* const fecell,const unsigned int idir) const;
 
-    /// Get the local indices (used by the Epetra_MultiVector) of the dof 
-    /// associated to a given cell.
+    /// Get the local indices (used by the Epetra_MultiVector for the zeroth
+    /// moment) of the dof associated to a given cell.
     void get_multivector_indices(std::vector<int> &dof_indices,
     typename DoFHandler<dim>::active_cell_iterator const& cell) const;
 
@@ -193,6 +193,8 @@ class RadiativeTransfer : public Epetra_Operator
     /// in Epetra_Operator, n_tasks_to_execute is made mutable so it
     /// can be changed in a const function.
     mutable unsigned int n_tasks_to_execute;
+    /// Total number of degrees of freedom.
+    types::global_dof_index n_dofs;
     /// Epetra communicator.
     Epetra_MpiComm const* comm;
     /// Pointer to Epetra_Map associated to flux_moments and group_flux

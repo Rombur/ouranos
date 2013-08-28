@@ -100,4 +100,4 @@ env = Environment(
   LIBS=libs,
   LINKFLAGS=ld_flags)
 
-SConscript(dirs=['src','tests'],exports=['env'])
+SConscript(['src/SConscript','tests/SConscript'],exports=['env'])

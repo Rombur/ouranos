@@ -10,14 +10,16 @@
 #include <iostream>
 
 template <int dim,int tensor_dim>
-RadiativeTransfer<dim,tensor_dim>::RadiativeTransfer(FE_DGQ<dim>* fe,
+RadiativeTransfer<dim,tensor_dim>::RadiativeTransfer(unsigned int n_groups,
+    types::global_dof_index n_dofs,FE_DGQ<dim>* fe,
     parallel::distributed::Triangulation<dim>* triangulation,
     DoFHandler<dim>* dof_handler,Parameters* parameters,RTQuadrature* quad,
     RTMaterialProperties* material_properties,Epetra_MpiComm const* comm,
     Epetra_Map const* map) :
   n_mom(quad->get_n_mom()),
   group(0),
-  n_groups(1),
+  n_groups(n_groups),
+  n_dofs(n_dofs),
   comm(comm),
   map(map),
   fe(fe),
@@ -823,12 +825,12 @@ void RadiativeTransfer<dim,tensor_dim>::compute_scattering_source(
   for (; fecell!=end_fecell; ++fecell)
   {
     get_multivector_indices(local_dof_indices,fecell->get_cell());
-    for (unsigned int i=0; i<tensor_dim; ++i)
-      x_cell[i] = x[0][local_dof_indices[i]];
-    
-    Tensor<1,tensor_dim> scat_src_cell((*(fecell->get_mass_matrix()))*x_cell);
     for (unsigned int j=0; j<n_mom; ++j)
     {
+      for (unsigned int i=0; i<tensor_dim; ++i)
+        x_cell[i] = x[0][j*n_dofs+local_dof_indices[i]];
+
+      Tensor<1,tensor_dim> scat_src_cell((*(fecell->get_mass_matrix()))*x_cell);
       scat_src_cell *= material_properties->get_sigma_s(fecell->get_material_id(),
           group,group,j);
 
@@ -990,7 +992,7 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
     {
       const double d2m((*D2M)(mom,idir));
       for (unsigned int j=0; j<tensor_dim; ++j)
-        flux_moments[mom][multivector_indices[j]] += d2m*x[j];
+        flux_moments[0][mom*n_dofs+multivector_indices[j]] += d2m*x[j];
     }
 
     // Send the angular flux to the others processors
