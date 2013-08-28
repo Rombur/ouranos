@@ -50,7 +50,7 @@ TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D on 4 p
   Epetra_MpiComm comm(MPI_COMM_WORLD);
   Epetra_Map map(index_set.make_trilinos_map());
 
-  // Creat the RadiativeTransfer object
+  // Create the RadiativeTransfer object
   RadiativeTransfer<2,4> radiative_transfer(&fe,geometry.get_triangulation(),
       dof_handler,&parameters,&quad,&material_properties,&comm,&map);
 

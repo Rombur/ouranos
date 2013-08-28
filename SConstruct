@@ -1,5 +1,49 @@
-# www.scons.org/doc/1.1.0/HTML/scons-user/x2361.html
+def read_deal_II_options(filename,debug) :
+  """Read the Make.global_options of deal.II and extract the important data
+  for SCons."""
+  file = open(filename,'r')
+  debug_ld_flags_next_line = False
+  debug_libs_next_line = False
+  release_ld_flags_next_line = False
+  release_libs_next_line = False
+  first_include = True
+  for line in file :
+    if 'ifeq ($(debug-mode), on)' in line :
+      debug_ld_flags_next_line = True
+      continue
+    if debug_ld_flags_next_line==True :
+      if debug==1 :
+        ld_flags = line.split()[2:]
+        debug_ld_flags_next_line = False
+        debug_libs_next_line = True
+        continue
+    if debug_libs_next_line==True :
+      libs = line.split()[3:]
+      debug_libs_next_line = False
+    if 'else' in line and debug_ld_flags_next_line==True :
+      release_ld_flags_next_line = True
+      debug_ld_flags_next_line = False
+      continue
+    if release_ld_flags_next_line==True :
+      ld_flags = line.split()[2:]
+      release_ld_flags_next_line = False
+      release_libs_next_line = True
+      continue
+    if release_libs_next_line==True :
+      libs = line.split()[3:]
+      release_libs_next_line = False
+    if 'INCLUDE' in line and first_include==True :
+      include = line.split()[5:]
+      first_include = False
+    if 'CXXFLAGS.g' in line and debug==1 :
+      cxx_flags = line.split()[2:]
+      cxx_flags = cxx_flags[:-1]
+    if 'CXXFLAGS.o' in line and debug==0 :
+      cxx_flags = line.split()[2:]
+      cxx_flags = cxx_flags[:-1]
 
+  return ld_flags,libs,include,cxx_flags
+      
 
 # Check if the debug or the release version must be compile
 debug = ARGUMENTS.get('debug',1)
@@ -7,19 +51,53 @@ debug = ARGUMENTS.get('debug',1)
 # Path to deal.II
 deal_II_path = ARGUMENTS.get('deal_II_path','/home/bruno/Documents/deal.ii/trunk/deal.II/installed')
 
-# Path to boost
-boost_path = ARGUMENTS.get('boost_path','/usr/include')
+# Read Make.global_options of deal.II 
+ld_flags,partial_libs,partial_include,cxx_flags = read_deal_II_options(deal_II_path+'/common/Make.global_options',debug)
 
-# Path to trilinos
-trilinos_path = ARGUMENTS.get('trilinos_path','/home/bruno/Documents/vendors/trilinos/bin')
+# Change the format of libs to be compatible with SCons
+libs = []
+libpath = [deal_II_path+'/lib']
+for elem in partial_libs :
+  if elem=='-Wl,-rpath,$(D)/lib' :
+    ld_flags += ['-Wl,-rpath,'+deal_II_path+'/lib']
+  else :
+    if '-Wl,-rpath,' in elem :
+      ld_flags += [elem]
+    else :
+# The BLAS and ATLAS libraries are a special case because their suffix is
+# .so.3gf So the entire path is used and the standard SCons method is
+# by-passed.
+      if elem[-4:]=='.3gf' :
+        libs += [File(elem)]
+      else :
+        split_elem = elem.split('/')
+        libpath_elem = ''
+        for i in xrange(1,len(split_elem)-1) :
+          libpath_elem += '/'+split_elem[i]
+        lib_elem = split_elem[-1][3:]
+        if libpath_elem not in libpath :
+          libpath += [libpath_elem]
+        libs += [lib_elem[:-3]]          
 
-# Path to mpi.h
-mpi_path = ARGUMENTS.get('mpi_path','/usr/include/mpi')
+# Add libdeal_II.g.so or libdeal_II.so to libs
+if debug==1 :
+  libs = ['deal_II.g'] + libs
+else :
+  libs = ['deal_II'] + libs
 
-# Path to p4est
-p4est_path = ARGUMENTS.get('p4est_path','/home/bruno/Documents/vendors/p4est-0.3.4/bin')
+# Strip -I from include elements
+include = [deal_II_path+'/include',deal_II_path+'/include/deal.II',deal_II_path+'/include/deal.II/bundled']
+for elem in partial_include :
+  include += [elem[2:]]
 
-SConscript('tests/SConscript',exports=['deal_II_path','boost_path','trilinos_path',
-  'mpi_path','p4est_path'])
-SConscript('src/SConscript',exports=['debug','deal_II_path','boost_path',
-  'trilinos_path','mpi_path','p4est_path'])
+# Create the environment
+# CPPFLAGS are for C PreProcessing
+# CXXFLAGS are for C++ compiler
+env = Environment(
+  CXXFLAGS=cxx_flags,
+  CPPPATH=include,
+  LIBPATH=libpath,
+  LIBS=libs,
+  LINKFLAGS=ld_flags)
+
+SConscript(dirs=['src','tests'],exports=['env'])

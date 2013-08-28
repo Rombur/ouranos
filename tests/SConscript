@@ -1,12 +1,6 @@
 # Import variables
-Import('deal_II_path')
-Import('boost_path')
-Import('trilinos_path')
-Import('mpi_path')
-Import('p4est_path')
+Import('env')
 
-deal_II_lib = deal_II_path+'/lib'
-trilinos_lib = trilinos_path+'/lib'
 
 # Source files
 src_files = Split('RTQuadrature_test.cc Parameters_test.cc Geometry_test.cc '+
@@ -20,21 +14,7 @@ objects = [src_path+'GLC.o',src_path+'RTQuadrature.o',src_path+'LS.o',
   src_path+'Parameters.o',src_path+'Geometry.o',src_path+'FECell.o',
   src_path+'TimeDiscretization.o',src_path+'RTMaterialProperties.o',
   src_path+'RadiativeTransfer.o',src_path+'Task.o']
-
-# Create the environment
-# CPPFLAGS are for C PreProcessing
-# CXXFLAGS are for C++ compiler
-env = Environment(
-  CPPFLAGS=['-DDEBUG'],
-  CXXFLAGS=['-Wall','-std=c++0x'],
-  CPPPATH=[deal_II_path+'/include',deal_II_path+'/deal.II/include',
-  deal_II_path+'/deal.II/deal.II/bundled',boost_path,trilinos_path+'/include',
-  mpi_path,p4est_path+'/include'],
-  LIBPATH=[deal_II_lib,trilinos_lib],
-  LIBS=['deal_II.g','teuchoscomm','teuchoscore','teuchosnumerics',
-  'teuchosparameterlist','teuchosremainder','epetra','mpi_cxx','mpi'],
-  LINKFLAGS=['-Wl,-rpath='+deal_II_lib,'-Wl,-rpath='+trilinos_lib,
-  objects])
+env.Append(LINKFLAGS=objects)
 
 # Create the programs
 quadrature_test = env.Program('rtquadrature_test',src_files[0])
@@ -44,6 +24,7 @@ fecell_test = env.Program('fecell_test',src_files[3])
 timediscretization_test = env.Program('timediscretization_test',src_files[4])
 rtmaterialproperties_test = env.Program('rtmaterialproperties_test',src_files[5])
 radiativetransfer_test = env.Program('radiativetransfer_test',src_files[6])
+
 # Create an alias and run the tests
 programs = [quadrature_test,parameters_test,geometry_test,fecell_test,
   timediscretization_test,rtmaterialproperties_test,radiativetransfer_test]

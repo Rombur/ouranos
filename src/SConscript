@@ -1,45 +1,16 @@
 # Import variables
-Import('debug')
-Import('deal_II_path')
-Import('boost_path')
-Import('trilinos_path')
-Import('mpi_path')
-Import('p4est_path')
-
-deal_II_lib = deal_II_path+'/lib'
-trilinos_lib = trilinos_path+'/lib'
+Import('env')
 
 # Source files
 src_files = Split('ouranos.cc GLC.cc LS.cc RTQuadrature.cc Parameters.cc '+
   'Geometry.cc FECell.cc TimeDiscretization.cc RadiativeTransfer.cc '+
   'RTMaterialProperties.cc Task.cc')
 
-# Create the environment
-# CPPFLAGS are for C PreProcessing
-# CXXFLAGS are for C++ compiler
-env = Environment(
-  CXXFLAGS=['-Wall','-std=c++0x'],
-  CPPPATH=[deal_II_path+'/include',deal_II_path+'/deal.II/include',
-  deal_II_path+'/deal.II/deal.II/bundled',boost_path,trilinos_path+'/include',
-  mpi_path,p4est_path+'/include'],
-  LIBPATH=[deal_II_lib,trilinos_lib],
-  LIBS=['teuchoscomm','teuchoscore','teuchosnumerics','teuchosparameterlist',
-  'teuchosremainder','epetra','mpi_cxx','mpi'],
-  LINKFLAGS=['-Wl,-rpath='+deal_II_lib,'-Wl,-rpath='+trilinos_lib])
-
-# Check if the debug or the release version should be compiled
-if int(debug) :
-  env.Append(CPPFLAGS=['-DDEBUG'])
-  env.Append(CXXFLAGS=['-g'])
-  env.Append(LIBS=['deal_II.g'])
-else :
-  env.Append(CXXFLAGS=['-O3'])
-  env.Append(LIBS=['deal_II'])
-
 # Build the program in src
 ouranos = env.Program('ouranos',src_files)
 
 # By default build ouranos in src
 Default(ouranos)
+
 # Scons install installs ouranos in bin
 Alias("install",env.Install('../bin',ouranos))
