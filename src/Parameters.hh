@@ -97,6 +97,9 @@ class Parameters
     /// Return the name of the geometry file.
     std::string get_geometry_filename() const;
 
+    /// Return the name of the output file.
+    std::string get_output_filename() const;
+
     /// Return the name of the cross section file.
     std::string get_xs_filename() const;
 
@@ -144,6 +147,8 @@ class Parameters
     double coarsening_factor;
     /// Name of the geometry file.
     std::string geometry_filename;
+    /// Name of the output file.
+    std::string output_filename;
     /// Name of the cross sections file.
     std::string xs_filename;
     /// Intensity of the sources.
@@ -202,6 +207,11 @@ inline unsigned int Parameters::get_n_src() const
 inline std::string Parameters::get_geometry_filename() const
 {
   return geometry_filename;
+}
+
+inline std::string Parameters::get_output_filename() const
+{
+  return output_filename;
 }
 
 inline std::string Parameters::get_xs_filename() const

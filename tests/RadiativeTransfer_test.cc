@@ -44,15 +44,16 @@ TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D on 4 p
       parameters.get_galerkin());
   quad.build_quadrature(parameters.get_weight_sum());
   
-  std::vector<TrilinosWrappers::MPI::Vector> group_flux(1,dof_handler->n_dofs(),
+  std::vector<TrilinosWrappers::MPI::Vector> group_flux(1,
       TrilinosWrappers::MPI::Vector (index_set,MPI_COMM_WORLD));
   TrilinosWrappers::MPI::Vector flux_moments(index_set,MPI_COMM_WORLD);
   Epetra_MpiComm comm(MPI_COMM_WORLD);
   Epetra_Map map(index_set.make_trilinos_map());
 
   // Create the RadiativeTransfer object
-  RadiativeTransfer<2,4> radiative_transfer(1,&fe,geometry.get_triangulation(),
-      dof_handler,&parameters,&quad,&material_properties,&comm,&map);
+  RadiativeTransfer<2,4> radiative_transfer(1,dof_handler->n_dofs(),&fe,
+      geometry.get_triangulation(),dof_handler,&parameters,&quad,&material_properties,
+      &comm,&map);
 
   // Create the FECells and compute the sweep ordering
   radiative_transfer.setup();

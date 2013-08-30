@@ -12,10 +12,12 @@
 #include "deal.II/base/logstream.h"
 #include "deal.II/base/utilities.h"
 #include "deal.II/fe/fe_dgq.h"
+#include "deal.II/grid/grid_tools.h"
 #include "deal.II/lac/solver_control.h"
 #include "deal.II/lac/trilinos_precondition.h"
 #include "deal.II/lac/trilinos_solver.h"
 #include "deal.II/lac/trilinos_vector.h"
+#include "deal.II/numerics/data_out.h"
 #include "Geometry.hh"
 #include "GLC.hh"
 #include "LS.hh"
@@ -39,8 +41,9 @@ void create_epetra_map(std::vector<TrilinosWrappers::types::int_type> &indices,
 
 
 template<int dim,int tensor_dim>
-void solve(RadiativeTransfer<dim,tensor_dim> &radiative_transfer,
-    Parameters const &parameters,IndexSet &index_set,
+void solve(unsigned int const n_mom, 
+    RadiativeTransfer<dim,tensor_dim> &radiative_transfer,
+    Parameters const &parameters,Epetra_Map &map,
     std::vector<TrilinosWrappers::MPI::Vector> &group_flux)
 {
   // Create the FECells and compute the sweep ordering
@@ -53,7 +56,7 @@ void solve(RadiativeTransfer<dim,tensor_dim> &radiative_transfer,
     const unsigned int n_groups(parameters.get_n_groups());
     const double group_tol(parameters.get_outer_tolerance());
     const double inner_tol(parameters.get_inner_tolerance());
-    TrilinosWrappers::MPI::Vector flux_moments(index_set,MPI_COMM_WORLD);
+    TrilinosWrappers::MPI::Vector flux_moments(map);
     std::vector<TrilinosWrappers::MPI::Vector> old_group_flux(group_flux);
 
     for (unsigned int out_it=0; out_it<max_outer_it; ++out_it)
@@ -90,17 +93,29 @@ void solve(RadiativeTransfer<dim,tensor_dim> &radiative_transfer,
           }
           old_flux_moments = flux_moments;
         }
-        group_flux[g] = flux_moments;
+
+        // Copy flux_moments in group_flux
+        TrilinosWrappers::MPI::Vector::iterator flux_moments_it(flux_moments.begin());
+        for (unsigned int mom=0; mom<n_mom; ++mom)
+        {
+          TrilinosWrappers::MPI::Vector::iterator mg_it(
+              group_flux[g*n_mom+mom].begin());
+          TrilinosWrappers::MPI::Vector::iterator mg_end(
+              group_flux[g*n_mom+mom].end());
+          for (; mg_it!=mg_end; ++mg_it,++flux_moments_it)
+            *mg_it = *flux_moments_it;
+        }
       }
 
       double num(0.);
       double denom(0.);
       for (unsigned int g=0; g<n_groups; ++g)
-      {
-        old_group_flux[g] -= group_flux[g];
-        num += std::pow(old_group_flux[g].l2_norm(),2);
-        denom += std::pow(group_flux[g].l2_norm(),2);
-      }
+        for (unsigned int mom=0; mom<n_mom; ++mom)
+        {
+          old_group_flux[g*n_mom+mom] -= group_flux[g*n_mom+mom];
+          num += std::pow(old_group_flux[g*n_mom+mom].l2_norm(),2);
+          denom += std::pow(group_flux[g*n_mom+mom].l2_norm(),2);
+        }
 
       if (std::sqrt(num/denom)<group_tol)
       {
@@ -109,7 +124,8 @@ void solve(RadiativeTransfer<dim,tensor_dim> &radiative_transfer,
       }
 
       for (unsigned int g=0; g<n_groups; ++g)
-        old_group_flux[g] = group_flux[g];
+        for (unsigned int mom=0; mom<n_mom; ++mom)
+          old_group_flux[g*n_mom+mom] = group_flux[g*n_mom+mom];
     }
   }
   else
@@ -119,7 +135,7 @@ void solve(RadiativeTransfer<dim,tensor_dim> &radiative_transfer,
     const unsigned int n_groups(parameters.get_n_groups());
     const double group_tol(parameters.get_outer_tolerance());
     const double inner_tol(parameters.get_inner_tolerance());
-    TrilinosWrappers::MPI::Vector flux_moments(index_set,MPI_COMM_WORLD);
+    TrilinosWrappers::MPI::Vector flux_moments(map);
     std::vector<TrilinosWrappers::MPI::Vector> old_group_flux(group_flux);
 
     for (unsigned int out_it=0; out_it<max_outer_it; ++out_it)
@@ -153,16 +169,30 @@ void solve(RadiativeTransfer<dim,tensor_dim> &radiative_transfer,
           TrilinosWrappers::SolverGMRES solver(solver_control);
           solver.solve(radiative_transfer,flux_moments,rhs,preconditioner);
         }
-        group_flux[g] = flux_moments;
+
+        // Copy flux_moments in group_flux
+        TrilinosWrappers::MPI::Vector::iterator flux_moments_it(flux_moments.begin());
+        for (unsigned int mom=0; mom<n_mom; ++mom)
+        {
+          TrilinosWrappers::MPI::Vector::iterator mg_it(
+              group_flux[g*n_mom+mom].begin());
+          TrilinosWrappers::MPI::Vector::iterator mg_end(
+              group_flux[g*n_mom+mom].end());
+          for (; mg_it!=mg_end; ++mg_it,++flux_moments_it)
+            *mg_it = *flux_moments_it;
+        }
       }
 
       double num(0.);
       double denom(0.);
       for (unsigned int g=0; g<n_groups; ++g)
       {
-        old_group_flux[g] -= group_flux[g];
-        num += std::pow(old_group_flux[g].l2_norm(),2);
-        denom += std::pow(group_flux[g].l2_norm(),2);
+        for (unsigned int mom=0; mom<n_mom; ++mom)
+        {
+          old_group_flux[g*n_mom+mom] -= group_flux[g*n_mom+mom];
+          num += std::pow(old_group_flux[g*n_mom+mom].l2_norm(),2);
+          denom += std::pow(group_flux[g*n_mom+mom].l2_norm(),2);
+        }
       }
 
       if (std::sqrt(num/denom)<group_tol)
@@ -172,8 +202,53 @@ void solve(RadiativeTransfer<dim,tensor_dim> &radiative_transfer,
       }
 
       for (unsigned int g=0; g<n_groups; ++g)
-        old_group_flux[g] = group_flux[g];
+        for (unsigned int mom=0; mom<n_mom; ++mom)
+          old_group_flux[g*n_mom+mom] = group_flux[g*n_mom+mom];
     }
+  }
+}
+
+template<int dim>
+void output_results(std::string const &filename,unsigned int const n_mom,
+    unsigned int const n_groups,parallel::distributed::Triangulation<dim> const*
+    triangulation,DoFHandler<dim> const* dof_handler,
+    std::vector<TrilinosWrappers::MPI::Vector> const &group_flux,
+    MPI_Comm const &mpi_communicator)
+{
+  std::ofstream output((filename+Utilities::int_to_string(
+          triangulation->locally_owned_subdomain(),4)+".vtk").c_str());
+  DataOut<dim> data_out;
+  // Atttach dof_handler
+  data_out.attach_dof_handler(*dof_handler);
+
+  // Add group_flux
+  for (unsigned int g=0; g<n_groups; ++g)
+    for (unsigned int mom=0; mom<n_mom; ++mom)
+    {
+      std::string solution_name("flux_"+Utilities::int_to_string(g,3)+"g_"+
+          Utilities::int_to_string(mom,3)+"m");
+      data_out.add_data_vector(group_flux[g*n_mom+mom],solution_name);
+    }
+
+  // Add subdomain_id
+  std::vector<unsigned int> partition_int(triangulation->n_active_cells());
+  GridTools::get_subdomain_association(*triangulation,partition_int);
+  const Vector<double> partitioning(partition_int.begin(),partition_int.end());
+  data_out.add_data_vector(partitioning,"partitioning");
+
+  // Build the patcthes
+  data_out.build_patches();
+
+  // Write the output
+  data_out.write_vtk(output);
+
+  if (Utilities::MPI::this_mpi_process(mpi_communicator)==0)
+  {
+    std::vector<std::string> filenames;
+    for (unsigned int i=0; i<Utilities::MPI::n_mpi_processes(mpi_communicator); ++i)
+      filenames.push_back(filename+Utilities::int_to_string(i,4)+".vtk");
+    std::ofstream master_output ((filename+".vtk").c_str());
+    data_out.write_visit_record(master_output,filenames);
   }
 }
 
@@ -204,7 +279,7 @@ int main(int argc,char **argv)
       DoFHandler<2>* dof_handler(geometry.get_dof_handler());
       types::global_dof_index n_dofs(dof_handler->n_dofs());
       unsigned int n_locally_owned_dofs(dof_handler->n_locally_owned_dofs());
-      IndexSet index_set(n_locally_owned_dofs);
+      IndexSet index_set(dof_handler->locally_owned_dofs());
 
       // Buil the quadrature
       RTQuadrature* quad(nullptr);
@@ -215,15 +290,15 @@ int main(int argc,char **argv)
         quad = new LS(parameters.get_sn_order(),material_properties.get_L_max(),
             parameters.get_galerkin());
       quad->build_quadrature(parameters.get_weight_sum());
+      const unsigned int n_mom(quad->get_n_mom());
 
-      std::vector<TrilinosWrappers::MPI::Vector> group_flux(parameters.get_n_groups(),
-          TrilinosWrappers::MPI::Vector (index_set,MPI_COMM_WORLD));
+      std::vector<TrilinosWrappers::MPI::Vector> group_flux(parameters.get_n_groups()*
+          quad->get_n_mom(),TrilinosWrappers::MPI::Vector (index_set,MPI_COMM_WORLD));
       Epetra_MpiComm comm(MPI_COMM_WORLD);
       // The map is different than the index_set because each moment of the
       // flux has n_dofs
       std::vector<TrilinosWrappers::types::int_type> indices;
-      create_epetra_map(indices,index_set,n_locally_owned_dofs,quad->get_n_mom(),
-          n_dofs);
+      create_epetra_map(indices,index_set,n_locally_owned_dofs,n_mom,n_dofs);
       Epetra_Map map(n_dofs,n_locally_owned_dofs,&indices[0],0,comm);
 
       // Create the RadiativeTransfer object and solve the problem
@@ -234,7 +309,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<2,4> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(radiative_transfer,parameters,index_set,group_flux);
+            solve(n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 2 :
@@ -242,7 +317,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<2,9> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(radiative_transfer,parameters,index_set,group_flux);
+            solve(n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 3 :
@@ -250,7 +325,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<2,16> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(radiative_transfer,parameters,index_set,group_flux);
+            solve(n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 4 :
@@ -258,7 +333,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<2,25> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(radiative_transfer,parameters,index_set,group_flux);
+            solve(n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 5 :
@@ -266,10 +341,13 @@ int main(int argc,char **argv)
             RadiativeTransfer<2,36> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(radiative_transfer,parameters,index_set,group_flux);
+            solve(n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
       }         
+
+      output_results(parameters.get_output_filename(),n_mom,parameters.get_n_groups(),
+          geometry.get_triangulation(),dof_handler,group_flux,MPI_COMM_WORLD);
 
       if (quad!=nullptr)
       {
@@ -301,9 +379,10 @@ int main(int argc,char **argv)
         quad = new LS(parameters.get_sn_order(),material_properties.get_L_max(),
             parameters.get_galerkin());
       quad->build_quadrature(parameters.get_weight_sum());
+      const unsigned int n_mom(quad->get_n_mom());
 
-      std::vector<TrilinosWrappers::MPI::Vector> group_flux(parameters.get_n_groups(),
-          TrilinosWrappers::MPI::Vector (index_set,MPI_COMM_WORLD));
+      std::vector<TrilinosWrappers::MPI::Vector> group_flux(parameters.get_n_groups()*
+          quad->get_n_mom(),TrilinosWrappers::MPI::Vector (index_set,MPI_COMM_WORLD));
       Epetra_MpiComm comm(MPI_COMM_WORLD);
       // The map is different than the index_set because each moment of the
       // flux has n_dofs
@@ -320,7 +399,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<3,8> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(radiative_transfer,parameters,index_set,group_flux);
+            solve(n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 2 :
@@ -328,7 +407,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<3,27> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(radiative_transfer,parameters,index_set,group_flux);
+            solve(n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 3 :
@@ -336,7 +415,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<3,64> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(radiative_transfer,parameters,index_set,group_flux);
+            solve(n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 4 :
@@ -344,7 +423,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<3,125> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(radiative_transfer,parameters,index_set,group_flux);
+            solve(n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 5 :
@@ -352,10 +431,13 @@ int main(int argc,char **argv)
             RadiativeTransfer<3,216> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(radiative_transfer,parameters,index_set,group_flux);
+            solve(n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
       }
+
+      output_results(parameters.get_output_filename(),n_mom,parameters.get_n_groups(),
+          geometry.get_triangulation(),dof_handler,group_flux,MPI_COMM_WORLD);
 
       if (quad!=nullptr)
       {

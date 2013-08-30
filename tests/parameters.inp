@@ -3,6 +3,7 @@ set FE order = 4
 set Geometry file = geometry.inp
 set Refinement factor = 0.3
 set Coarsening factor = 0.1
+set Output file = output
 
 subsection Radiative Transfer parameters
   set Cross sections file = xs.inp

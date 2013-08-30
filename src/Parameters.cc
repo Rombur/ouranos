@@ -37,6 +37,8 @@ void Parameters::declare_parameters(ParameterHandler &prm)
       "Refinement factor used for AMR.");
   prm.declare_entry("Coarsening factor","0.",Patterns::Double(0.,1.),
       "Coarsening factor used for AMR.");
+  prm.declare_entry("Output file","output",Patterns::FileName(),
+      "Name of the output file.");
   prm.enter_subsection("Radiative Transfer parameters");
   {
     prm.declare_entry("Cross sections file","xs.inp",Patterns::FileName(),
@@ -105,6 +107,7 @@ void Parameters::parse_parameters(ParameterHandler &prm)
   geometry_filename = prm.get("Geometry file");
   refinement_factor = prm.get_double("Refinement factor");
   coarsening_factor = prm.get_double("Coarsening factor");
+  output_filename = prm.get("Output file");
   prm.enter_subsection("Radiative Transfer parameters");
   {
     std::string input;

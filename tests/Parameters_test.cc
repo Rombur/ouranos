@@ -23,6 +23,7 @@ TEST_CASE("Parameters","Check the parameters handler")
   REQUIRE(parameters.get_geometry_filename()=="geometry.inp");
   REQUIRE(parameters.get_refinement_factor()==0.3);
   REQUIRE(parameters.get_coarsening_factor()==0.1);
+  REQUIRE(parameters.get_output_filename()=="output");
 
   REQUIRE(parameters.get_xs_filename()=="xs.inp");
   REQUIRE(parameters.get_solver_type()==BICGSTAB);
