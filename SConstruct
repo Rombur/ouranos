@@ -37,10 +37,10 @@ def read_deal_II_options(filename,debug) :
       first_include = False
     if 'CXXFLAGS.g' in line and debug==1 :
       cxx_flags = line.split()[2:]
-      cxx_flags = cxx_flags[:-1]
+      cxx_flags = ['-std=c++11',cxx_flags[:-1]]
     if 'CXXFLAGS.o' in line and debug==0 :
       cxx_flags = line.split()[2:]
-      cxx_flags = cxx_flags[:-1]
+      cxx_flags = ['-std=c++11',cxx_flags[:-1]]
 
   return ld_flags,libs,include,cxx_flags
       

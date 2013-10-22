@@ -30,6 +30,8 @@ class RTQuadrature
   public :
     RTQuadrature(unsigned int sn,unsigned int L_max,bool galerkin);
 
+    virtual ~RTQuadrature() {}
+
     /// Build the quadrature, i.e. M,D and omega (direction vector).
     void build_quadrature(const double weight_sum);
 
