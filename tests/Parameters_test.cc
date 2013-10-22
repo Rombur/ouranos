@@ -21,6 +21,7 @@ TEST_CASE("Parameters","Check the parameters handler")
   REQUIRE(parameters.get_dimension()==2);
   REQUIRE(parameters.get_fe_order()==4);
   REQUIRE(parameters.get_geometry_filename()=="geometry.inp");
+  REQUIRE(parameters.get_n_refinements()==2);
   REQUIRE(parameters.get_refinement_factor()==0.3);
   REQUIRE(parameters.get_coarsening_factor()==0.1);
   REQUIRE(parameters.get_output_filename()=="output");

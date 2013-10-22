@@ -32,12 +32,12 @@ class RTQuadrature
 
     virtual ~RTQuadrature() {}
 
-    /// Build the quadrature, i.e. M,D and omega (direction vector).
-    void build_quadrature(const double weight_sum);
+    /// Build the quadrature, i.e. M, D, and omega (direction vector).
+    void build_quadrature(const double weight_sum,const unsigned int dim);
 
     /// Return true if the direction is one of the most normal to the
     /// boundaries.
-    bool is_most_normal_direction(unsigned int idir) const;
+    bool is_most_normal_direction(unsigned int face,unsigned int idir) const;
 
     /// Return the number of directions of the quadrature.
     unsigned int get_n_dir() const;
@@ -69,9 +69,10 @@ class RTQuadrature
     void compute_harmonics(const double weight_sum);
 
     /// Compute the most normal directions to the boundaries.
-    void compute_most_normal_directions();
+    void compute_most_normal_directions(const unsigned int dim);
 
-    /// If flag is true, the quadrature is a Galerkin quadrature.
+    /// If flag is true, the quadrature is a Galerkin quadrature. Galerkin
+    /// quadrature is only implemented for 2D triangular quadratures.
     const bool galerkin;
     /// Sn order of the quadrature.
     const unsigned int sn;
@@ -82,7 +83,7 @@ class RTQuadrature
     /// Number of moments.
     unsigned int n_mom;
     /// Set of the most normal directions to the boundary.
-    std::unordered_set<unsigned int> most_n_directions;
+    std::vector<std::unordered_set<unsigned int>> most_n_directions;
     /// Store the degree of the scattering cross section expansion associated
     /// to the number of the moment.
     std::vector<double> moment_to_order;
@@ -96,9 +97,9 @@ class RTQuadrature
     std::vector<Vector<double>> omega;
 };
 
-inline bool RTQuadrature::is_most_normal_direction(unsigned int idir) const
+inline bool RTQuadrature::is_most_normal_direction(unsigned int face,unsigned int idir) const
 {
-  return ((most_n_directions.count(idir)==0) ? false : true);
+  return ((most_n_directions[face].count(idir)==0) ? false : true);
 }
 
 inline unsigned int RTQuadrature::get_n_dir() const

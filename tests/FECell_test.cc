@@ -41,6 +41,26 @@ TEST_CASE("FECell/one cell","Check FECell on one cell")
   // Create the fecell
   FECell<2,4> fecell(quadrature_formula.size(),face_quadrature_formula.size(),
       fe_values,fe_face_values,fe_neighbor_face_values,cell,cell_end);
+
+  // Check material_id
+  REQUIRE(fecell.get_material_id()==0);
+
+  // Check source_id
+  REQUIRE(fecell.get_source_id()==0);
+
+  // Check normal vectors
+  Point<2> const * const normal_0 = fecell.get_normal_vector(0);
+  REQUIRE(std::fabs((*normal_0)[0]-(-1.))<1e-12);
+  REQUIRE(std::fabs((*normal_0)[1])<1e-12);
+  Point<2> const * const normal_1 = fecell.get_normal_vector(1);
+  REQUIRE(std::fabs((*normal_1)[0]-1.)<1e-12);
+  REQUIRE(std::fabs((*normal_1)[1])<1e-12);
+  Point<2> const * const normal_2 = fecell.get_normal_vector(2);
+  REQUIRE(std::fabs((*normal_2)[0])<1e-12);
+  REQUIRE(std::fabs((*normal_2)[1]-(-1.))<1e-12);
+  Point<2> const * const normal_3 = fecell.get_normal_vector(3);
+  REQUIRE(std::fabs((*normal_3)[0])<1e-12);
+  REQUIRE(std::fabs((*normal_3)[1]-1.)<1e-12);
   
   // Check the mass matrix
   Tensor<2,4> mass_matrix(*fecell.get_mass_matrix());
@@ -169,7 +189,7 @@ TEST_CASE("FECell/one cell","Check FECell on one cell")
   }
 }
 
-TEST_CASE("FECell/two cells","Check FECell on two cells")
+TEST_CASE("FECell/two cells","Check FECell on multicell triangulation")
 {
   Triangulation<2> triangulation;
   FE_DGQ<2> fe(1);
@@ -193,6 +213,26 @@ TEST_CASE("FECell/two cells","Check FECell on two cells")
   // Create the fecell
   FECell<2,4> fecell(quadrature_formula.size(),face_quadrature_formula.size(),
       fe_values,fe_face_values,fe_neighbor_face_values,cell,end_cell);
+
+  // Check material_id
+  REQUIRE(fecell.get_material_id()==0);
+
+  // Check source_id
+  REQUIRE(fecell.get_source_id()==0);
+
+  // Check normal vectors
+  Point<2> const * const normal_0 = fecell.get_normal_vector(0);
+  REQUIRE(std::fabs((*normal_0)[0]-(-1.))<1e-12);
+  REQUIRE(std::fabs((*normal_0)[1])<1e-12);
+  Point<2> const * const normal_1 = fecell.get_normal_vector(1);
+  REQUIRE(std::fabs((*normal_1)[0]-1.)<1e-12);
+  REQUIRE(std::fabs((*normal_1)[1])<1e-12);
+  Point<2> const * const normal_2 = fecell.get_normal_vector(2);
+  REQUIRE(std::fabs((*normal_2)[0])<1e-12);
+  REQUIRE(std::fabs((*normal_2)[1]-(-1.))<1e-12);
+  Point<2> const * const normal_3 = fecell.get_normal_vector(3);
+  REQUIRE(std::fabs((*normal_3)[0])<1e-12);
+  REQUIRE(std::fabs((*normal_3)[1]-1.)<1e-12);
   
   // Check the upwind matrices
   // Left face

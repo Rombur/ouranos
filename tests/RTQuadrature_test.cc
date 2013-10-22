@@ -16,6 +16,8 @@
 #include "../src/GLC.hh"
 #include "../src/LS.hh"
 
+// is_most_normal_direction
+
 TEST_CASE("RTQuadrature/LS","Check LS quadrature")
 {
   unsigned int n_dir(12);
@@ -26,7 +28,57 @@ TEST_CASE("RTQuadrature/LS","Check LS quadrature")
   omega[2] = 0.350021174581540677777041;
 
   LS quad(4,4,true);
-  quad.build_quadrature(four_pi);
+  quad.build_quadrature(four_pi,2);
+
+  // Check the most normal directions.
+  REQUIRE(quad.is_most_normal_direction(0,0)==true);
+  REQUIRE(quad.is_most_normal_direction(0,1)==false);
+  REQUIRE(quad.is_most_normal_direction(0,2)==false);
+  REQUIRE(quad.is_most_normal_direction(0,3)==true);
+  REQUIRE(quad.is_most_normal_direction(0,4)==false);
+  REQUIRE(quad.is_most_normal_direction(0,5)==false);
+  REQUIRE(quad.is_most_normal_direction(0,6)==false);
+  REQUIRE(quad.is_most_normal_direction(0,7)==false);
+  REQUIRE(quad.is_most_normal_direction(0,8)==false);
+  REQUIRE(quad.is_most_normal_direction(0,9)==false);
+  REQUIRE(quad.is_most_normal_direction(0,10)==false);
+  REQUIRE(quad.is_most_normal_direction(0,11)==false);
+  REQUIRE(quad.is_most_normal_direction(1,0)==false);
+  REQUIRE(quad.is_most_normal_direction(1,1)==false);
+  REQUIRE(quad.is_most_normal_direction(1,2)==false);
+  REQUIRE(quad.is_most_normal_direction(1,3)==false);
+  REQUIRE(quad.is_most_normal_direction(1,4)==false);
+  REQUIRE(quad.is_most_normal_direction(1,5)==false);
+  REQUIRE(quad.is_most_normal_direction(1,6)==true);
+  REQUIRE(quad.is_most_normal_direction(1,7)==false);
+  REQUIRE(quad.is_most_normal_direction(1,8)==false);
+  REQUIRE(quad.is_most_normal_direction(1,9)==true);
+  REQUIRE(quad.is_most_normal_direction(1,10)==false);
+  REQUIRE(quad.is_most_normal_direction(1,11)==false);
+  REQUIRE(quad.is_most_normal_direction(2,0)==false);
+  REQUIRE(quad.is_most_normal_direction(2,1)==true);
+  REQUIRE(quad.is_most_normal_direction(2,2)==false);
+  REQUIRE(quad.is_most_normal_direction(2,3)==false);
+  REQUIRE(quad.is_most_normal_direction(2,4)==false);
+  REQUIRE(quad.is_most_normal_direction(2,5)==false);
+  REQUIRE(quad.is_most_normal_direction(2,6)==false);
+  REQUIRE(quad.is_most_normal_direction(2,7)==false);
+  REQUIRE(quad.is_most_normal_direction(2,8)==false);
+  REQUIRE(quad.is_most_normal_direction(2,9)==false);
+  REQUIRE(quad.is_most_normal_direction(2,10)==true);
+  REQUIRE(quad.is_most_normal_direction(2,11)==false);
+  REQUIRE(quad.is_most_normal_direction(3,0)==false);
+  REQUIRE(quad.is_most_normal_direction(3,1)==false);
+  REQUIRE(quad.is_most_normal_direction(3,2)==false);
+  REQUIRE(quad.is_most_normal_direction(3,3)==false);
+  REQUIRE(quad.is_most_normal_direction(3,4)==true);
+  REQUIRE(quad.is_most_normal_direction(3,5)==false);
+  REQUIRE(quad.is_most_normal_direction(3,6)==false);
+  REQUIRE(quad.is_most_normal_direction(3,7)==true);
+  REQUIRE(quad.is_most_normal_direction(3,8)==false);
+  REQUIRE(quad.is_most_normal_direction(3,9)==false);
+  REQUIRE(quad.is_most_normal_direction(3,10)==false);
+  REQUIRE(quad.is_most_normal_direction(3,11)==false);
 
   // Check the number of direction
   REQUIRE(n_dir==quad.get_n_dir());
@@ -80,7 +132,7 @@ TEST_CASE("RTQuadrature/GLC","Check GLC quadrature")
   omega[2] = 0.33998104358485631;
 
   GLC quad(4,4,false);
-  quad.build_quadrature(four_pi);
+  quad.build_quadrature(four_pi,2);
 
   // Check the number of direction
   REQUIRE(n_dir==quad.get_n_dir());

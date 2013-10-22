@@ -42,7 +42,7 @@ TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D on 4 p
   IndexSet index_set(dof_handler->locally_owned_dofs());
   GLC quad(parameters.get_sn_order(),material_properties.get_L_max(),
       parameters.get_galerkin());
-  quad.build_quadrature(parameters.get_weight_sum());
+  quad.build_quadrature(parameters.get_weight_sum(),2);
   
   std::vector<TrilinosWrappers::MPI::Vector> group_flux(1,
       TrilinosWrappers::MPI::Vector (index_set,MPI_COMM_WORLD));

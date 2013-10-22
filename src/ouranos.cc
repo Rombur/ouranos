@@ -289,7 +289,7 @@ int main(int argc,char **argv)
       else
         quad = new LS(parameters.get_sn_order(),material_properties.get_L_max(),
             parameters.get_galerkin());
-      quad->build_quadrature(parameters.get_weight_sum());
+      quad->build_quadrature(parameters.get_weight_sum(),2);
       const unsigned int n_mom(quad->get_n_mom());
 
       std::vector<TrilinosWrappers::MPI::Vector> group_flux(parameters.get_n_groups()*
@@ -378,7 +378,7 @@ int main(int argc,char **argv)
       else
         quad = new LS(parameters.get_sn_order(),material_properties.get_L_max(),
             parameters.get_galerkin());
-      quad->build_quadrature(parameters.get_weight_sum());
+      quad->build_quadrature(parameters.get_weight_sum(),3);
       const unsigned int n_mom(quad->get_n_mom());
 
       std::vector<TrilinosWrappers::MPI::Vector> group_flux(parameters.get_n_groups()*

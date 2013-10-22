@@ -963,7 +963,7 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
             Tensor<2,tensor_dim> const* const downwind_matrix(
                 fecell->get_downwind_matrix(face));
             if (((parameters->get_bc_type(face)==MOST_NORMAL) &&
-                  (quad->is_most_normal_direction(idir)==true))||
+                  (quad->is_most_normal_direction(face,idir)==true))||
                 (parameters->get_bc_type(face)==ISOTROPIC))
               inc_flux_val = parameters->get_inc_flux(face,group);
             inc_flux_val /= parameters->get_weight_sum();

@@ -11,6 +11,7 @@
 #include <string>
 #include "../src/RTMaterialProperties.hh"
 
+
 TEST_CASE("RTMaterialProperties","Check RTMaterialProperties")
 {
   std::string filename("./tests/rtmaterial_properties.inp");

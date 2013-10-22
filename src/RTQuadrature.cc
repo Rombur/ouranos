@@ -1,4 +1,4 @@
-/* Copyright (:c) 2013, Bruno Turcksin.
+/* Copyright (c) 2013, Bruno Turcksin.
  *
  * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
@@ -24,8 +24,12 @@ RTQuadrature::RTQuadrature(unsigned int sn_,unsigned int L_max_,bool galerkin_) 
   D2M.reinit(n_mom,n_dir);
 }
 
-void RTQuadrature::build_quadrature(const double weight_sum)
+void RTQuadrature::build_quadrature(const double weight_sum,const unsigned int dim)
 {
+  // Galerkin quadrature is implemented only for 2D triangular quadratures.
+  AssertThrow(!((dim==3)&&(galerkin==true)),
+      ExcMessage("Galerkin quadratures are not implemented in 3D."));
+
   // Compute sin_theta octant
   build_octant();
 
@@ -48,7 +52,7 @@ void RTQuadrature::build_quadrature(const double weight_sum)
   }  
 
   // Compute the most normal directions
-  compute_most_normal_directions();
+  compute_most_normal_directions(dim);
 }
 
 void RTQuadrature::deploy_octant()
@@ -193,9 +197,10 @@ void RTQuadrature::compute_harmonics(const double weight_sum)
   }
 }
 
-void RTQuadrature::compute_most_normal_directions()
+void RTQuadrature::compute_most_normal_directions(const unsigned int dim)
 {
-  std::vector<double> most_normal(6,0.);
+  std::vector<double> most_normal(2*dim,0.);
+  most_n_directions.resize(2*dim);
 
   // Find the most normal directions
   for (Vector<double> direction : omega)
@@ -208,24 +213,26 @@ void RTQuadrature::compute_most_normal_directions()
       most_normal[2] = direction[1];
     if (direction[1]<most_normal[3])
       most_normal[3] = direction[1];
-    if (direction[2]>most_normal[4])
-      most_normal[4] = direction[2];
-    if (direction[2]<most_normal[5])
-      most_normal[5] = direction[2];
+    
+    if (dim==3) 
+    {
+      if (direction[2]>most_normal[4])
+        most_normal[4] = direction[2];
+      if (direction[2]<most_normal[5])
+        most_normal[5] = direction[2];
+    }
   }
 
   // Store the direction in an unordered set
   for (unsigned int idir=0; idir<n_dir; ++idir)
   {
     std::vector<double>::iterator it;
-    for (unsigned int i=0; i<3; ++i)
+    for (unsigned int i=0; i<dim; ++i)
     {
-      it = std::find(most_normal.begin(),most_normal.end(),omega[idir][i]);
-      if (it!=most_normal.end())
-      {
-        most_n_directions.insert(idir);
-        break;
-      }
+      if ((omega[idir][i]==most_normal[2*i]))
+        most_n_directions[2*i].insert(idir);
+      if ((omega[idir][i]==most_normal[2*i+1]))
+        most_n_directions[2*i+1].insert(idir);
     }
   }
 }
