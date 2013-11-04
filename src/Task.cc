@@ -125,14 +125,14 @@ std::vector<types::global_dof_index> const* Task::get_waiting_tasks_dofs(
   return &(map_it->second);
 }
 
-void Task::print()
+void Task::print(std::ostream &output_stream)
 {
-  std::cout<<"ID "<<id<<std::endl;
-  std::cout<<"idir "<<idir<<std::endl;
-  std::cout<<"sweep order"<<std::endl;
+  output_stream<<"ID "<<id<<std::endl;
+  output_stream<<"idir "<<idir<<std::endl;
+  output_stream<<"sweep order"<<std::endl;
   for (unsigned int i=0; i<sweep_order.size(); ++i)
-    std::cout<<sweep_order[i]<<std::endl;
-  std::cout<<"waiting tasks "<<waiting_tasks.size()<<std::endl;
+    output_stream<<sweep_order[i]<<std::endl;
+  output_stream<<"waiting tasks "<<waiting_tasks.size()<<std::endl;
   std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
     std::vector<types::global_dof_index>,
     boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
@@ -143,14 +143,14 @@ void Task::print()
       waiting_map_end(waiting_tasks.end());
   for (; waiting_map_it!=waiting_map_end; ++waiting_map_it)
   {
-    std::cout<<std::get<0>(waiting_map_it->first)<<" "<<
+    output_stream<<std::get<0>(waiting_map_it->first)<<" "<<
       std::get<1>(waiting_map_it->first)<<" ";
     std::vector<types::global_dof_index> dofs(waiting_map_it->second);
     for (unsigned int i=0; i<dofs.size(); ++i)
-      std::cout<<dofs[i]<<" ";
-    std::cout<<std::endl;
+      output_stream<<dofs[i]<<" ";
+    output_stream<<std::endl;
   }
-  std::cout<<"required tasks"<<std::endl;
+  output_stream<<"required tasks"<<std::endl;
   std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
     std::vector<types::global_dof_index>,
     boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
@@ -161,12 +161,12 @@ void Task::print()
       required_map_end(required_tasks.end());
   for (; required_map_it!=required_map_end; ++required_map_it)
   {
-    std::cout<<std::get<0>(required_map_it->first)<<" "<<
+    output_stream<<std::get<0>(required_map_it->first)<<" "<<
       std::get<1>(required_map_it->first)<<" ";
     std::vector<types::global_dof_index> dofs(required_map_it->second);
     for (unsigned int i=0; i<dofs.size(); ++i)
-      std::cout<<dofs[i]<<" ";
-    std::cout<<std::endl;
+      output_stream<<dofs[i]<<" ";
+    output_stream<<std::endl;
   }
-  std::cout<<std::endl;
+  output_stream<<std::endl;
 }

@@ -51,7 +51,7 @@ class Task
     void compress_waiting_subdomains();
 
     /// Output the data for debug purpose.
-    void print();
+    void print(std::ostream &output_stream);
 
     /// Set the given angular flux value to the given dof index. 
     void set_required_dof(types::global_dof_index dof,double value) const;
