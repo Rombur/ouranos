@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cmath>
 #include <string>
+#include "deal.II/base/conditional_ostream.h"
 #include "deal.II/base/mpi.h"
 #include "deal.II/base/logstream.h"
 #include "deal.II/base/utilities.h"
@@ -47,6 +48,7 @@ void solve(unsigned int const n_mom,
     std::vector<TrilinosWrappers::MPI::Vector> &group_flux)
 {
   // Create the FECells and compute the sweep ordering
+  pcout<<"Set up radiative transfer."<<std::endl;
   radiative_transfer.setup();
 
   if (parameters.get_sn_order()==SI)
@@ -58,7 +60,8 @@ void solve(unsigned int const n_mom,
     const double inner_tol(parameters.get_inner_tolerance());
     TrilinosWrappers::MPI::Vector flux_moments(map);
     std::vector<TrilinosWrappers::MPI::Vector> old_group_flux(group_flux);
-
+        
+    pcout<<"Start SI solver."<<std::endl;
     for (unsigned int out_it=0; out_it<max_outer_it; ++out_it)
     {
       // Loop over the groups
@@ -88,7 +91,7 @@ void solve(unsigned int const n_mom,
           const double denom(flux_moments.l2_norm());
           if ((num/denom)<inner_tol)
           {
-            std::cout<<"SI converged at iteration: "<<it<<std::endl;
+            pcout<<"SI converged at iteration: "<<it<<std::endl;
             break;
           }
           old_flux_moments = flux_moments;
@@ -119,7 +122,7 @@ void solve(unsigned int const n_mom,
 
       if (std::sqrt(num/denom)<group_tol)
       {
-        std::cout<<"Groups converged at iteration: "<<out_it<<std::endl;
+        pcout<<"Groups converged at iteration: "<<out_it<<std::endl;
         break;
       }
 
@@ -138,6 +141,7 @@ void solve(unsigned int const n_mom,
     TrilinosWrappers::MPI::Vector flux_moments(map);
     std::vector<TrilinosWrappers::MPI::Vector> old_group_flux(group_flux);
 
+    pcout<<"Start Krylov solver."<<std::endl;
     for (unsigned int out_it=0; out_it<max_outer_it; ++out_it)
     {
       // Loop over the groups
@@ -197,7 +201,7 @@ void solve(unsigned int const n_mom,
 
       if (std::sqrt(num/denom)<group_tol)
       {
-        std::cout<<"Groups converged at iteration: "<<out_it<<std::endl;
+        pcout<<"Groups converged at iteration: "<<out_it<<std::endl;
         break;
       }
 
@@ -261,7 +265,11 @@ int main(int argc,char **argv)
     // Suppress output on the screen
     deallog.depth_console(0);
 
+    ConditiionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
+          MPI_COMM_WORLD)==0);
+
     // Read the parameters
+    pcout<<"Read parameters."<<std::endl;
     Parameters parameters(argv[argc-1]);
     std::string geometry_filename(parameters.get_geometry_filename());
     std::string xs_filename(parameters.get_xs_filename());
@@ -270,8 +278,10 @@ int main(int argc,char **argv)
     {
       FE_DGQ<2> fe(parameters.get_fe_order());
       // Read the geometry
+      pcout<<"Read geometry."<<std::endl;
       Geometry<2> geometry(geometry_filename,fe);
       // Read the material properties for the radiative transfer problem
+      pcout<<"Read material properties."<<std::endl;
       RTMaterialProperties material_properties(xs_filename,geometry.get_n_materials(),
           parameters.get_n_groups());
 
@@ -281,7 +291,7 @@ int main(int argc,char **argv)
       unsigned int n_locally_owned_dofs(dof_handler->n_locally_owned_dofs());
       IndexSet index_set(dof_handler->locally_owned_dofs());
 
-      // Buil the quadrature
+      // Build the quadrature
       RTQuadrature* quad(nullptr);
       if (parameters.get_quad_type()==GLC_QUAD)
         quad = new GLC(parameters.get_sn_order(),material_properties.get_L_max(),
@@ -289,6 +299,7 @@ int main(int argc,char **argv)
       else
         quad = new LS(parameters.get_sn_order(),material_properties.get_L_max(),
             parameters.get_galerkin());
+      pcout<<"Build the quadarature."<<std::endl;
       quad->build_quadrature(parameters.get_weight_sum(),2);
       const unsigned int n_mom(quad->get_n_mom());
 
@@ -346,6 +357,7 @@ int main(int argc,char **argv)
           }
       }         
 
+      pcout<<"Output results."<<std::endl;
       output_results(parameters.get_output_filename(),n_mom,parameters.get_n_groups(),
           geometry.get_triangulation(),dof_handler,group_flux,MPI_COMM_WORLD);
 
@@ -359,8 +371,10 @@ int main(int argc,char **argv)
     {
       FE_DGQ<3> fe(parameters.get_fe_order());
       // Read the geometry
+      pcout<<"Read geometry."<<std::endl;
       Geometry<3> geometry(geometry_filename,fe);
       // Read the material properties for the radiative transfer problem
+      pcout<<"Read material properties."<<std::endl;
       RTMaterialProperties material_properties(xs_filename,geometry.get_n_materials(),
           parameters.get_n_groups());
 
@@ -378,6 +392,7 @@ int main(int argc,char **argv)
       else
         quad = new LS(parameters.get_sn_order(),material_properties.get_L_max(),
             parameters.get_galerkin());
+      pcout<<"Build the quadarature."<<std::endl;
       quad->build_quadrature(parameters.get_weight_sum(),3);
       const unsigned int n_mom(quad->get_n_mom());
 
@@ -436,6 +451,7 @@ int main(int argc,char **argv)
           }
       }
 
+      pcout<<"Output results."<<std::endl;
       output_results(parameters.get_output_filename(),n_mom,parameters.get_n_groups(),
           geometry.get_triangulation(),dof_handler,group_flux,MPI_COMM_WORLD);
 
