@@ -46,7 +46,7 @@ def read_deal_II_options(filename,debug) :
       
 
 # Check if the debug or the release version must be compile
-debug = ARGUMENTS.get('debug',1)
+debug = int(ARGUMENTS.get('debug',1))
 
 # Path to deal.II
 deal_II_path = ARGUMENTS.get('deal_II_path','/home/bruno/Documents/deal.ii/trunk/deal.II/installed')
