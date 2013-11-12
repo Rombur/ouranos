@@ -214,6 +214,9 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
     }
   }
 
+  // Check that each processor has at least one task to execute
+  Assert(tasks.size()!=0,ExcMessage("One processor has no task to execute."));
+
   // Build the maps of tasks waiting for a given task to be done
   build_waiting_tasks_maps();
 
@@ -566,7 +569,7 @@ void RadiativeTransfer<dim,tensor_dim>::build_global_required_tasks()
   }
 
   // Build the global_required_tasks map, by looping over the tmp_map and
-  // adding the position of the dofs in the MIP messages
+  // adding the position of the dofs in the MPI messages
   std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
     std::vector<types::global_dof_index>,
     boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 

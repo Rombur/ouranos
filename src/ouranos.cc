@@ -42,7 +42,7 @@ void create_epetra_map(std::vector<TrilinosWrappers::types::int_type> &indices,
 
 
 template<int dim,int tensor_dim>
-void solve(unsigned int const n_mom, 
+void solve(ConditionalOStream const &pcout,unsigned int const n_mom, 
     RadiativeTransfer<dim,tensor_dim> &radiative_transfer,
     Parameters const &parameters,Epetra_Map &map,
     std::vector<TrilinosWrappers::MPI::Vector> &group_flux)
@@ -265,7 +265,7 @@ int main(int argc,char **argv)
     // Suppress output on the screen
     deallog.depth_console(0);
 
-    ConditiionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
+    ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
           MPI_COMM_WORLD)==0);
 
     // Read the parameters
@@ -290,6 +290,8 @@ int main(int argc,char **argv)
       types::global_dof_index n_dofs(dof_handler->n_dofs());
       unsigned int n_locally_owned_dofs(dof_handler->n_locally_owned_dofs());
       IndexSet index_set(dof_handler->locally_owned_dofs());
+      pcout<<"Number of cells: "<<geometry.get_triangulation()->n_global_active_cells()<<std::endl;
+      pcout<<"Number of dofs: "<<dof_handler->n_dofs()<<std::endl;
 
       // Build the quadrature
       RTQuadrature* quad(nullptr);
@@ -320,7 +322,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<2,4> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(n_mom,radiative_transfer,parameters,map,group_flux);
+            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 2 :
@@ -328,7 +330,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<2,9> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(n_mom,radiative_transfer,parameters,map,group_flux);
+            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 3 :
@@ -336,7 +338,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<2,16> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(n_mom,radiative_transfer,parameters,map,group_flux);
+            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 4 :
@@ -344,7 +346,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<2,25> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(n_mom,radiative_transfer,parameters,map,group_flux);
+            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 5 :
@@ -352,7 +354,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<2,36> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(n_mom,radiative_transfer,parameters,map,group_flux);
+            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
       }         
@@ -414,7 +416,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<3,8> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(n_mom,radiative_transfer,parameters,map,group_flux);
+            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 2 :
@@ -422,7 +424,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<3,27> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(n_mom,radiative_transfer,parameters,map,group_flux);
+            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 3 :
@@ -430,7 +432,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<3,64> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(n_mom,radiative_transfer,parameters,map,group_flux);
+            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 4 :
@@ -438,7 +440,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<3,125> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(n_mom,radiative_transfer,parameters,map,group_flux);
+            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
         case 5 :
@@ -446,7 +448,7 @@ int main(int argc,char **argv)
             RadiativeTransfer<3,216> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map);
-            solve(n_mom,radiative_transfer,parameters,map,group_flux);
+            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
             break;
           }
       }
