@@ -37,6 +37,10 @@
 
 using namespace dealii;
 
+// besoin de creer un vector<task_number>
+// avec possibilite de parcourir le vector slt pour a given sub_id-tag (only
+// sub_id different than proc)
+
 
 /**
  *  This class derives from Epetra_Operator and implement the function Apply
@@ -66,8 +70,7 @@ class RadiativeTransfer : public Epetra_Operator
     Task const* const get_next_task() const;
 
     /// Get all the dof indices associated to the given task.
-    void get_task_local_dof_indices(Task &task,std::vector<types::global_dof_index> 
-        &local_dof_indices);
+    std::unordered_set<types::global_dof_index> get_task_local_dof_indices(Task &task);
     
     /// Set the current group.
     void set_group(unsigned int g);    
@@ -139,6 +142,8 @@ class RadiativeTransfer : public Epetra_Operator
     /// Build the global_required_tasks map.
     void build_global_required_tasks();
 
+    void build_local_tasks_map();
+
     /// Build the required_tasks maps for all the tasks owned by a processor.
     void build_required_tasks_maps();
 
@@ -207,9 +212,8 @@ class RadiativeTransfer : public Epetra_Operator
     /// a given task of a given dof. Because of the Trilinos interface in
     /// Epetra_Operator, global_required_tasks is made mutable so it can be
     /// can be changed in a const function.
-    mutable std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-      std::unordered_map<types::global_dof_index,unsigned int>,
-      boost::hash<std::pair<types::subdomain_id,unsigned int>>> global_required_tasks;
+    mutable std::vector<std::tuple<types::subdomain_id,unsigned int,
+            std::unordered_map<types::global_dof_index,unsigned int>>> global_required_tasks;
     /// Scattering source for each moment.
     std::vector<Vector<double>*> scattering_source;
     /// FECells owned by the current processor.
@@ -228,6 +232,11 @@ class RadiativeTransfer : public Epetra_Operator
     RTQuadrature* quad;
     /// Pointer to the material property.
     RTMaterialProperties* material_properties;
+
+    mutable std::unordered_map<unsigned int,unsigned int> local_tasks_map;
+    mutable std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
+    std::vector<unsigned int>,boost::hash<std::pair<types::subdomain_id,unsigned int>>> 
+      ghost_required_tasks;
 };
 
 template <int dim,int tensor_dim>

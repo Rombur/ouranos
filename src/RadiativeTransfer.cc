@@ -223,15 +223,19 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
   // Build the maps of task required for a given task to start
   build_required_tasks_maps();
  
+  for (unsigned int i=0; i<tasks.size();++i)
+    tasks[i].finalize_maps();
   // Loop over the tasks and clear the temporary data that are not needed
   // anymore
-  for (unsigned int i=0; i<tasks.size(); ++i)
-    tasks[i].clear_temporary_data();
+ // for (unsigned int i=0; i<tasks.size(); ++i)
+ //   tasks[i].clear_temporary_data();
 
   // Build an unique map per processor which given a required task by one of
   // the task owned by the processor and a dof return the position this dof in
   // the MPI buffer.
   build_global_required_tasks();
+
+  build_local_tasks_map();
 }
 
 template <int dim,int tensor_dim>
@@ -340,14 +344,13 @@ void RadiativeTransfer<dim,tensor_dim>::build_local_waiting_tasks_map(Task &task
     const unsigned int recv_dof_buffer_size)
 {
   // Get the dofs associated to the current task
-  const unsigned int sweep_order_size(task.get_sweep_order_size());
-  std::vector<types::global_dof_index> local_dof_indices(sweep_order_size*tensor_dim);
-  get_task_local_dof_indices(task,local_dof_indices);
+  std::unordered_set<types::global_dof_index> local_dof_indices(get_task_local_dof_indices(task));
 
   // Build the waiting_tasks map
+  unsigned int i(0);
   unsigned int subdomain_id(0);
   unsigned int next_subdomain_disps(recv_dof_disps_x[1]);
-  for (unsigned int i=0; i<recv_dof_buffer_size;)
+  while (i<recv_dof_buffer_size)
   {
     const unsigned int task_id(recv_dof_buffer[i]);
     const unsigned int idir(recv_dof_buffer[i+1]);
@@ -361,18 +364,20 @@ void RadiativeTransfer<dim,tensor_dim>::build_local_waiting_tasks_map(Task &task
     // Search for dofs present in recv_dof_buffer and local_dof_indices
     if (idir==task.get_idir())
     {
+      std::vector<types::global_dof_index> dofs;
       for (unsigned int j=0; j<n_dofs; ++j)
       {
         // If the dof in recv_dof_buffer is in local_dof_indices, the dof is
         // added in the waiting map  
-        if (std::find(local_dof_indices.begin(),local_dof_indices.end(),
-              recv_dof_buffer[i+3+j])!=local_dof_indices.end())
-        {
-          std::pair<types::subdomain_id,unsigned int> subdomain_task_pair(
-              subdomain_id,task_id);
-          task.add_to_waiting_tasks(subdomain_task_pair,recv_dof_buffer[i+3+j]);
-          task.add_to_waiting_subdomains(subdomain_id,recv_dof_buffer[i+3+j]);
-        }
+        // TODO: this line is very slow because is it executed too many times.
+        // Needs to find sth else.
+        if (local_dof_indices.count(recv_dof_buffer[i+3+j])==1)
+          dofs.push_back(recv_dof_buffer[i+3+j]);
+      }
+      if (dofs.size()!=0)
+      {
+        task.add_to_waiting_tasks(Task::task_tuple (subdomain_id,task_id,dofs));
+        task.add_to_waiting_subdomains(Task::domain_pair (subdomain_id,dofs));
       }
     }
     i += n_dofs+3;
@@ -508,14 +513,8 @@ void RadiativeTransfer<dim,tensor_dim>::build_local_required_tasks_map(Task &tas
     }
     // If the receiver task is the current task, add the dofs to required_tasks_map
     if (recv_task_id==current_task_id)
-    {
-      for (unsigned int j=0; j<n_dofs; ++j)
-      {
-          std::pair<types::subdomain_id,unsigned int> subdomain_task_pair(
-              subdomain_id,sender_task_id);
-          task.add_to_required_tasks(subdomain_task_pair,recv_dof_buffer[i+3+j]);
-      }
-    }
+      task.add_to_required_tasks(subdomain_id,sender_task_id,recv_dof_buffer,i+3,n_dofs);
+    
     i += n_dofs+3;
   }
 }
@@ -533,37 +532,30 @@ void RadiativeTransfer<dim,tensor_dim>::build_global_required_tasks()
   // dofs
   for (unsigned int i=0; i<n_tasks; ++i)
   {
-    std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-      std::vector<types::global_dof_index>,
-      boost::hash<std::pair<types::subdomain_id,unsigned int>>>* required_tasks(
-          tasks[i].get_required_tasks());
-    std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-      std::vector<types::global_dof_index>,
-      boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator 
-        map_it(required_tasks->cbegin());
-    std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-      std::vector<types::global_dof_index>,
-      boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator 
-        map_end(required_tasks->cend());
+    std::vector<Task::task_tuple>::const_iterator map_it(tasks[i].get_required_tasks_cbegin());
+    std::vector<Task::task_tuple>::const_iterator map_end(tasks[i].get_required_tasks_cend());
     for (; map_it!=map_end; ++map_it)
     {
       // Check that the required task is not owned by the processor
-      if (std::get<0>(map_it->first)!=subdomain_id)
+      if (std::get<0>(*map_it)!=subdomain_id)
       {
-        Assert(std::is_sorted(tmp_map[map_it->first].begin(),
-              tmp_map[map_it->first].end()),ExcMessage(
-              "The temporary map tmp_map is not sorted."));
-        Assert(std::is_sorted(map_it->second.begin(),map_it->second.end()),
+        std::pair<types::subdomain_id,unsigned int> current_task(std::get<0>(*map_it),
+            std::get<1>(*map_it));
+        Assert(std::is_sorted(tmp_map[current_task].begin(),tmp_map[current_task].end()),
+            ExcMessage("The temporary map tmp_map is not sorted."));
+        Assert(std::is_sorted(std::get<2>(*map_it).begin(),std::get<2>(*map_it).end()),
             ExcMessage("The vector of dofs of the required task is not sorted."));
 
         std::vector<types::global_dof_index> sorted_union(
-            tmp_map[map_it->first].size()+map_it->second.size());
+            tmp_map[current_task].size()+std::get<2>(*map_it).size());
         std::vector<types::global_dof_index>::iterator vector_it;
-        vector_it = std::set_union(tmp_map[map_it->first].begin(),
-            tmp_map[map_it->first].end(),map_it->second.begin(),map_it->second.end(),
-            sorted_union.begin());
+        vector_it = std::set_union(tmp_map[current_task].begin(),tmp_map[current_task].end(),
+            std::get<2>(*map_it).begin(),std::get<2>(*map_it).end(),sorted_union.begin());
         sorted_union.resize(vector_it-sorted_union.begin());
-        tmp_map[map_it->first] = sorted_union;
+        tmp_map[current_task] = sorted_union;
+
+//----
+        ghost_required_tasks[current_task].push_back(i);
       }
     }
   }
@@ -581,15 +573,28 @@ void RadiativeTransfer<dim,tensor_dim>::build_global_required_tasks()
   for (; tmp_map_it!=tmp_map_end; ++tmp_map_it)
   {
     const unsigned int i_max(tmp_map_it->second.size());
+    global_required_tasks.push_back(std::tuple<types::subdomain_id,unsigned int,
+            std::unordered_map<types::global_dof_index,unsigned int>> (
+              tmp_map_it->first.first,tmp_map_it->first.second,
+              std::unordered_map<types::global_dof_index,unsigned int> ()));
     for (unsigned int i=0; i<i_max; ++i)
-      global_required_tasks[tmp_map_it->first][tmp_map_it->second[i]] = i;
+      std::get<2>(global_required_tasks.back())[tmp_map_it->second[i]] = i;
   }
 }
 
 template <int dim,int tensor_dim>
-void RadiativeTransfer<dim,tensor_dim>::get_task_local_dof_indices(Task &task,
-    std::vector<types::global_dof_index> &local_dof_indices)
+void RadiativeTransfer<dim,tensor_dim>::build_local_tasks_map()
 {
+  const unsigned int n_tasks(tasks.size());
+  for (unsigned int i=0; i<n_tasks; ++i)
+    local_tasks_map[tasks[i].get_id()] = i;
+}
+
+template <int dim,int tensor_dim>
+std::unordered_set<types::global_dof_index> 
+RadiativeTransfer<dim,tensor_dim>::get_task_local_dof_indices(Task &task)
+{
+  std::unordered_set<types::global_dof_index> local_dof_indices;
   std::vector<unsigned int> const* sweep_order(task.get_sweep_order());
   const unsigned int sweep_order_size(task.get_sweep_order_size());
   // Loop over the cells in the sweep associated to this task
@@ -601,8 +606,10 @@ void RadiativeTransfer<dim,tensor_dim>::get_task_local_dof_indices(Task &task,
     std::vector<types::global_dof_index> cell_dof_indices(tensor_dim);
     cell->get_dof_indices(cell_dof_indices);
     for (unsigned int j=0; j<tensor_dim; ++j)
-      local_dof_indices[i*tensor_dim+j] = cell_dof_indices[j];
+      local_dof_indices.insert(cell_dof_indices[j]);
   }
+
+  return local_dof_indices;
 }
 
 template <int dim,int tensor_dim>
@@ -639,14 +646,11 @@ void RadiativeTransfer<dim,tensor_dim>::send_angular_flux(Task const &task,
     std::unordered_map<types::global_dof_index,double> &angular_flux) const
 {
   MPI_Comm mpi_comm(comm->GetMpiComm());
-  const unsigned int n_tasks(tasks.size());
 
-  std::unordered_map<types::subdomain_id,std::vector<types::global_dof_index>>*
-    const waiting_subdomains(task.get_waiting_subdomains());
-  std::unordered_map<types::subdomain_id,std::vector<types::global_dof_index>>
-    ::iterator map_it(waiting_subdomains->begin());
-  std::unordered_map<types::subdomain_id,std::vector<types::global_dof_index>>
-    ::iterator map_end(waiting_subdomains->end());
+  std::vector<std::pair<types::subdomain_id,std::vector<types::global_dof_index>>>
+    ::const_iterator map_it(task.get_waiting_subdomains_cbegin());
+  std::vector<std::pair<types::subdomain_id,std::vector<types::global_dof_index>>>
+    ::const_iterator map_end(task.get_waiting_subdomains_cend());
 
   // Loop over all the waiting processors
   types::subdomain_id source(task.get_subdomain_id());
@@ -654,8 +658,8 @@ void RadiativeTransfer<dim,tensor_dim>::send_angular_flux(Task const &task,
   for (; map_it!=map_end; ++map_it)
   {
     types::subdomain_id destination(map_it->first);
-    // If source and destination processors are different, MPI is used
     if (source!=destination)
+    // If source and destination processors are different, MPI is used
     {
       int count(map_it->second.size());
       double* buffer = new double [count];
@@ -667,28 +671,29 @@ void RadiativeTransfer<dim,tensor_dim>::send_angular_flux(Task const &task,
       requests.push_back(request);
 
       MPI_Isend(buffer,count,MPI_DOUBLE,destination,tag,mpi_comm,request);
-    }                                               
+    }
     else
     {
-      // If source and destination processors are the same, loop over the
-      // tasks and set the required dofs if necessary
-      std::pair<types::subdomain_id,unsigned int> current_task(source,tag);
-      for (unsigned int i=0; i<n_tasks; ++i)
+      // if source and destination processors are the same, loop over a subset
+      // of the waiting_tasks and set the required dofs if necessary
+      std::vector<std::pair<unsigned int,std::vector<types::global_dof_index>>>
+        ::const_iterator waiting_tasks_it(task.get_local_waiting_tasks_cbegin());
+      std::vector<std::pair<unsigned int,std::vector<types::global_dof_index>>>
+        ::const_iterator waiting_tasks_cend(task.get_local_waiting_tasks_cend());
+      for (; waiting_tasks_it!=waiting_tasks_cend; ++waiting_tasks_it)
       {
-        if (tasks[i].is_task_required(current_task)==true)
-        {
-          std::vector<types::global_dof_index> const* const required_dofs(
-              tasks[i].get_required_dofs(current_task));
-          const unsigned int required_dofs_size(required_dofs->size());
-          for (unsigned int j=0; j<required_dofs_size; ++j)
-            tasks[i].set_required_dof((*required_dofs)[j],
-                angular_flux[(*required_dofs)[j]]);
-        }
+        const unsigned int local_pos(local_tasks_map[waiting_tasks_it->first]);
+        std::vector<types::global_dof_index>::const_iterator dofs_it(
+            waiting_tasks_it->second.cbegin());
+        std::vector<types::global_dof_index>::const_iterator dofs_end(
+            waiting_tasks_it->second.cend());
+        for (; dofs_it!=dofs_end; ++dofs_it)
+          tasks[local_pos].set_required_dof(*dofs_it,angular_flux[*dofs_it]);
 
-        // If all the required dofs are known, i.e., the task is ready, the
+        // If all the required dofs are know, i.e., the task is ready, the
         // tasks is added to the tasks_ready list
-        if (tasks[i].is_ready()==true)
-          tasks_ready.push_back(i);
+        if (tasks[local_pos].is_ready()==true)
+          tasks_ready.push_back(local_pos);
       }
     }
   }
@@ -698,21 +703,18 @@ template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::receive_angular_flux() const 
 {
   MPI_Comm mpi_comm(comm->GetMpiComm());
-  const unsigned int n_tasks(tasks.size());
 
   // Loop on the global_required_tasks map
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::unordered_map<types::global_dof_index,unsigned int>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
+  std::vector<std::tuple<types::subdomain_id,unsigned int,
+    std::unordered_map<types::global_dof_index,unsigned int>>>::iterator
       global_map_it(global_required_tasks.begin());
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::unordered_map<types::global_dof_index,unsigned int>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
+  std::vector<std::tuple<types::subdomain_id,unsigned int,
+    std::unordered_map<types::global_dof_index,unsigned int>>>::iterator
       global_map_end(global_required_tasks.end());
   for (; global_map_it!=global_map_end; ++global_map_it)
   {
-    types::subdomain_id source(std::get<0>(global_map_it->first));
-    unsigned int tag(std::get<1>(global_map_it->first));
+    types::subdomain_id source(std::get<0>(*global_map_it));
+    unsigned int tag(std::get<1>(*global_map_it));
     int flag;
 
     // Check if we can receive a message
@@ -720,36 +722,39 @@ void RadiativeTransfer<dim,tensor_dim>::receive_angular_flux() const
 
     if (flag==true)
     {
-      int count(global_map_it->second.size());
+      const std::pair<types::subdomain_id,unsigned int> ghost_task(source,tag);
+      int count(std::get<2>(*global_map_it).size());
       double* buffer = new double [count];
 
       // Receive the message
       MPI_Recv(buffer,count,MPI_DOUBLE,source,tag,mpi_comm,MPI_STATUS_IGNORE);
 
       // Set the required dofs
-      for (unsigned int i=0; i<n_tasks; ++i)
+      std::vector<unsigned int>::const_iterator required_tasks_it(
+          ghost_required_tasks[ghost_task].cbegin());
+      std::vector<unsigned int>::const_iterator required_tasks_end(
+          ghost_required_tasks[ghost_task].cend());
+      for (; required_tasks_it!=required_tasks_end; ++required_tasks_it)
       {
-        if (tasks[i].is_task_required(global_map_it->first)==true)
-        { 
-          std::vector<types::global_dof_index> const* const required_dofs(
-              tasks[i].get_required_dofs(global_map_it->first));
-          const unsigned int required_dofs_size(required_dofs->size());
-          for (unsigned int j=0; j<required_dofs_size; ++j)
-          {
-            const unsigned int required_dof((*required_dofs)[j]);
-            const unsigned int buffer_pos(global_map_it->second[required_dof]);
-            tasks[i].set_required_dof(required_dof,buffer[buffer_pos]);
-          }
+        std::vector<types::global_dof_index> const* const required_dofs(
+            tasks[*required_tasks_it].get_required_dofs(source,tag));
+        const unsigned int required_dofs_size(required_dofs->size());
+        for (unsigned int j=0; j<required_dofs_size; ++j)
+        {
+          const unsigned int required_dof((*required_dofs)[j]);
+          const unsigned int buffer_pos(std::get<2>(*global_map_it)[required_dof]);
+          tasks[*required_tasks_it].set_required_dof(required_dof,buffer[buffer_pos]);
         }
 
         // If the task has all the required dofs, it goes into the tasks_ready
         // list
-        if (tasks[i].is_ready()==true)
-          tasks_ready.push_back(i);
+        if (tasks[*required_tasks_it].is_ready()==true)
+          tasks_ready.push_back(*required_tasks_it);
       }
+
       delete [] buffer;
     }
-  }
+  }      
 }
 
 template <int dim,int tensor_dim>

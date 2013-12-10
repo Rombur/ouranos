@@ -20,26 +20,45 @@ Task::Task(unsigned int idir,unsigned int id,types::subdomain_id subdomain_id,
 
 void Task::compress_waiting_subdomains()
 {
-  std::unordered_map<types::subdomain_id,std::vector<types::global_dof_index>>
-    ::iterator map_it(waiting_subdomains.begin());
-  std::unordered_map<types::subdomain_id,std::vector<types::global_dof_index>>
-    ::iterator map_end(waiting_subdomains.end());
+  std::vector<domain_pair> tmp;
+  std::vector<domain_pair>::iterator waiting_it(waiting_subdomains.begin());
+  std::vector<domain_pair>::iterator waiting_end(waiting_subdomains.end());
+  // Group the elements of the vector that have the same subdomain_id
+  for (; waiting_it!=waiting_end; ++waiting_it)
+  {
+    const unsigned int sub_id(waiting_it->first);
+    std::vector<domain_pair>::iterator tmp_it(tmp.begin());
+    std::vector<domain_pair>::iterator tmp_end(tmp.end());
+    for (; tmp_it!=tmp_end; ++tmp_it)
+      if (tmp_it->first==sub_id)
+        break;
+    
+    if (tmp_it!=tmp_end)
+      tmp_it->second.insert(tmp_it->second.end(),waiting_it->second.begin(),waiting_it->second.end());
+    else
+      tmp.push_back(*waiting_it);
+  }
+
+  waiting_subdomains = tmp;
+  waiting_it = waiting_subdomains.begin();
+  waiting_end = waiting_subdomains.end();
   std::vector<types::global_dof_index>::iterator vector_end;
-  for (; map_it!=map_end; ++map_it)
+  for (; waiting_it!=waiting_end; ++waiting_it)
   {
     // Sort the dofs
-    std::sort(map_it->second.begin(),map_it->second.end());
-    // Delete repeated values
-    vector_end = std::unique(map_it->second.begin(),map_it->second.end());
-    map_it->second.resize(std::distance(map_it->second.begin(),vector_end));
+    std::sort(waiting_it->second.begin(),waiting_it->second.end());
+    //Delete repeated values
+    vector_end = std::unique(waiting_it->second.begin(),waiting_it->second.end());
+    waiting_it->second.resize(std::distance(waiting_it->second.begin(),vector_end));
   }
 }
 
-void Task::add_to_required_tasks(std::pair<types::subdomain_id,unsigned int>
-    &subdomain_task_pair,types::global_dof_index dof)
+void Task::add_to_required_tasks(types::subdomain_id s_id,unsigned int t_id,types::global_dof_index* recv,
+    unsigned int pos,unsigned int n)
 {
-  required_tasks[subdomain_task_pair].push_back(dof);
-  ++n_required_dofs;
+  std::vector<types::global_dof_index> tmp(&recv[pos],&recv[pos+n]);
+  required_tasks.push_back(task_tuple(s_id,t_id,tmp));
+  n_required_dofs += n;
   n_missing_dofs = n_required_dofs;
 }
 
@@ -67,106 +86,74 @@ void Task::clear_temporary_data()
   waiting_tasks.clear();
 }
 
-types::subdomain_id Task::get_waiting_tasks_subdomain_id(unsigned int i) const
+void Task::finalize_maps()
 {
-  AssertIndexRange(i,waiting_tasks.size());
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator map_it(
-        waiting_tasks.cbegin());
+  // Create local_waiting_tasks
+  const unsigned int waiting_tasks_size(waiting_tasks.size());
+  for (unsigned int i=0; i<waiting_tasks_size; ++i)
+  {
+    if (std::get<0>(waiting_tasks[i])==subdomain_id)
+    {
+      local_waiting_tasks.push_back(std::pair<unsigned int,std::vector<types::global_dof_index>> 
+          (std::get<1> (waiting_tasks[i]),std::get<2>(waiting_tasks[i])));
+    }
+  }
 
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator p_it(
-        waiting_tasks.cend());
+  // Create required_tasks_map
+  const unsigned int required_tasks_size(required_tasks.size());
+  for (unsigned int i=0; i<required_tasks_size; ++i)
+  {
+    std::pair<types::subdomain_id,unsigned int> pair(std::get<0>(required_tasks[i]),
+        std::get<1>(required_tasks[i]));
+    required_tasks_map[pair] = i;
+  }
 
-  for (unsigned int j=0; j<i; ++j,++map_it);
-
-  return std::get<0>(map_it->first);
-}
-
-unsigned int Task::get_waiting_tasks_n_dofs(unsigned int i) const
-{
-  AssertIndexRange(i,waiting_tasks.size());
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator map_it(
-        waiting_tasks.cbegin());
-
-  for (unsigned int j=0; j<i; ++j,++map_it);
-
-  return map_it->second.size();
-}
-
-unsigned int Task::get_waiting_tasks_id(unsigned int i) const
-{
-  AssertIndexRange(i,waiting_tasks.size());
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator map_it(
-        waiting_tasks.cbegin());
-
-  for (unsigned int j=0; j<i; ++j,++map_it);
-
-  return std::get<1>(map_it->first);
-}
-
-std::vector<types::global_dof_index> const* Task::get_waiting_tasks_dofs(
-    unsigned int i)
-{
-  AssertIndexRange(i,waiting_tasks.size());
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::const_iterator map_it(
-        waiting_tasks.cbegin());
-
-  for (unsigned int j=0; j<i; ++j,++map_it);
-
-  return &(map_it->second);
+  // Clear incomplete_required_tasks and waiting_tasks
+  clear_temporary_data();
 }
 
 void Task::print(std::ostream &output_stream)
 {
-  output_stream<<"ID "<<id<<std::endl;
-  output_stream<<"idir "<<idir<<std::endl;
-  output_stream<<"sweep order"<<std::endl;
-  for (unsigned int i=0; i<sweep_order.size(); ++i)
-    output_stream<<sweep_order[i]<<std::endl;
-  output_stream<<"waiting tasks "<<waiting_tasks.size()<<std::endl;
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
-      waiting_map_it(waiting_tasks.begin());
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
-      waiting_map_end(waiting_tasks.end());
-  for (; waiting_map_it!=waiting_map_end; ++waiting_map_it)
-  {
-    output_stream<<std::get<0>(waiting_map_it->first)<<" "<<
-      std::get<1>(waiting_map_it->first)<<" ";
-    std::vector<types::global_dof_index> dofs(waiting_map_it->second);
-    for (unsigned int i=0; i<dofs.size(); ++i)
-      output_stream<<dofs[i]<<" ";
-    output_stream<<std::endl;
-  }
-  output_stream<<"required tasks"<<std::endl;
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
-      required_map_it(required_tasks.begin());
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
-      required_map_end(required_tasks.end());
-  for (; required_map_it!=required_map_end; ++required_map_it)
-  {
-    output_stream<<std::get<0>(required_map_it->first)<<" "<<
-      std::get<1>(required_map_it->first)<<" ";
-    std::vector<types::global_dof_index> dofs(required_map_it->second);
-    for (unsigned int i=0; i<dofs.size(); ++i)
-      output_stream<<dofs[i]<<" ";
-    output_stream<<std::endl;
-  }
-  output_stream<<std::endl;
+//  output_stream<<"ID "<<id<<std::endl;
+//  output_stream<<"idir "<<idir<<std::endl;
+//  output_stream<<"sweep order"<<std::endl;
+//  for (unsigned int i=0; i<sweep_order.size(); ++i)
+//    output_stream<<sweep_order[i]<<std::endl;
+//  output_stream<<"waiting tasks "<<waiting_tasks.size()<<std::endl;
+//  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
+//    std::vector<types::global_dof_index>,
+//    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
+//      waiting_map_it(waiting_tasks.begin());
+//  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
+//    std::vector<types::global_dof_index>,
+//    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
+//      waiting_map_end(waiting_tasks.end());
+//  for (; waiting_map_it!=waiting_map_end; ++waiting_map_it)
+//  {
+//    output_stream<<std::get<0>(waiting_map_it->first)<<" "<<
+//      std::get<1>(waiting_map_it->first)<<" ";
+//    std::vector<types::global_dof_index> dofs(waiting_map_it->second);
+//    for (unsigned int i=0; i<dofs.size(); ++i)
+//      output_stream<<dofs[i]<<" ";
+//    output_stream<<std::endl;
+//  }
+//  output_stream<<"required tasks"<<std::endl;
+//  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
+//    std::vector<types::global_dof_index>,
+//    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
+//      required_map_it(required_tasks.begin());
+//  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
+//    std::vector<types::global_dof_index>,
+//    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
+//      required_map_end(required_tasks.end());
+//  for (; required_map_it!=required_map_end; ++required_map_it)
+//  {
+//    output_stream<<std::get<0>(required_map_it->first)<<" "<<
+//      std::get<1>(required_map_it->first)<<" ";
+//    std::vector<types::global_dof_index> dofs(required_map_it->second);
+//    for (unsigned int i=0; i<dofs.size(); ++i)
+//      output_stream<<dofs[i]<<" ";
+//    output_stream<<std::endl;
+//  }
+//  output_stream<<std::endl;
 }
