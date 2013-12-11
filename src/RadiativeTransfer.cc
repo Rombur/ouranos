@@ -223,12 +223,10 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
   // Build the maps of task required for a given task to start
   build_required_tasks_maps();
  
+  // Loop over the tasks and create the necessary remaining maps and delete
+  // the ones that are not necessary anymore.
   for (unsigned int i=0; i<tasks.size();++i)
     tasks[i].finalize_maps();
-  // Loop over the tasks and clear the temporary data that are not needed
-  // anymore
- // for (unsigned int i=0; i<tasks.size(); ++i)
- //   tasks[i].clear_temporary_data();
 
   // Build an unique map per processor which given a required task by one of
   // the task owned by the processor and a dof return the position this dof in
@@ -554,7 +552,8 @@ void RadiativeTransfer<dim,tensor_dim>::build_global_required_tasks()
         sorted_union.resize(vector_it-sorted_union.begin());
         tmp_map[current_task] = sorted_union;
 
-//----
+        // Create the ghost_required_tasks (current_task is a task on an other
+        // processor and i is the position in the local tasks vector)
         ghost_required_tasks[current_task].push_back(i);
       }
     }
@@ -729,7 +728,8 @@ void RadiativeTransfer<dim,tensor_dim>::receive_angular_flux() const
       // Receive the message
       MPI_Recv(buffer,count,MPI_DOUBLE,source,tag,mpi_comm,MPI_STATUS_IGNORE);
 
-      // Set the required dofs
+      // Set the required dofs by looping on the tasks that are waiting for
+      // the ghost cell
       std::vector<unsigned int>::const_iterator required_tasks_it(
           ghost_required_tasks[ghost_task].cbegin());
       std::vector<unsigned int>::const_iterator required_tasks_end(

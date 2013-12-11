@@ -37,16 +37,11 @@
 
 using namespace dealii;
 
-// besoin de creer un vector<task_number>
-// avec possibilite de parcourir le vector slt pour a given sub_id-tag (only
-// sub_id different than proc)
-
 
 /**
  *  This class derives from Epetra_Operator and implement the function Apply
  *  needed by the AztecOO solvers.
  */
-
 template <int dim,int tensor_dim>
 class RadiativeTransfer : public Epetra_Operator
 {
@@ -142,6 +137,7 @@ class RadiativeTransfer : public Epetra_Operator
     /// Build the global_required_tasks map.
     void build_global_required_tasks();
 
+    /// Build local_tasks_map.
     void build_local_tasks_map();
 
     /// Build the required_tasks maps for all the tasks owned by a processor.
@@ -164,14 +160,12 @@ class RadiativeTransfer : public Epetra_Operator
     void get_multivector_indices(std::vector<int> &dof_indices,
     typename DoFHandler<dim>::active_cell_iterator const& cell) const;
 
-    /**
-     * This routine uses Crout's method with pivoting to decompose the matrix
-     * \f$A\f$ into lower triangulat matrix \f$L\f$ and an unit upper
-     * triangular matrix \f$U\f$ such that $\f$A=LU\f$. The matrices \f$L\f$
-     * such replace the matrix \f$A\f$ so that the original matrix \f$A\f$ is
-     * destroyed. In Crout's method the diagonal element of \f$U\f$ are ones
-     * and are not stored.
-     */
+    //This routine uses Crout's method with pivoting to decompose the matrix
+    //\f$A\f$ into lower triangulat matrix \f$L\f$ and an unit upper
+    //triangular matrix \f$U\f$ such that $\f$A=LU\f$. The matrices \f$L\f$
+    //such replace the matrix \f$A\f$ so that the original matrix \f$A\f$ is
+    //destroyed. In Crout's method the diagonal element of \f$U\f$ are ones
+    //and are not stored.
     void LU_decomposition(Tensor<2,tensor_dim> &A,
         Tensor<1,tensor_dim,unsigned int> &pivot) const;
 
@@ -208,7 +202,22 @@ class RadiativeTransfer : public Epetra_Operator
     /// Trilinos interface in Epetra_Operator, tasks_ready is made mutable 
     /// so it can be changed in a const function.
     mutable std::list<unsigned int> tasks_ready;
-    /// This map is used to store the position in a received MPI message from
+    /// If the waiting task is on the current processor, this map can be used
+    /// to find the position of the task in the tasks vector. The key of the map
+    /// is the task id of the waiting task and the value is the position in
+    /// the local tasks vector. Because of the Trilinos interface in 
+    /// Epetra_Operator, local_tasks_map is made mutable so it can be can be 
+    /// changed in a const function.
+    mutable std::unordered_map<unsigned int,unsigned int> local_tasks_map;
+    /// The key of this map is the subdomain_id and the task id of the required
+    /// task, which is on another processor, and the value is a vector of the 
+    /// position of the waiting tasks in the local vector of tasks. Because of 
+    /// the Trilinos interface in Epetra_Operator, ghost_required_tasks is made 
+    /// mutable so it can be can be changed in a const function.
+    mutable std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
+    std::vector<unsigned int>,boost::hash<std::pair<types::subdomain_id,unsigned int>>> 
+      ghost_required_tasks;
+    /// This vector is used to store the position in a received MPI message from
     /// a given task of a given dof. Because of the Trilinos interface in
     /// Epetra_Operator, global_required_tasks is made mutable so it can be
     /// can be changed in a const function.
@@ -232,11 +241,6 @@ class RadiativeTransfer : public Epetra_Operator
     RTQuadrature* quad;
     /// Pointer to the material property.
     RTMaterialProperties* material_properties;
-
-    mutable std::unordered_map<unsigned int,unsigned int> local_tasks_map;
-    mutable std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<unsigned int>,boost::hash<std::pair<types::subdomain_id,unsigned int>>> 
-      ghost_required_tasks;
 };
 
 template <int dim,int tensor_dim>

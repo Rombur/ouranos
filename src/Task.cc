@@ -114,46 +114,30 @@ void Task::finalize_maps()
 
 void Task::print(std::ostream &output_stream)
 {
-//  output_stream<<"ID "<<id<<std::endl;
-//  output_stream<<"idir "<<idir<<std::endl;
-//  output_stream<<"sweep order"<<std::endl;
-//  for (unsigned int i=0; i<sweep_order.size(); ++i)
-//    output_stream<<sweep_order[i]<<std::endl;
-//  output_stream<<"waiting tasks "<<waiting_tasks.size()<<std::endl;
-//  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-//    std::vector<types::global_dof_index>,
-//    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
-//      waiting_map_it(waiting_tasks.begin());
-//  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-//    std::vector<types::global_dof_index>,
-//    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
-//      waiting_map_end(waiting_tasks.end());
-//  for (; waiting_map_it!=waiting_map_end; ++waiting_map_it)
-//  {
-//    output_stream<<std::get<0>(waiting_map_it->first)<<" "<<
-//      std::get<1>(waiting_map_it->first)<<" ";
-//    std::vector<types::global_dof_index> dofs(waiting_map_it->second);
-//    for (unsigned int i=0; i<dofs.size(); ++i)
-//      output_stream<<dofs[i]<<" ";
-//    output_stream<<std::endl;
-//  }
-//  output_stream<<"required tasks"<<std::endl;
-//  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-//    std::vector<types::global_dof_index>,
-//    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
-//      required_map_it(required_tasks.begin());
-//  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-//    std::vector<types::global_dof_index>,
-//    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
-//      required_map_end(required_tasks.end());
-//  for (; required_map_it!=required_map_end; ++required_map_it)
-//  {
-//    output_stream<<std::get<0>(required_map_it->first)<<" "<<
-//      std::get<1>(required_map_it->first)<<" ";
-//    std::vector<types::global_dof_index> dofs(required_map_it->second);
-//    for (unsigned int i=0; i<dofs.size(); ++i)
-//      output_stream<<dofs[i]<<" ";
-//    output_stream<<std::endl;
-//  }
-//  output_stream<<std::endl;
+  output_stream<<"ID "<<id<<std::endl;
+  output_stream<<"idir "<<idir<<std::endl;
+  output_stream<<"sweep order"<<std::endl;
+  for (unsigned int i=0; i<sweep_order.size(); ++i)
+    output_stream<<sweep_order[i]<<std::endl;
+  output_stream<<"waiting tasks "<<waiting_tasks.size()<<std::endl;
+  for (unsigned int i=0; i<waiting_tasks.size(); ++i)
+  {
+    output_stream<<std::get<0>(waiting_tasks[i])<<" "<<
+      std::get<1>(waiting_tasks[i])<<" ";
+    std::vector<types::global_dof_index> dofs(std::get<2>(waiting_tasks[i]));
+    for (unsigned int i=0; i<dofs.size(); ++i)
+      output_stream<<dofs[i]<<" ";
+    output_stream<<std::endl;
+  }
+  output_stream<<"required tasks "<<required_tasks.size()<<std::endl;
+  for (unsigned int i=0; i<required_tasks.size(); ++i)
+  {
+    output_stream<<std::get<0>(required_tasks[i])<<" "<<
+      std::get<1>(required_tasks[i])<<" ";
+    std::vector<types::global_dof_index> dofs(std::get<2>(required_tasks[i]));
+    for (unsigned int i=0; i<dofs.size(); ++i)
+      output_stream<<dofs[i]<<" ";
+    output_stream<<std::endl;
+  }
+  output_stream<<std::endl;
 }
