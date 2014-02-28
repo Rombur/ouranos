@@ -251,7 +251,7 @@ void output_results(std::string const &filename,unsigned int const n_mom,
     std::vector<std::string> filenames;
     for (unsigned int i=0; i<Utilities::MPI::n_mpi_processes(mpi_communicator); ++i)
       filenames.push_back(filename+Utilities::int_to_string(i,4)+".vtk");
-    std::ofstream master_output ((filename+".vtk").c_str());
+    std::ofstream master_output ((filename+".visit").c_str());
     data_out.write_visit_record(master_output,filenames);
   }
 }
@@ -270,7 +270,12 @@ int main(int argc,char **argv)
 
     // Read the parameters
     pcout<<"Read parameters."<<std::endl;
-    Parameters parameters(argv[argc-1]);
+    std::string parameters_filename(argv[argc-1]);
+    unsigned int found(parameters_filename.find_last_of("."));
+    std::string extension(parameters_filename.substr(found));
+    AssertThrow((extension.compare(".inp")==0) || (extension.compare(".txt")==0), 
+          ExcMessage("The parameters filename has to use .inp or .txt as extension."));
+    Parameters parameters(parameters_filename);
     std::string geometry_filename(parameters.get_geometry_filename());
     std::string xs_filename(parameters.get_xs_filename());
     

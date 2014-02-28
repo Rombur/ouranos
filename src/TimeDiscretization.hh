@@ -57,7 +57,7 @@ class TimeDiscretization
     double get_butcher_b(unsigned int i) const;
 
     /// Return the Butcher coefficient c(i).
-    double get_butcher_c(unsigned int j) const;
+    double get_butcher_c(unsigned int i) const;
 
   private :
     /// Flag to indicate if the method is implicit.

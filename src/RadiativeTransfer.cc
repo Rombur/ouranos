@@ -222,10 +222,16 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
 
   // Build the maps of task required for a given task to start
   build_required_tasks_maps();
+
+  std::ofstream file;
+  file.open(std::to_string(tasks[0].get_subdomain_id())+".txt");
+  for (unsigned int i=0; i<tasks.size();++i)
+    tasks[i].print(file);
+  file.close();
  
   // Loop over the tasks and create the necessary remaining maps and delete
   // the ones that are not necessary anymore.
-  for (unsigned int i=0; i<tasks.size();++i)
+  for (unsigned int i=0; i<tasks.size(); ++i)
     tasks[i].finalize_maps();
 
   // Build an unique map per processor which given a required task by one of
