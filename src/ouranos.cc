@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Bruno Turcksin.
+/* Copyright (c) 2013-2014, Bruno Turcksin.
  *
  * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
@@ -220,7 +220,7 @@ void output_results(std::string const &filename,unsigned int const n_mom,
     MPI_Comm const &mpi_communicator)
 {
   std::ofstream output((filename+Utilities::int_to_string(
-          triangulation->locally_owned_subdomain(),4)+".vtk").c_str());
+          triangulation->locally_owned_subdomain(),4)+".vtu").c_str());
   DataOut<dim> data_out;
   // Atttach dof_handler
   data_out.attach_dof_handler(*dof_handler);
@@ -244,15 +244,15 @@ void output_results(std::string const &filename,unsigned int const n_mom,
   data_out.build_patches();
 
   // Write the output
-  data_out.write_vtk(output);
+  data_out.write_vtu(output);
 
   if (Utilities::MPI::this_mpi_process(mpi_communicator)==0)
   {
     std::vector<std::string> filenames;
     for (unsigned int i=0; i<Utilities::MPI::n_mpi_processes(mpi_communicator); ++i)
-      filenames.push_back(filename+Utilities::int_to_string(i,4)+".vtk");
-    std::ofstream master_output ((filename+".visit").c_str());
-    data_out.write_visit_record(master_output,filenames);
+      filenames.push_back(filename+Utilities::int_to_string(i,4)+".vtu");
+    std::ofstream master_output ((filename+".pvtu").c_str());
+    data_out.write_pvtu_record(master_output,filenames);
   }
 }
 
@@ -284,13 +284,14 @@ int main(int argc,char **argv)
       FE_DGQ<2> fe(parameters.get_fe_order());
       // Read the geometry
       pcout<<"Read geometry."<<std::endl;
-      Geometry<2> geometry(geometry_filename,fe);
+      Geometry<2> geometry(pcout,geometry_filename,fe);
       // Read the material properties for the radiative transfer problem
       pcout<<"Read material properties."<<std::endl;
       RTMaterialProperties material_properties(xs_filename,geometry.get_n_materials(),
           parameters.get_n_groups());
 
       // Create the DoFHandler
+      pcout<<"Create DoFHandler"<<std::endl;
       DoFHandler<2>* dof_handler(geometry.get_dof_handler());
       types::global_dof_index n_dofs(dof_handler->n_dofs());
       unsigned int n_locally_owned_dofs(dof_handler->n_locally_owned_dofs());
@@ -379,7 +380,7 @@ int main(int argc,char **argv)
       FE_DGQ<3> fe(parameters.get_fe_order());
       // Read the geometry
       pcout<<"Read geometry."<<std::endl;
-      Geometry<3> geometry(geometry_filename,fe);
+      Geometry<3> geometry(pcout,geometry_filename,fe);
       // Read the material properties for the radiative transfer problem
       pcout<<"Read material properties."<<std::endl;
       RTMaterialProperties material_properties(xs_filename,geometry.get_n_materials(),

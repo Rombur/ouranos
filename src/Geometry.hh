@@ -11,6 +11,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include "deal.II/base/conditional_ostream.h"
 #include "deal.II/base/exceptions.h"
 #include "deal.II/base/parameter_handler.h"
 #include "deal.II/base/std_cxx1x/bind.h"
@@ -33,7 +34,8 @@ template<int dim>
 class Geometry
 {
   public :
-    Geometry(std::string &geometry_filename,FE_DGQ<dim> &fe);
+    Geometry(ConditionalOStream const &pcout,std::string &geometry_filename,
+        FE_DGQ<dim> &fe);
 
     /// Return the number of subdivisions of dimension i.
     unsigned int get_n_subdivisions(unsigned int i) const;

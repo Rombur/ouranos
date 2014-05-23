@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Bruno Turcksin.
+/* Copyright (c) 2013-2014, Bruno Turcksin.
  *
  * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
@@ -8,7 +8,8 @@
 #include "Geometry.hh"
 
 template<int dim>
-Geometry<dim>::Geometry(std::string &geometry_filename,FE_DGQ<dim> &fe) :
+Geometry<dim>::Geometry(ConditionalOStream const &pcout,std::string &geometry_filename,
+    FE_DGQ<dim> &fe) :
   delta_x(0.),
   delta_y(0.),
   delta_z(0.),
@@ -77,6 +78,9 @@ Geometry<dim>::Geometry(std::string &geometry_filename,FE_DGQ<dim> &fe) :
     }
 
   triangulation.refine_global(n_global_refinements);
+
+  // Output the number of global active cells.
+  pcout<<"Number of global active cells: "<<triangulation.n_global_active_cells()<<std::endl;
 
   // Distribute the degrees of freedom on the DoFHandler
   dof_handler.distribute_dofs(fe);
