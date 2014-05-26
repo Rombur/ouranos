@@ -74,10 +74,19 @@ for elem in partial_libs :
         libpath_elem = ''
         for i in xrange(1,len(split_elem)-1) :
           libpath_elem += '/'+split_elem[i]
-        lib_elem = split_elem[-1][3:]
+# If the first three characters are lib, we strip lib.
+        if 'lib' in split_elem[-1][:3] :
+          lib_elem = split_elem[-1][3:]
+# If the first two characters are -l, we strip -l.
+        elif '-l' in split_elem[-1][:2] :
+          lib_elem = split_elem[-1][2:]
         if libpath_elem not in libpath :
           libpath += [libpath_elem]
-        libs += [lib_elem[:-3]]          
+# Strip .so if necessary
+        if '.so' in lib_elem[:-3]:
+          libs += [lib_elem[:-3]]          
+        else :
+          libs += [lib_elem]
 
 # Add libdeal_II.g.so or libdeal_II.so to libs
 if debug==1 :
@@ -93,7 +102,11 @@ for elem in partial_include :
 # Create the environment
 # CPPFLAGS are for C PreProcessing
 # CXXFLAGS are for C++ compiler
+# Import the environment of the user
+import os
 env = Environment(
+  ENV = os.environ,
+  CXX='mpic++',
   CXXFLAGS=cxx_flags,
   CPPPATH=include,
   LIBPATH=libpath,
