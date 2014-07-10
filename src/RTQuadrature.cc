@@ -229,9 +229,9 @@ void RTQuadrature::compute_most_normal_directions(const unsigned int dim)
     std::vector<double>::iterator it;
     for (unsigned int i=0; i<dim; ++i)
     {
-      if ((omega[idir][i]==most_normal[2*i]))
+      if (omega[idir][i]==most_normal[2*i])
         most_n_directions[2*i].insert(idir);
-      if ((omega[idir][i]==most_normal[2*i+1]))
+      if (omega[idir][i]==most_normal[2*i+1])
         most_n_directions[2*i+1].insert(idir);
     }
   }
