@@ -9,6 +9,7 @@
 #include "catch.hpp"
 
 #include <string>
+#include "deal.II/base/conditional_ostream.h"
 #include "deal.II/base/utilities.h"
 #include "deal.II/base/mpi.h"
 #include "deal.II/fe/fe_dgq.h"
@@ -17,9 +18,11 @@
 
 TEST_CASE("Geometry/2D","Check Geometry for 2D")
 {
+  ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
+        MPI_COMM_WORLD)==0);
   std::string filename("./tests/geometry_2D.inp");
   FE_DGQ<2> fe(1);
-  Geometry<2> geometry(filename,fe);
+  Geometry<2> geometry(pcout,filename,fe);
   // Check the number of divisions
   REQUIRE(geometry.get_n_subdivisions(0)==2);
   REQUIRE(geometry.get_n_subdivisions(1)==3);
@@ -43,9 +46,11 @@ TEST_CASE("Geometry/2D","Check Geometry for 2D")
 
 TEST_CASE("Geometry/3D","Check Geometry for 3D")
 {
+  ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
+        MPI_COMM_WORLD)==0);
   std::string filename("./tests/geometry_3D.inp");
   FE_DGQ<3> fe(1);
-  Geometry<3> geometry(filename,fe);
+  Geometry<3> geometry(pcout,filename,fe);
   // Check the number of divisions
   REQUIRE(geometry.get_n_subdivisions(0)==2);
   REQUIRE(geometry.get_n_subdivisions(1)==3);

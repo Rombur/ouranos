@@ -29,7 +29,7 @@ radiativetransfer_test = env.Program('radiativetransfer_test',src_files[6])
 # Create an alias and run the tests
 programs = [quadrature_test,parameters_test,geometry_test,fecell_test,
   timediscretization_test,rtmaterialproperties_test,radiativetransfer_test]
-tests_alias = Alias('tests',programs,
+tests_alias = env.Alias('tests',programs,
   [programs[0][0].abspath,programs[1][0].abspath,
   'mpirun -np 1 '+programs[2][0].abspath,programs[3][0].abspath,
   programs[4][0].abspath,programs[5][0].abspath,

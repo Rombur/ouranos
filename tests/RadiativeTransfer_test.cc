@@ -14,6 +14,7 @@
 #include "Epetra_Map.h"
 #include "Epetra_MpiComm.h"
 #include "Epetra_MultiVector.h"
+#include "deal.II/base/conditional_ostream.h"
 #include "deal.II/base/utilities.h"
 #include "deal.II/base/mpi.h"
 #include "deal.II/fe/fe_dgq.h"
@@ -29,12 +30,14 @@
 
 TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D on 4 processors")
 {
+  ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
+        MPI_COMM_WORLD)==0);
   std::string parameters_filename("./tests/rt_parameters.inp");
   Parameters parameters(parameters_filename);
   std::string geometry_filename(parameters.get_geometry_filename());
   std::string xs_filename(parameters.get_xs_filename());
   FE_DGQ<2> fe(parameters.get_fe_order());
-  Geometry<2> geometry(geometry_filename,fe);
+  Geometry<2> geometry(pcout,geometry_filename,fe);
   RTMaterialProperties material_properties(xs_filename,geometry.get_n_materials(),
       parameters.get_n_groups());
 
