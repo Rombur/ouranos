@@ -18,15 +18,46 @@ Task::Task(unsigned int idir,unsigned int id,types::subdomain_id subdomain_id,
   incomplete_required_tasks(incomplete_required_tasks)
 {}
 
+void Task::compress_waiting_tasks()
+{
+  std::vector<task_tuple> tmp;
+  // Group the elements of the vector that have the same subdomain_id.
+  for (auto &wait_task : waiting_tasks)
+  {
+    const types::subdomain_id sub_id(std::get<0>(wait_task));
+    const unsigned int task_id(std::get<1>(wait_task));
+    std::vector<task_tuple>::iterator tmp_it(tmp.begin());
+    std::vector<task_tuple>::iterator tmp_end(tmp.end());
+    for (; tmp_it!=tmp_end; ++tmp_it)
+      if ((std::get<0>(*tmp_it)==sub_id) && (std::get<1>(*tmp_it)==task_id))
+        break;
+
+    if (tmp_it!=tmp_end)
+      std::get<2>(*tmp_it).insert(std::get<2>(*tmp_it).end(),
+          std::get<2>(wait_task).begin(),std::get<2>(wait_task).end());
+    else
+      tmp.push_back(wait_task);
+  }
+
+  waiting_tasks = tmp;
+  std::vector<types::global_dof_index>::iterator vector_end;
+  for (auto &wait_task : waiting_tasks)
+  {
+    // Sort the dofs.
+    std::sort(std::get<2>(wait_task).begin(),std::get<2>(wait_task).end());
+    // Delete repeated values.
+    vector_end = std::unique(std::get<2>(wait_task).begin(),std::get<2>(wait_task).end());
+    std::get<2>(wait_task).resize(std::distance(std::get<2>(wait_task).begin(),vector_end));
+  }
+}
+
 void Task::compress_waiting_subdomains()
 {
   std::vector<domain_pair> tmp;
-  std::vector<domain_pair>::iterator waiting_it(waiting_subdomains.begin());
-  std::vector<domain_pair>::iterator waiting_end(waiting_subdomains.end());
   // Group the elements of the vector that have the same subdomain_id
-  for (; waiting_it!=waiting_end; ++waiting_it)
+  for (auto &wait_subdom : waiting_subdomains)
   {
-    const unsigned int sub_id(waiting_it->first);
+    const types::subdomain_id sub_id(wait_subdom.first);
     std::vector<domain_pair>::iterator tmp_it(tmp.begin());
     std::vector<domain_pair>::iterator tmp_end(tmp.end());
     for (; tmp_it!=tmp_end; ++tmp_it)
@@ -34,22 +65,21 @@ void Task::compress_waiting_subdomains()
         break;
     
     if (tmp_it!=tmp_end)
-      tmp_it->second.insert(tmp_it->second.end(),waiting_it->second.begin(),waiting_it->second.end());
+      tmp_it->second.insert(tmp_it->second.end(),wait_subdom.second.begin(),
+          wait_subdom.second.end());
     else
-      tmp.push_back(*waiting_it);
+      tmp.push_back(wait_subdom);
   }
 
   waiting_subdomains = tmp;
-  waiting_it = waiting_subdomains.begin();
-  waiting_end = waiting_subdomains.end();
   std::vector<types::global_dof_index>::iterator vector_end;
-  for (; waiting_it!=waiting_end; ++waiting_it)
+  for (auto &wait_subdom : waiting_subdomains)
   {
     // Sort the dofs
-    std::sort(waiting_it->second.begin(),waiting_it->second.end());
-    //Delete repeated values
-    vector_end = std::unique(waiting_it->second.begin(),waiting_it->second.end());
-    waiting_it->second.resize(std::distance(waiting_it->second.begin(),vector_end));
+    std::sort(wait_subdom.second.begin(),wait_subdom.second.end());
+    // Delete repeated values
+    vector_end = std::unique(wait_subdom.second.begin(),wait_subdom.second.end());
+    wait_subdom.second.resize(std::distance(wait_subdom.second.begin(),vector_end));
   }
 }
 

@@ -52,8 +52,7 @@ void RadiativeTransfer<dim,tensor_dim>::setup()
   // Build the FECells
   const unsigned int fe_order(parameters->get_fe_order());
   dof_handler->distribute_dofs(*fe);
-  typename DoFHandler<dim>::active_cell_iterator cell(dof_handler->begin_active()),
-           end_cell(dof_handler->end());
+  active_cell_iterator cell(dof_handler->begin_active()), end_cell(dof_handler->end());
   QGauss<dim> quadrature_formula(fe_order+1);
   QGauss<dim-1> face_quadrature_formula(fe_order+1);
   const unsigned int n_quad_points(quadrature_formula.size());
@@ -65,48 +64,126 @@ void RadiativeTransfer<dim,tensor_dim>::setup()
   FEFaceValues<dim> fe_neighbor_face_values(*fe,face_quadrature_formula,
       update_values);
 
+  std::map<active_cell_iterator,unsigned int> cell_to_fecell_map;
+  unsigned int fecell_id(0);
   for (; cell<end_cell; ++cell)
     if (cell->is_locally_owned())
     {
       FECell<dim,tensor_dim> fecell(n_quad_points,n_face_quad_points,
-          fe_values,fe_face_values,fe_neighbor_face_values,cell,end_cell);
+          fe_values,fe_face_values,fe_neighbor_face_values,cell);
       fecell_mesh.push_back(fecell);
+      cell_to_fecell_map[cell] = fecell_id;
+      ++fecell_id;
     }
- 
+
+  // Build patches of cells that will be sweep on.
+  std::list<std::list<unsigned int>> cell_patches;
+  build_cell_patches(cell_to_fecell_map,cell_patches);
+
   // Compute the sweep ordering
-  compute_sweep_ordering();
+  compute_sweep_ordering(cell_to_fecell_map,cell_patches);
 }
 
 template <int dim,int tensor_dim>
-void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
+void RadiativeTransfer<dim,tensor_dim>::build_cell_patches(
+    std::map<active_cell_iterator,unsigned int> const &cell_to_fecell_map,
+    std::list<std::list<unsigned int>> &cell_patches) const
 {
-  // First find the cells on the ''boundary'' of the processor
-  std::vector<std::set<unsigned int> > boundary_cells(2*dim);
-  const unsigned int fec_mesh_size(fecell_mesh.size());
-  for (unsigned int i=0; i<fec_mesh_size; ++i)
-  {
-    typename DoFHandler<dim>::active_cell_iterator cell(fecell_mesh[i].get_cell());
-    for (unsigned int face=0; face<2*dim; ++face)
-    {
-      // Check if the face is on the boundary of the domain
-      if (cell->at_boundary(face)==true)
-        boundary_cells[face].insert(i);
-      else
-        if (cell->neighbor(face)->is_ghost()==true)
-          boundary_cells[face].insert(i);
-    }
-  }         
+  // Number of cells owned by the current processor.
+  const unsigned int n_cells(fecell_mesh.size());
+  // Number of levels of the patches.
+  const unsigned int n_levels(parameters->get_n_levels_patch());
 
+  // The set contains all the cells that are not part of a patch yet.
+  std::unordered_set<unsigned int> unused_cells;
+  for (unsigned int i=0; i<n_cells; ++i)
+    unused_cells.insert(i);
+
+  // Create patches as long as some cells are unused.
+  while (unused_cells.size()!=0)
+  {
+    // Here, we try to get the parent of the current cell and then, we ask for
+    // all the children. If all the children are on the same processor, the
+    // patch can be accepted and we can try to create a bigger patch using the
+    // grandparent cell.
+
+    std::list<unsigned int> current_patch;
+    current_patch.push_back(*(unused_cells.begin()));
+    unused_cells.erase(unused_cells.begin());
+        
+    // This is not an active_cell_iterator because we are going "up" the tree of
+    // cells and the ancestor cell are not active.
+    typename DoFHandler<dim>::cell_iterator current_cell(
+        fecell_mesh[*(current_patch.begin())].get_cell());
+    std::list<active_cell_iterator> local_active_descendants;
+    for (unsigned int i=0; i<n_levels; ++i)
+    {
+      // Check that the cell has a parent.
+      if (current_cell->level()>0)
+      {
+        current_cell = current_cell->parent();
+        // Check that all the active descendants on the same processor. This is
+        // done through a recursive function. The function returns true if all
+        // the active descendants are locally owned. It also populate a list of
+        // all the active descendant of the current cells.
+        std::list<active_cell_iterator> active_descendants;
+        bool active_descendants_are_local(explore_descendants_tree(current_cell,
+              active_descendants));
+        if (active_descendants_are_local)
+          local_active_descendants = active_descendants;
+        else
+          break;
+      }
+    }
+
+    // Add the cells to the patch and take them out of the unused_cells set.
+    for (auto const &cell_it : local_active_descendants)
+    {
+      const unsigned int fecell_local_id(cell_to_fecell_map.at(cell_it));
+      current_patch.push_back(fecell_local_id);
+      unused_cells.erase(fecell_local_id);
+    }
+
+    // Add the current patch to others patches.
+    cell_patches.push_back(current_patch);
+  }
+}
+
+
+template <int dim,int tensor_dim>
+bool RadiativeTransfer<dim,tensor_dim>::explore_descendants_tree(
+    typename DoFHandler<dim>::cell_iterator const &current_cell,
+    std::list<active_cell_iterator> &active_descendants) const
+{
+  bool is_local(true);
+
+  for (unsigned int i=0; i<current_cell->n_children(); ++i)
+  {
+    is_local = explore_descendants_tree(current_cell->child(i),active_descendants);
+    // If one of the descendants is not local, exit the loop.
+    if (is_local==false)
+      return is_local;
+  }
+
+  if (current_cell->active()==true)
+    active_descendants.push_back(current_cell);
+
+  return current_cell->is_locally_owned();
+}
+
+
+template <int dim,int tensor_dim>
+void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering(
+    std::map<active_cell_iterator,unsigned int> const &cell_to_fecell_map,
+    std::list<std::list<unsigned int>> &cell_patches)
+{
   unsigned int task_id(0);
+
+  // Loop on every direction.
   const unsigned int n_dir(quad->get_n_dir());
   for (unsigned int idir=0; idir<n_dir; ++idir)
-  { 
-    // Cells already used in a task
-    std::set<typename DoFHandler<dim>::active_cell_iterator> used_cells;
-    // Candidate cells for the sweep order
-    std::list<unsigned int> candidate_cells;
-    
-    // Find the cells on the boundary
+  {
+    // Find the upwind and downwind directions.
     std::vector<unsigned int> downwind_face;
     std::vector<unsigned int> upwind_face;
     Vector<double> const* const omega(quad->get_omega(idir)); 
@@ -123,98 +200,95 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
         upwind_face.push_back(2*i+1);
       }
     }
-    candidate_cells.resize(boundary_cells[upwind_face[0]].size()+
-        boundary_cells[upwind_face[1]].size());
-    std::list<unsigned int>::iterator list_it;
-    list_it = std::set_union(boundary_cells[upwind_face[0]].begin(),
-        boundary_cells[upwind_face[0]].end(),
-        boundary_cells[upwind_face[1]].begin(),
-        boundary_cells[upwind_face[1]].end(),candidate_cells.begin());
-    // Resize candidate_cells
-    unsigned int new_size(0);
-    std::list<unsigned int>::iterator tmp_it(candidate_cells.begin());
-    for (; tmp_it!=list_it; ++tmp_it)
-      ++new_size;
-    candidate_cells.resize(new_size);
-    if (dim==3)
-    {
-      std::list<unsigned int> tmp_list(candidate_cells);
-      candidate_cells.resize(tmp_list.size()+boundary_cells[upwind_face[2]].size());
-      list_it = std::set_union(tmp_list.begin(),tmp_list.end(),
-          boundary_cells[upwind_face[2]].begin(),
-          boundary_cells[upwind_face[2]].end(),candidate_cells.begin());
-      // Resize candidate_cells
-      new_size = 0;
-      tmp_it = candidate_cells.begin();
-      for (; tmp_it!=list_it; ++list_it)
-        ++new_size;
-      candidate_cells.resize(new_size);
-    }
 
-    // Build the sweep order
-    while (candidate_cells.size()!=0)
+    // Do sweep ordering on every patch. Because the patch is assumed to be
+    // small, the ordering is not optimized (the candidate cells are all the
+    // cells in the patch).
+    for (auto const &patch : cell_patches)
     {
-      // For now there is only one cell per task, sweep_order contains only
-      // one element
+      // sweep_order contains the sweep ordering for the cells of a task.
       std::vector<unsigned int> sweep_order;
-      // Required task but missing task_id
-      std::vector<std::pair<types::subdomain_id,std::vector<types::global_dof_index>>>
-          incomplete_required_tasks;
 
-      typename DoFHandler<dim>::active_cell_iterator cell(
-          fecell_mesh[candidate_cells.front()].get_cell());
-      for (unsigned int i=0; i<dim; ++i)
+      // Need a copy of the current patch because we are going to delete some
+      // elements
+      std::list<unsigned int> current_patch(patch);
+      while (current_patch.size()!=0)
       {
-        bool other_task(cell->at_boundary(upwind_face[i]) ? false : true);
-        if (other_task==true)
+        bool accept_cell(true);
+        active_cell_iterator cell(fecell_mesh[current_patch.front()].get_cell());
+        for (unsigned int i=0; i<dim; ++i)
         {
-          typename DoFHandler<dim>::active_cell_iterator neighbor_cell(
-              cell->neighbor(upwind_face[i]));
-          std::vector<types::global_dof_index> dof_indices(tensor_dim);
-          neighbor_cell->get_dof_indices(dof_indices);
-          std::pair<types::subdomain_id,std::vector<types::global_dof_index>>
-            subdomain_dof_pair(neighbor_cell->subdomain_id(),dof_indices);
-          incomplete_required_tasks.push_back(subdomain_dof_pair);
-        }
-      }             
-      types::subdomain_id subdomain_id(cell->subdomain_id());
-      // The cell is added to the sweep order
-      sweep_order.push_back(candidate_cells.front());
-      // The cell is removed from candidate_cells and added to used_cells
-      used_cells.insert(cell);
-      candidate_cells.pop_front();
-      // Add the candidate cells
-      for (unsigned int i=0; i<dim; ++i)
-      {
-        if (cell->at_boundary(downwind_face[i])==false)
-        {
-          typename DoFHandler<dim>::active_cell_iterator neighbor_cell(
-              cell->neighbor(downwind_face[i]));
-          if ((neighbor_cell->is_locally_owned()==true) && 
-              (used_cells.count(neighbor_cell)==0))
-          {
-            const unsigned fecell_mesh_size(fecell_mesh.size());
-            for (unsigned int j=0; j<fecell_mesh_size; ++j)
+          // If the cell is not at the boundary, the cell has a neighbor upwind.
+          if (cell->at_boundary(upwind_face[i])==false)
+          {          
+            active_cell_iterator upwind_cell(cell->neighbor(upwind_face[i]));
+            if (upwind_cell->is_locally_owned())
             {
-              if ((fecell_mesh[j].get_cell()==neighbor_cell) &&
-                  (std::find(candidate_cells.begin(),candidate_cells.end(),j)==
-                   candidate_cells.end()))
+              // If the upwind cell is in the same patch but has not been used
+              // yet, the cell must be rejected.
+              if (std::find(current_patch.begin(),current_patch.end(),
+                    cell_to_fecell_map.at(upwind_cell))!=current_patch.end())
               {
-                candidate_cells.push_back(j);
+                accept_cell = false;
                 break;
               }
             }
           }
         }
+        if (accept_cell==true)
+        {
+          // The cell is added to the sweep order
+          sweep_order.push_back(current_patch.front());
+          // The cell is removed to the current patch.
+          current_patch.pop_front();
+        }
+        else
+        {
+          // The cell is put at the end of the list.
+          current_patch.push_back(current_patch.front());
+          current_patch.pop_front();
+        }
       }
 
-      tasks.push_back(Task(idir,task_id,subdomain_id,sweep_order,
-            incomplete_required_tasks));
-      ++task_id;
+    // Build incomplete_required_tasks, i.e. the required tasks without task_id
+    // since it is not known yet.
+    std::vector<std::pair<types::subdomain_id,std::vector<types::global_dof_index>>>
+      incomplete_required_tasks;
+    for (auto const & fecell_id : patch)
+    {
+      active_cell_iterator cell(fecell_mesh[fecell_id].get_cell());
+      for (unsigned int i=0; i<dim; ++i)
+        if (cell->at_boundary(upwind_face[i])==false)
+        {          
+          bool upwind_cell_outside_patch(true);
+
+          active_cell_iterator upwind_cell(cell->neighbor(upwind_face[i]));
+          if (upwind_cell->is_locally_owned())
+            if (std::find(patch.cbegin(),patch.cend(),
+                  cell_to_fecell_map.at(upwind_cell))!=patch.cend())
+              upwind_cell_outside_patch = false;
+
+          if (upwind_cell_outside_patch==true)
+          {
+            std::vector<types::global_dof_index> dof_indices(tensor_dim);
+            upwind_cell->get_dof_indices(dof_indices);
+            std::pair<types::subdomain_id,std::vector<types::global_dof_index>>
+              subdomain_dof_pair(upwind_cell->subdomain_id(),dof_indices);
+            incomplete_required_tasks.push_back(subdomain_dof_pair);
+          }
+        }
+    }
+
+    // All the cells of a patch are on the same processor.
+    types::subdomain_id subdomain_id(fecell_mesh[sweep_order[0]].get_cell()->subdomain_id());
+
+    tasks.push_back(Task(idir,task_id,subdomain_id,sweep_order,
+          incomplete_required_tasks));
+    ++task_id;
     }
   }
 
-  // Check that each processor has at least one task to execute
+  // Check that each processor has at least one task to execute.
   Assert(tasks.size()!=0,ExcMessage("One processor has no task to execute."));
 
   // Build the maps of tasks waiting for a given task to be done
@@ -222,12 +296,6 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
 
   // Build the maps of task required for a given task to start
   build_required_tasks_maps();
-
-  std::ofstream file;
-  file.open(std::to_string(tasks[0].get_subdomain_id())+".txt");
-  for (unsigned int i=0; i<tasks.size();++i)
-    tasks[i].print(file);
-  file.close();
  
   // Loop over the tasks and create the necessary remaining maps and delete
   // the ones that are not necessary anymore.
@@ -241,6 +309,7 @@ void RadiativeTransfer<dim,tensor_dim>::compute_sweep_ordering()
 
   build_local_tasks_map();
 }
+
 
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::build_waiting_tasks_maps()
@@ -347,10 +416,10 @@ void RadiativeTransfer<dim,tensor_dim>::build_local_waiting_tasks_map(Task &task
     types::global_dof_index* recv_dof_buffer,int* recv_dof_disps_x,
     const unsigned int recv_dof_buffer_size)
 {
-  // Get the dofs associated to the current task
+  // Get the dofs associated to the current task.
   std::unordered_set<types::global_dof_index> local_dof_indices(get_task_local_dof_indices(task));
 
-  // Build the waiting_tasks map
+  // Build the waiting_tasks map.
   unsigned int i(0);
   unsigned int subdomain_id(0);
   unsigned int next_subdomain_disps(recv_dof_disps_x[1]);
@@ -359,7 +428,7 @@ void RadiativeTransfer<dim,tensor_dim>::build_local_waiting_tasks_map(Task &task
     const unsigned int task_id(recv_dof_buffer[i]);
     const unsigned int idir(recv_dof_buffer[i+1]);
     const unsigned int n_dofs(recv_dof_buffer[i+2]);
-    // Increment the subdomain ID of the waiting task if necessary
+    // Increment the subdomain ID of the waiting task if necessary.
     while (i==next_subdomain_disps)
     {
       ++subdomain_id;
@@ -372,7 +441,7 @@ void RadiativeTransfer<dim,tensor_dim>::build_local_waiting_tasks_map(Task &task
       for (unsigned int j=0; j<n_dofs; ++j)
       {
         // If the dof in recv_dof_buffer is in local_dof_indices, the dof is
-        // added in the waiting map  
+        // added in the waiting map  .
         // TODO: this line is very slow because is it executed too many times.
         // Needs to find sth else.
         if (local_dof_indices.count(recv_dof_buffer[i+3+j])==1)
@@ -387,8 +456,12 @@ void RadiativeTransfer<dim,tensor_dim>::build_local_waiting_tasks_map(Task &task
     i += n_dofs+3;
   }
 
+  // Compress the waiting_tasks, i.e., suppress duplicated tasks that have the
+  // same subdomain_id and task_id and accumulate the dofs in the unique tasks.
+  task.compress_waiting_tasks();
+
   // Sort the dofs associated to waiting processors (subdomains) and suppress
-  // duplicates
+  // duplicates.
   task.compress_waiting_subdomains();
 }  
 
@@ -606,8 +679,7 @@ RadiativeTransfer<dim,tensor_dim>::get_task_local_dof_indices(Task &task)
   for (unsigned int i=0; i<sweep_order_size; ++i)
   {
     // Copy the dofs associated to the cell to local_dof_indices
-    typename DoFHandler<dim>::active_cell_iterator cell(
-        fecell_mesh[(*sweep_order)[i]].get_cell());
+    active_cell_iterator cell(fecell_mesh[(*sweep_order)[i]].get_cell());
     std::vector<types::global_dof_index> cell_dof_indices(tensor_dim);
     cell->get_dof_indices(cell_dof_indices);
     for (unsigned int j=0; j<tensor_dim; ++j)
@@ -629,7 +701,7 @@ void RadiativeTransfer<dim,tensor_dim>::initialize_scheduler() const
 }
 
 template <int dim,int tensor_dim>
-Task const* const RadiativeTransfer<dim,tensor_dim>::get_next_task() const
+Task const* const RadiativeTransfer<dim,tensor_dim>::get_next_task_random() const
 {
   // If tasks_ready is empty, we need to wait to receive data
   while (tasks_ready.size()==0)
@@ -812,7 +884,7 @@ int RadiativeTransfer<dim,tensor_dim>::Apply(Epetra_MultiVector const &x,
   // Sweep through the mesh
   while (n_tasks_to_execute!=0)
   {
-    sweep(*get_next_task(),buffers,requests,y);
+    sweep(*get_next_task_random(),buffers,requests,y);
     free_buffers(buffers,requests);
   }
 
@@ -908,7 +980,7 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
   for (unsigned int i=0; i<sweep_order_size; ++i)
   {
     FECell<dim,tensor_dim> const* const fecell = &fecell_mesh[(*sweep_order)[i]];
-    typename DoFHandler<dim>::active_cell_iterator const cell(fecell->get_cell());
+    active_cell_iterator const cell(fecell->get_cell());
     Tensor<1,tensor_dim> b;
     Tensor<2,tensor_dim> A(*(fecell->get_mass_matrix()));
     get_multivector_indices(multivector_indices,cell);
@@ -956,7 +1028,7 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
           Tensor<1,tensor_dim> psi_cell;
           for (unsigned int j=0; j<tensor_dim; ++j)
             psi_cell[j] = -n_dot_omega;
-          typename DoFHandler<dim>::active_cell_iterator neighbor_cell;
+          active_cell_iterator neighbor_cell;
           neighbor_cell = cell->neighbor(face);
           std::vector<types::global_dof_index> neighbor_dof_indices(tensor_dim);
           neighbor_cell->get_dof_indices(neighbor_dof_indices);
@@ -1028,7 +1100,7 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::get_multivector_indices(
     std::vector<int> &dof_indices,
-    typename DoFHandler<dim>::active_cell_iterator const& cell) const
+    active_cell_iterator const& cell) const
 {
   std::vector<types::global_dof_index> local_dof_indices(tensor_dim);
   cell->get_dof_indices(local_dof_indices);

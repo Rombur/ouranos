@@ -37,10 +37,10 @@ def read_deal_II_options(filename,debug) :
       first_include = False
     if 'CXXFLAGS.g' in line and debug==1 :
       cxx_flags = line.split()[2:]
-      cxx_flags = ['-std=c++11','-Wno-deprecated-register',cxx_flags[:-1]]
+      cxx_flags = ['-std=c++11',cxx_flags[:-1]]
     if 'CXXFLAGS.o' in line and debug==0 :
       cxx_flags = line.split()[2:]
-      cxx_flags = ['-std=c++11','-Wno-deprecated-register',cxx_flags[:-1]]
+      cxx_flags = ['-std=c++11',cxx_flags[:-1]]
 
   return ld_flags,libs,include,cxx_flags
       
@@ -49,7 +49,7 @@ def read_deal_II_options(filename,debug) :
 debug = int(ARGUMENTS.get('debug',1))
 
 # Path to deal.II
-deal_II_path = ARGUMENTS.get('deal_II_path','/w/turcksin/trunk/deal.II/installed')
+deal_II_path = ARGUMENTS.get('deal_II_path','/w/turcksin/dealii/install')
 
 # Read Make.global_options of deal.II 
 ld_flags,partial_libs,partial_include,cxx_flags = read_deal_II_options(deal_II_path+'/common/Make.global_options',debug)

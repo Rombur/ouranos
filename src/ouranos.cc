@@ -81,7 +81,7 @@ void solve(ConditionalOStream const &pcout,unsigned int const n_mom,
           radiative_transfer.initialize_scheduler();
           while (radiative_transfer.get_n_tasks_to_execute()!=0)
           {
-            radiative_transfer.sweep(*(radiative_transfer.get_next_task()),buffers,
+            radiative_transfer.sweep(*(radiative_transfer.get_next_task_random()),buffers,
                 requests,flux_moments.trilinos_vector(),&group_flux);
             radiative_transfer.free_buffers(buffers,requests);
           }
@@ -156,7 +156,7 @@ void solve(ConditionalOStream const &pcout,unsigned int const n_mom,
         radiative_transfer.initialize_scheduler();
         while (radiative_transfer.get_n_tasks_to_execute()!=0)
         {
-          radiative_transfer.sweep(*(radiative_transfer.get_next_task()),buffers,
+          radiative_transfer.sweep(*(radiative_transfer.get_next_task_random()),buffers,
               requests,rhs.trilinos_vector(),&group_flux);
           radiative_transfer.free_buffers(buffers,requests);
         }

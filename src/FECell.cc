@@ -11,8 +11,7 @@ template <int dim,int tensor_dim>
 FECell<dim,tensor_dim>::FECell(const unsigned int n_q_points,
     const unsigned int n_face_q_points,FEValues<dim> &fe_values,
     FEFaceValues<dim> &fe_face_values,FEFaceValues<dim> &fe_neighbor_face_values,
-    typename DoFHandler<dim>::active_cell_iterator const &cell,
-    typename DoFHandler<dim>::active_cell_iterator const &end_cell) :
+    typename DoFHandler<dim>::active_cell_iterator const &cell) :
   cell(cell),
   normal_vector(2*dim),
   grad_matrices(dim),
@@ -64,7 +63,8 @@ FECell<dim,tensor_dim>::FECell(const unsigned int n_q_points,
     // Reinit fe_face_values on the current face
     fe_face_values.reinit(cell,face);
     neighbor_cell = cell->neighbor(face);
-    if (neighbor_cell!=end_cell)
+    // Check that the neighbor cell exist.
+    if (neighbor_cell->index()!=-1)
     {
       fe_neighbor_face_values.reinit(neighbor_cell,face_map[face]);
       for (unsigned int i=0; i<tensor_dim; ++i)

@@ -54,6 +54,9 @@ class Parameters
     /// Return the number of adaptive refinement to perform.
     unsigned int get_n_refinements() const;
 
+    /// Return the number of levels of cells when creating the patches.
+    unsigned int get_n_levels_patch() const;
+
     /// Return the order of the finite elements.
     unsigned int get_fe_order() const;
 
@@ -129,6 +132,8 @@ class Parameters
     unsigned int n_groups;
     /// Number of adaptive refinements to perform.
     unsigned int n_refinements;
+    /// Number of levels of cells to go up when creating the patches.
+    unsigned int n_levels;
     /// Number of sources.
     unsigned int n_src;
     /// Type of quadrature: GLC or LS.
@@ -187,6 +192,11 @@ inline unsigned int Parameters::get_sn_order() const
 inline unsigned int Parameters::get_n_refinements() const
 {
   return n_refinements;
+}
+
+inline unsigned int Parameters::get_n_levels_patch() const
+{
+  return n_levels;
 }
 
 inline unsigned int Parameters::get_fe_order() const

@@ -29,8 +29,7 @@ class FECell
     FECell(const unsigned int n_q_points,const unsigned int n_face_q_points,
         FEValues<dim> &fe_values,FEFaceValues<dim> &fe_face_values,
         FEFaceValues<dim> &fe_neighbor_face_values,
-        typename DoFHandler<dim>::active_cell_iterator const &cell,
-        typename DoFHandler<dim>::active_cell_iterator const &end_cell);
+        typename DoFHandler<dim>::active_cell_iterator const &cell);
 
     /// Return the material id of the current cell
     unsigned int get_material_id() const;

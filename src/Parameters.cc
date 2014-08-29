@@ -35,6 +35,8 @@ void Parameters::declare_parameters(ParameterHandler &prm)
       "Name of the geometry file.");
   prm.declare_entry("Number of refinements","0",Patterns::Integer(0),
       "Number of refinement cycles used for AMR.");
+  prm.declare_entry("Patch level","0",Patterns::Integer(0),
+      "Number of levels of cells to go up when creating the patches.");
   prm.declare_entry("Refinement factor","0.",Patterns::Double(0.,1.),
       "Refinement factor used for AMR.");
   prm.declare_entry("Coarsening factor","0.",Patterns::Double(0.,1.),
@@ -108,6 +110,7 @@ void Parameters::parse_parameters(ParameterHandler &prm)
   fe_order = prm.get_integer("FE order");
   geometry_filename = prm.get("Geometry file");
   n_refinements = prm.get_integer("Number of refinements");
+  n_levels = prm.get_integer("Patch level");
   refinement_factor = prm.get_double("Refinement factor");
   coarsening_factor = prm.get_double("Coarsening factor");
   output_filename = prm.get("Output file");

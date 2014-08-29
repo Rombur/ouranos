@@ -46,6 +46,10 @@ class Task
     /// Clear the required_dofs map.
     void clear_required_dofs() const;
 
+    /// Suppress duplicated wating tasks that have the same subdomain_id and
+    /// accumate the dofs in the unique tasks.
+    void compress_waiting_tasks();
+
     /// Sort the dofs associated to waiting processors (subdomains) and
     /// suppress duplicates.
     void compress_waiting_subdomains();

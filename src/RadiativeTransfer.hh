@@ -12,6 +12,7 @@
 #include <cmath>
 #include <list>
 #include <set>
+#include <map>
 #include <utility>
 #include <vector>
 #include "mpi.h"
@@ -46,6 +47,8 @@ template <int dim,int tensor_dim>
 class RadiativeTransfer : public Epetra_Operator
 {
   public :
+    typedef typename DoFHandler<dim>::active_cell_iterator active_cell_iterator;
+
     RadiativeTransfer(unsigned int n_groups,types::global_dof_index n_dofs,
         FE_DGQ<dim>* fe,parallel::distributed::Triangulation<dim>* triangulation,
         DoFHandler<dim>* dof_handler,Parameters* parameters,RTQuadrature* quad,
@@ -61,8 +64,8 @@ class RadiativeTransfer : public Epetra_Operator
     /// Initialize the scheduler
     void initialize_scheduler() const;
 
-    /// Get a pointer to the next ready task.
-    Task const* const get_next_task() const;
+    /// Get a pointer to the next ready task in a random order.
+    Task const* const get_next_task_random() const;
 
     /// Get all the dof indices associated to the given task.
     std::unordered_set<types::global_dof_index> get_task_local_dof_indices(Task &task);
@@ -146,8 +149,24 @@ class RadiativeTransfer : public Epetra_Operator
     /// Build the waiting_tasks maps for all the tasks owned by a processor.
     void build_waiting_tasks_maps();                                       
 
-    /// Compute the ordering of the cell for the sweeps.
-    void compute_sweep_ordering();
+    /// Build convex patches of cells by going up the tree of cells. All the
+    /// cells in a patch are on the same processors. The coarsest patches
+    /// corresponds to the cells of the coarse mesh.
+    void build_cell_patches(
+        std::map<active_cell_iterator,unsigned int> const &cell_to_fecell_map,
+        std::list<std::list<unsigned int>> &cell_patches) const;
+
+    /// Recursive function that goes down the tree of descendants of the current
+    /// cell. The function returns false if one of the descendants is not
+    /// locally owned. It also adds the active descendants to a patch.
+    bool explore_descendants_tree(typename DoFHandler<dim>::cell_iterator const &current_cell,
+        std::list<active_cell_iterator> &active_descendants) const;
+
+    /// Compute the ordering of the cells in each patch for the sweeps and
+    /// create the tasks.
+    void compute_sweep_ordering(
+        std::map<active_cell_iterator,unsigned int> const &cell_to_fecell_map,
+        std::list<std::list<unsigned int>> &cell_patches);
     
     /// Compute the scattering source due to the upscattering and the
     /// downscattering to the current group.
@@ -158,7 +177,7 @@ class RadiativeTransfer : public Epetra_Operator
     /// Get the local indices (used by the Epetra_MultiVector for the zeroth
     /// moment) of the dof associated to a given cell.
     void get_multivector_indices(std::vector<int> &dof_indices,
-    typename DoFHandler<dim>::active_cell_iterator const& cell) const;
+        active_cell_iterator const& cell) const;
 
     //This routine uses Crout's method with pivoting to decompose the matrix
     //\f$A\f$ into lower triangulat matrix \f$L\f$ and an unit upper
