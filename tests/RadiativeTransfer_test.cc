@@ -71,7 +71,7 @@ TEST_CASE("Radiative Transfer","Check One-Group Radiative Transfer for 2D on 4 p
   radiative_transfer.initialize_scheduler();
   while (radiative_transfer.get_n_tasks_to_execute()!=0)
   {
-    radiative_transfer.sweep(*(radiative_transfer.get_next_task()),buffers,
+    radiative_transfer.sweep(*(radiative_transfer.get_next_task_random()),buffers,
         requests,rhs.trilinos_vector(),&group_flux);
     radiative_transfer.free_buffers(buffers,requests);
   }

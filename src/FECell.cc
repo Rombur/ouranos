@@ -62,10 +62,10 @@ FECell<dim,tensor_dim>::FECell(const unsigned int n_q_points,
   {
     // Reinit fe_face_values on the current face
     fe_face_values.reinit(cell,face);
-    neighbor_cell = cell->neighbor(face);
     // Check that the neighbor cell exist.
-    if (neighbor_cell->index()!=-1)
+    if (cell->neighbor_index(face)!=-1)
     {
+      neighbor_cell = cell->neighbor(face);
       fe_neighbor_face_values.reinit(neighbor_cell,face_map[face]);
       for (unsigned int i=0; i<tensor_dim; ++i)
         for (unsigned int j=0; j<tensor_dim; ++j)

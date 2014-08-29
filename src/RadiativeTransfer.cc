@@ -7,7 +7,6 @@
 
 #include "RadiativeTransfer.hh"
 
-#include <iostream>
 
 template <int dim,int tensor_dim>
 RadiativeTransfer<dim,tensor_dim>::RadiativeTransfer(unsigned int n_groups,

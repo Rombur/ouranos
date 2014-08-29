@@ -36,11 +36,10 @@ TEST_CASE("FECell/one cell","Check FECell on one cell")
   FEFaceValues<2> fe_neighbor_face_values(fe,face_quadrature_formula,
       update_values);
   DoFHandler<2>::active_cell_iterator cell(dof_handler.begin_active());
-  DoFHandler<2>::active_cell_iterator cell_end(dof_handler.end());
 
   // Create the fecell
   FECell<2,4> fecell(quadrature_formula.size(),face_quadrature_formula.size(),
-      fe_values,fe_face_values,fe_neighbor_face_values,cell,cell_end);
+      fe_values,fe_face_values,fe_neighbor_face_values,cell);
 
   // Check material_id
   REQUIRE(fecell.get_material_id()==0);
@@ -206,13 +205,12 @@ TEST_CASE("FECell/two cells","Check FECell on multicell triangulation")
       update_values);
   // Middle cell
   DoFHandler<2>::active_cell_iterator cell(dof_handler.begin_active());
-  DoFHandler<2>::active_cell_iterator end_cell(dof_handler.end());
   for (unsigned int i=0; i<4; ++i)
     ++cell;
 
   // Create the fecell
   FECell<2,4> fecell(quadrature_formula.size(),face_quadrature_formula.size(),
-      fe_values,fe_face_values,fe_neighbor_face_values,cell,end_cell);
+      fe_values,fe_face_values,fe_neighbor_face_values,cell);
 
   // Check material_id
   REQUIRE(fecell.get_material_id()==0);
