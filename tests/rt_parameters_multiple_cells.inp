@@ -1,0 +1,27 @@
+set Dimension = 2
+set FE order = 1
+set Geometry file = ./tests/rt_geometry.inp
+set Patch level = 3
+set Refinement factor = 0.3
+set Coarsening factor = 0.1
+
+subsection Radiative Transfer parameters
+  set Cross sections file = ./tests/rt_xs.inp
+  set Solver type = GMRES
+  set Max outer iterations = 1
+  set Max inner iterations = 100
+  set Tolerance outer solver = 1e-4
+  set Tolerance inner solver = 1e-9
+  set Sn order = 4
+  set Quadrature type = GLC
+  set Sum weight = 1
+  set Galerkin = false
+  set Xmin BC = vacuum
+  set Xmax BC = vacuum
+  set Ymin BC = vacuum
+  set Ymax BC = vacuum
+  set Number of sources = 1
+  set Number of groups = 1
+  set Source intensity = 1.
+end
+

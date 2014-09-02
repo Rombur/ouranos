@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Bruno Turcksin.
+/* Copyright (c) 2013, 2014 Bruno Turcksin.
  *
  * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
@@ -90,12 +90,6 @@ void Task::add_to_required_tasks(types::subdomain_id s_id,unsigned int t_id,type
   required_tasks.push_back(task_tuple(s_id,t_id,tmp));
   n_required_dofs += n;
   n_missing_dofs = n_required_dofs;
-}
-
-void Task::set_required_dof(types::global_dof_index dof,double value) const
-{
-  required_dofs[dof] = value;
-  --n_missing_dofs;
 }
 
 bool Task::is_ready() const

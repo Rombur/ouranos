@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Bruno Turcksin.
+/* Copyright (c) 2013, 2014 Bruno Turcksin.
  *
  * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
@@ -61,8 +61,13 @@ class Task
     /// Output the data for debug purpose.
     void print(std::ostream &output_stream);
 
-    /// Set the given angular flux value to the given dof index. 
+    /// Set the given angular flux value to the given dof index when the value
+    /// has been computed by another task.
     void set_required_dof(types::global_dof_index dof,double value) const;
+
+    /// Set the given angular flux value to the given dof index when the value
+    /// has been computed by the current task.
+    void set_local_required_dof(types::global_dof_index dof,double value) const;
 
     /// Return true if the task is ready for sweep.
     bool is_ready() const;
@@ -208,6 +213,17 @@ inline void Task::add_to_waiting_subdomains(domain_pair const &waiting_subdomain
 inline void Task::clear_required_dofs() const
 {
   required_dofs.clear();
+}
+
+inline void Task::set_required_dof(types::global_dof_index dof,double value) const
+{
+  required_dofs[dof] = value;
+  --n_missing_dofs;
+}
+
+inline void Task::set_local_required_dof(types::global_dof_index dof,double value) const
+{
+  required_dofs[dof] = value;
 }
     
 inline unsigned int Task::get_id() const

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Bruno Turcksin.
+/* Copyright (c) 2013, 2014 Bruno Turcksin.
  *
  * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
@@ -198,8 +198,7 @@ class RadiativeTransfer : public Epetra_Operator
 
     /// Send the angular flux computed in task to all the waiting tasks.
     void send_angular_flux(Task const &task,std::list<double*> &buffers,
-        std::list<MPI_Request*> &requests,
-        std::unordered_map<types::global_dof_index,double> &angular_flux) const;
+        std::list<MPI_Request*> &requests) const;
 
     /// Number of moments.
     unsigned int n_mom;
