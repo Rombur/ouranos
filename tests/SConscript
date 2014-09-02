@@ -5,16 +5,15 @@ env = env.Clone()
 
 # Source files
 src_files = Split('RTQuadrature_test.cc Parameters_test.cc Geometry_test.cc '+
-  'FECell_test.cc TimeDiscretization_test.cc RTMaterialProperties_test.cc '+
-  'RadiativeTransfer_test.cc')
+  'FECell_test.cc RTMaterialProperties_test.cc RadiativeTransfer_test.cc')
 
 # Path of src directory
 src_path = Dir('..').abspath+'/src/'
 
 objects = [src_path+'GLC.o',src_path+'RTQuadrature.o',src_path+'LS.o',
   src_path+'Parameters.o',src_path+'Geometry.o',src_path+'FECell.o',
-  src_path+'TimeDiscretization.o',src_path+'RTMaterialProperties.o',
-  src_path+'RadiativeTransfer.o',src_path+'Task.o']
+  src_path+'RTMaterialProperties.o',src_path+'RadiativeTransfer.o',
+  src_path+'Task.o']
 env.Append(LINKFLAGS=objects)
 
 # Create the programs
@@ -22,16 +21,15 @@ quadrature_test = env.Program('rtquadrature_test',src_files[0])
 parameters_test = env.Program('parameters_test',src_files[1])
 geometry_test = env.Program('geometry_test',src_files[2])
 fecell_test = env.Program('fecell_test',src_files[3])
-timediscretization_test = env.Program('timediscretization_test',src_files[4])
-rtmaterialproperties_test = env.Program('rtmaterialproperties_test',src_files[5])
-radiativetransfer_test = env.Program('radiativetransfer_test',src_files[6])
+rtmaterialproperties_test = env.Program('rtmaterialproperties_test',src_files[4])
+radiativetransfer_test = env.Program('radiativetransfer_test',src_files[5])
 
 # Create an alias and run the tests
 programs = [quadrature_test,parameters_test,geometry_test,fecell_test,
-  timediscretization_test,rtmaterialproperties_test,radiativetransfer_test]
+  rtmaterialproperties_test,radiativetransfer_test]
 tests_alias = env.Alias('tests',programs,
   [programs[0][0].abspath,programs[1][0].abspath,
-  'mpirun -np 1 '+programs[2][0].abspath,programs[3][0].abspath,
-  programs[4][0].abspath,programs[5][0].abspath,
-  'mpirun -np 3 '+programs[6][0].abspath])
+  'mpirun -np 1 '+programs[2][0].abspath,
+  programs[3][0].abspath,programs[4][0].abspath,
+  'mpirun -np 3 '+programs[5][0].abspath])
 AlwaysBuild(tests_alias)
