@@ -13,7 +13,7 @@ src_path = Dir('..').abspath+'/src/'
 objects = [src_path+'GLC.o',src_path+'RTQuadrature.o',src_path+'LS.o',
   src_path+'Parameters.o',src_path+'Geometry.o',src_path+'FECell.o',
   src_path+'RTMaterialProperties.o',src_path+'RadiativeTransfer.o',
-  src_path+'Task.o']
+  src_path+'Task.o',src_path+'Scheduler.o',src_path+'RandomScheduler.o']
 env.Append(LINKFLAGS=objects)
 
 # Create the programs

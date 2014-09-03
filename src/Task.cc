@@ -7,6 +7,8 @@
 
 #include "Task.hh"
 
+#include <algorithm>
+
 Task::Task(unsigned int idir,unsigned int id,types::subdomain_id subdomain_id,
     std::vector<unsigned int> &sweep_order,std::vector<std::pair<types::subdomain_id,
     std::vector<types::global_dof_index>>> &incomplete_required_tasks) :

@@ -8,10 +8,8 @@
 #ifndef _TASK_HH_
 #define _TASK_HH_
 
-#include <algorithm>
 #include <iostream>
 #include <unordered_map>
-#include <unordered_set>
 #include <tuple>
 #include <utility>
 #include <vector>

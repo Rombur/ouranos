@@ -7,6 +7,12 @@
 
 #include "Geometry.hh"
 
+#include <fstream>
+#include "deal.II/base/std_cxx1x/bind.h"
+#include "deal.II/grid/grid_generator.h"
+#include "deal.II/grid/tria_accessor.h"
+#include "deal.II/grid/tria_iterator.h"
+
 template<int dim>
 Geometry<dim>::Geometry(ConditionalOStream const &pcout,std::string &geometry_filename,
     FE_DGQ<dim> &fe) :

@@ -7,6 +7,8 @@
 
 #include "GLC.hh"
 
+#include <cmath>
+
 GLC::GLC(unsigned int sn,unsigned int L_max,bool galerkin) :
   RTQuadrature(sn,L_max,galerkin)
 {}

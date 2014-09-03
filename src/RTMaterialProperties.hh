@@ -8,7 +8,6 @@
 #ifndef _RTMATERIALPROPERTIES_HH_
 #define _RTMATERIALPROPERTIES_HH_
 
-#include <fstream>
 #include <string>
 #include <vector>
 #include "deal.II/base/exceptions.h"

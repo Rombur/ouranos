@@ -8,19 +8,14 @@
 #ifndef _GEOMETRY_HH_
 #define _GEOMETRY_HH_
 
-#include <fstream>
 #include <string>
 #include <vector>
 #include "deal.II/base/conditional_ostream.h"
 #include "deal.II/base/exceptions.h"
 #include "deal.II/base/parameter_handler.h"
-#include "deal.II/base/std_cxx1x/bind.h"
 #include "deal.II/distributed/tria.h"
 #include "deal.II/dofs/dof_handler.h"
 #include "deal.II/fe/fe_dgq.h"
-#include "deal.II/grid/grid_generator.h"
-#include "deal.II/grid/tria_accessor.h"
-#include "deal.II/grid/tria_iterator.h"
 
 using namespace dealii;
 

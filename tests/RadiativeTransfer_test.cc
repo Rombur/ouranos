@@ -10,6 +10,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <memory>
 #include <string>
 #include <vector>
 #include "Epetra_Map.h"
@@ -27,6 +28,7 @@
 #include "../src/GLC.hh"
 #include "../src/Parameters.hh"
 #include "../src/RadiativeTransfer.hh"
+#include "../src/RandomScheduler.hh"
 
 
 TEST_CASE("Radiative Transfer (one cell per patch)","Check One-Group Radiative Transfer for 2D on 4 processors")
@@ -54,10 +56,13 @@ TEST_CASE("Radiative Transfer (one cell per patch)","Check One-Group Radiative T
   Epetra_MpiComm comm(MPI_COMM_WORLD);
   Epetra_Map map(index_set.make_trilinos_map());
 
+  // Create the scheduler.
+  std::shared_ptr<Scheduler<2,4>> scheduler(new RandomScheduler<2,4> (&quad,&comm));
+
   // Create the RadiativeTransfer object
   RadiativeTransfer<2,4> radiative_transfer(1,dof_handler->n_dofs(),&fe,
       geometry.get_triangulation(),dof_handler,&parameters,&quad,&material_properties,
-      &comm,&map);
+      &comm,&map,scheduler);
 
   // Create the FECells and compute the sweep ordering
   radiative_transfer.setup();
@@ -69,12 +74,12 @@ TEST_CASE("Radiative Transfer (one cell per patch)","Check One-Group Radiative T
   TrilinosWrappers::MPI::Vector rhs(flux_moments);
   std::list<double*> buffers;
   std::list<MPI_Request*> requests;
-  radiative_transfer.initialize_scheduler();
-  while (radiative_transfer.get_n_tasks_to_execute()!=0)
+  scheduler->initialize_scheduling();
+  while (scheduler->get_n_tasks_to_execute()!=0)
   {
-    radiative_transfer.sweep(*(radiative_transfer.get_next_task_random()),buffers,
+    radiative_transfer.sweep(*(scheduler->get_next_task()),buffers,
         requests,rhs.trilinos_vector(),&group_flux);
-    radiative_transfer.free_buffers(buffers,requests);
+    scheduler->free_buffers(buffers,requests);
   }
 
   SolverControl solver_control(parameters.get_max_inner_it(),
@@ -181,10 +186,13 @@ TEST_CASE("Radiative Transfer / (multiple cells per patch)","Check One-Group Rad
   Epetra_MpiComm comm(MPI_COMM_WORLD);
   Epetra_Map map(index_set.make_trilinos_map());
 
+  // Create the scheduler.
+  std::shared_ptr<Scheduler<2,4>> scheduler(new RandomScheduler<2,4> (&quad,&comm));
+
   // Create the RadiativeTransfer object
   RadiativeTransfer<2,4> radiative_transfer(1,dof_handler->n_dofs(),&fe,
       geometry.get_triangulation(),dof_handler,&parameters,&quad,&material_properties,
-      &comm,&map);
+      &comm,&map,scheduler);
 
   // Create the FECells and compute the sweep ordering
   radiative_transfer.setup();
@@ -196,12 +204,12 @@ TEST_CASE("Radiative Transfer / (multiple cells per patch)","Check One-Group Rad
   TrilinosWrappers::MPI::Vector rhs(flux_moments);
   std::list<double*> buffers;
   std::list<MPI_Request*> requests;
-  radiative_transfer.initialize_scheduler();
-  while (radiative_transfer.get_n_tasks_to_execute()!=0)
+  scheduler->initialize_scheduling();
+  while (scheduler->get_n_tasks_to_execute()!=0)
   {
-    radiative_transfer.sweep(*(radiative_transfer.get_next_task_random()),buffers,
+    radiative_transfer.sweep(*(scheduler->get_next_task()),buffers,
         requests,rhs.trilinos_vector(),&group_flux);
-    radiative_transfer.free_buffers(buffers,requests);
+    scheduler->free_buffers(buffers,requests);
   }
 
   SolverControl solver_control(parameters.get_max_inner_it(),

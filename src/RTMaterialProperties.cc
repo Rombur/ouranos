@@ -7,6 +7,8 @@
 
 #include "RTMaterialProperties.hh"
 
+#include <fstream>
+
 RTMaterialProperties::RTMaterialProperties(
     std::string &material_properties_filename,unsigned int n_materials,
     unsigned int n_groups) :

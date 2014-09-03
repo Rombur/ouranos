@@ -8,7 +8,6 @@
 #ifndef _GLC_HH_
 #define _GLC_HH_
 
-#include <cmath>
 #include <vector>
 #include "RTQuadrature.hh"
 

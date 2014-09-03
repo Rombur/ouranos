@@ -8,7 +8,6 @@
 #ifndef _PARAMETERS_HH_
 #define _PARAMETERS_HH_
 
-#include <fstream>
 #include <string>
 #include <vector>
 #include "deal.II/base/exceptions.h"

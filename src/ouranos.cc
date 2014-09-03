@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <memory>
 #include <string>
 #include "deal.II/base/conditional_ostream.h"
 #include "deal.II/base/mpi.h"
@@ -25,6 +26,7 @@
 #include "Parameters.hh"
 #include "RadiativeTransfer.hh"
 #include "RTQuadrature.hh"
+#include "RandomScheduler.hh"
 
 using namespace dealii;
 
@@ -44,6 +46,7 @@ void create_epetra_map(std::vector<TrilinosWrappers::types::int_type> &indices,
 template<int dim,int tensor_dim>
 void solve(ConditionalOStream const &pcout,unsigned int const n_mom, 
     RadiativeTransfer<dim,tensor_dim> &radiative_transfer,
+    std::shared_ptr<Scheduler<dim,tensor_dim>> scheduler,
     Parameters const &parameters,Epetra_Map &map,
     std::vector<TrilinosWrappers::MPI::Vector> &group_flux)
 {
@@ -78,12 +81,12 @@ void solve(ConditionalOStream const &pcout,unsigned int const n_mom,
               flux_moments.trilinos_vector());
           std::list<double*> buffers;
           std::list<MPI_Request*> requests;
-          radiative_transfer.initialize_scheduler();
-          while (radiative_transfer.get_n_tasks_to_execute()!=0)
+          scheduler->initialize_scheduling();
+          while (scheduler->get_n_tasks_to_execute()!=0)
           {
-            radiative_transfer.sweep(*(radiative_transfer.get_next_task_random()),buffers,
+            radiative_transfer.sweep(*(scheduler->get_next_task()),buffers,
                 requests,flux_moments.trilinos_vector(),&group_flux);
-            radiative_transfer.free_buffers(buffers,requests);
+            scheduler->free_buffers(buffers,requests);
           }
 
           old_flux_moments -= flux_moments;
@@ -153,12 +156,12 @@ void solve(ConditionalOStream const &pcout,unsigned int const n_mom,
         TrilinosWrappers::MPI::Vector rhs(flux_moments);
         std::list<double*> buffers;
         std::list<MPI_Request*> requests;
-        radiative_transfer.initialize_scheduler();
-        while (radiative_transfer.get_n_tasks_to_execute()!=0)
+        scheduler->initialize_scheduling();
+        while (scheduler->get_n_tasks_to_execute()!=0)
         {
-          radiative_transfer.sweep(*(radiative_transfer.get_next_task_random()),buffers,
+          radiative_transfer.sweep(*(scheduler->get_next_task()),buffers,
               requests,rhs.trilinos_vector(),&group_flux);
-          radiative_transfer.free_buffers(buffers,requests);
+          scheduler->free_buffers(buffers,requests);
         }
 
         SolverControl solver_control(max_inner_it,inner_tol);
@@ -325,43 +328,58 @@ int main(int argc,char **argv)
       {
         case 1 :
           {
+            //TODO: use a factory function which return a shared_ptr
+            std::shared_ptr<Scheduler<2,4>> scheduler(
+                new RandomScheduler<2,4> (quad,&comm));
             RadiativeTransfer<2,4> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
-                quad,&material_properties,&comm,&map);
-            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
+                quad,&material_properties,&comm,&map,scheduler);
+            solve(pcout,n_mom,radiative_transfer,scheduler,parameters,map,group_flux);
             break;
           }
         case 2 :
           {
+            std::shared_ptr<Scheduler<2,9>> scheduler(
+                new RandomScheduler<2,9> (quad,&comm));
             RadiativeTransfer<2,9> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
-                quad,&material_properties,&comm,&map);
-            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
+                quad,&material_properties,&comm,&map,scheduler);
+            solve(pcout,n_mom,radiative_transfer,scheduler,parameters,map,group_flux);
             break;
           }
         case 3 :
           {
+            std::shared_ptr<Scheduler<2,16>> scheduler(
+                new RandomScheduler<2,16> (quad,&comm));
             RadiativeTransfer<2,16> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
-                quad,&material_properties,&comm,&map);
-            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
+                quad,&material_properties,&comm,&map,scheduler);
+            solve(pcout,n_mom,radiative_transfer,scheduler,parameters,map,group_flux);
             break;
           }
         case 4 :
           {
+            std::shared_ptr<Scheduler<2,25>> scheduler(
+                new RandomScheduler<2,25> (quad,&comm));
             RadiativeTransfer<2,25> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
-                quad,&material_properties,&comm,&map);
-            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
+                quad,&material_properties,&comm,&map,scheduler);
+            solve(pcout,n_mom,radiative_transfer,scheduler,parameters,map,group_flux);
             break;
           }
         case 5 :
           {
+            std::shared_ptr<Scheduler<2,36>> scheduler(
+                new RandomScheduler<2,36> (quad,&comm));
             RadiativeTransfer<2,36> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
-                quad,&material_properties,&comm,&map);
-            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
+                quad,&material_properties,&comm,&map,scheduler);
+            solve(pcout,n_mom,radiative_transfer,scheduler,parameters,map,group_flux);
             break;
+          }
+        default :
+          {
+            AssertThrow(false,ExcMessage("FE order should be less or equal to 5."));
           }
       }         
 
@@ -392,7 +410,7 @@ int main(int argc,char **argv)
       unsigned int n_locally_owned_dofs(dof_handler->n_locally_owned_dofs());
       IndexSet index_set(n_locally_owned_dofs);
 
-      // Buil the quadrature
+      // Build the quadrature
       RTQuadrature* quad(nullptr);
       if (parameters.get_quad_type()==GLC_QUAD)
         quad = new GLC(parameters.get_sn_order(),material_properties.get_L_max(),
@@ -419,43 +437,57 @@ int main(int argc,char **argv)
       {
         case 1 :
           {
+            std::shared_ptr<Scheduler<3,8>> scheduler(
+                new RandomScheduler<3,8> (quad,&comm));
             RadiativeTransfer<3,8> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
-                quad,&material_properties,&comm,&map);
-            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
+                quad,&material_properties,&comm,&map,scheduler);
+            solve(pcout,n_mom,radiative_transfer,scheduler,parameters,map,group_flux);
             break;
           }
         case 2 :
           {
+            std::shared_ptr<Scheduler<3,27>> scheduler(
+                new RandomScheduler<3,27> (quad,&comm));
             RadiativeTransfer<3,27> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
-                quad,&material_properties,&comm,&map);
-            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
+                quad,&material_properties,&comm,&map,scheduler);
+            solve(pcout,n_mom,radiative_transfer,scheduler,parameters,map,group_flux);
             break;
           }
         case 3 :
           {
+            std::shared_ptr<Scheduler<3,64>> scheduler(
+                new RandomScheduler<3,64> (quad,&comm));
             RadiativeTransfer<3,64> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
-                quad,&material_properties,&comm,&map);
-            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
+                quad,&material_properties,&comm,&map,scheduler);
+            solve(pcout,n_mom,radiative_transfer,scheduler,parameters,map,group_flux);
             break;
           }
         case 4 :
           {
+            std::shared_ptr<Scheduler<3,125>> scheduler(
+                new RandomScheduler<3,125> (quad,&comm));
             RadiativeTransfer<3,125> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
-                quad,&material_properties,&comm,&map);
-            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
+                quad,&material_properties,&comm,&map,scheduler);
+            solve(pcout,n_mom,radiative_transfer,scheduler,parameters,map,group_flux);
             break;
           }
         case 5 :
           {
+            std::shared_ptr<Scheduler<3,216>> scheduler(
+                new RandomScheduler<3,216> (quad,&comm));
             RadiativeTransfer<3,216> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
-                quad,&material_properties,&comm,&map);
-            solve(pcout,n_mom,radiative_transfer,parameters,map,group_flux);
+                quad,&material_properties,&comm,&map,scheduler);
+            solve(pcout,n_mom,radiative_transfer,scheduler,parameters,map,group_flux);
             break;
+          }
+        default :
+          {
+            AssertThrow(false,ExcMessage("FE order should be less or equal to 5."));
           }
       }
 

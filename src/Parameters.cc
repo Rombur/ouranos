@@ -7,6 +7,8 @@
 
 #include "Parameters.hh"
 
+#include <fstream>
+
 Parameters::Parameters(const std::string &parameters_filename)
 {
   ParameterHandler prm;

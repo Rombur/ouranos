@@ -8,10 +8,8 @@
 #ifndef _RTQUADRATURE_HH_
 #define _RTQUADRATURE_HH_
 
-#include <cmath>
 #include <unordered_set>
 #include <vector>
-#include "boost/math/special_functions/spherical_harmonic.hpp"
 #include "deal.II/base/exceptions.h"
 #include "deal.II/lac/full_matrix.h"
 #include "deal.II/lac/vector.h"
@@ -30,7 +28,7 @@ class RTQuadrature
   public :
     RTQuadrature(unsigned int sn,unsigned int L_max,bool galerkin);
 
-    virtual ~RTQuadrature() {}
+    virtual ~RTQuadrature() {};
 
     /// Build the quadrature, i.e. M, D, and omega (direction vector).
     void build_quadrature(const double weight_sum,const unsigned int dim);

@@ -7,6 +7,9 @@
 
 #include "RTQuadrature.hh"
 
+#include <cmath>
+#include "boost/math/special_functions/spherical_harmonic.hpp"
+
 RTQuadrature::RTQuadrature(unsigned int sn_,unsigned int L_max_,bool galerkin_) :
   galerkin(galerkin_),
   sn(sn_),

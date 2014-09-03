@@ -8,32 +8,23 @@
 #ifndef _RADIATIVETRANSFER_HH_
 #define _RADIATIVETRANSFER_HH_
 
-#include <algorithm>
-#include <cmath>
 #include <list>
-#include <set>
-#include <map>
-#include <utility>
+#include <memory>
 #include <vector>
-#include "mpi.h"
 #include "Epetra_Comm.h"
 #include "Epetra_Map.h"
 #include "Epetra_MultiVector.h"
 #include "Epetra_Operator.h"
-#include "deal.II/base/exceptions.h"
-#include "deal.II/base/quadrature_lib.h"
-#include "deal.II/base/point.h"
 #include "deal.II/distributed/tria.h"
 #include "deal.II/dofs/dof_handler.h"
 #include "deal.II/fe/fe_dgq.h"
-#include "deal.II/fe/fe_values.h"
-#include "deal.II/lac/full_matrix.h"
 #include "deal.II/lac/trilinos_vector.h"
 #include "deal.II/lac/vector.h"
 #include "FECell.hh"
 #include "Parameters.hh"
 #include "RTQuadrature.hh"
 #include "RTMaterialProperties.hh"
+#include "Scheduler.hh"
 #include "Task.hh"
 
 using namespace dealii;
@@ -53,22 +44,9 @@ class RadiativeTransfer : public Epetra_Operator
         FE_DGQ<dim>* fe,parallel::distributed::Triangulation<dim>* triangulation,
         DoFHandler<dim>* dof_handler,Parameters* parameters,RTQuadrature* quad,
         RTMaterialProperties* material_properties,Epetra_MpiComm const* comm,
-        Epetra_Map const* map);
+        Epetra_Map const* map,std::shared_ptr<Scheduler<dim,tensor_dim>> scheduler);
 
     ~RadiativeTransfer();
-
-    /// Free the buffers and MPI_Request used to send MPI messages.
-    void free_buffers(std::list<double*> &buffers,std::list<MPI_Request*> &requests) 
-      const;
-
-    /// Initialize the scheduler
-    void initialize_scheduler() const;
-
-    /// Get a pointer to the next ready task in a random order.
-    Task const* const get_next_task_random() const;
-
-    /// Get all the dof indices associated to the given task.
-    std::unordered_set<types::global_dof_index> get_task_local_dof_indices(Task &task);
     
     /// Set the current group.
     void set_group(unsigned int g);    
@@ -83,9 +61,6 @@ class RadiativeTransfer : public Epetra_Operator
         std::list<MPI_Request*> &requests,Epetra_MultiVector &flux_moments,
         std::vector<TrilinosWrappers::MPI::Vector> const* const group_flux=nullptr) 
       const;
-
-    /// Return the number of tasks left to execute.
-    unsigned int get_n_tasks_to_execute() const;
 
     /// Compute the scattering given a flux.
     void compute_scattering_source(Epetra_MultiVector const &x) const;
@@ -127,47 +102,6 @@ class RadiativeTransfer : public Epetra_Operator
     Epetra_Map const& OperatorRangeMap() const;
 
   private :
-    /// Build the required_tasks map associated to the given task.
-    void build_local_required_tasks_map(Task &task,
-        types::global_dof_index* recv_dof_buffer,int* recv_dof_disps_x,
-        const unsigned int recv_n_dofs_buffer);
-
-    /// Build the waiting_tasks map associated to the task.
-    void build_local_waiting_tasks_map(Task &task,
-        types::global_dof_index* recv_dof_buffer,int* recv_dof_disps_x,
-        const unsigned int recv_dof_buffer_size);
-
-    /// Build the global_required_tasks map.
-    void build_global_required_tasks();
-
-    /// Build local_tasks_map.
-    void build_local_tasks_map();
-
-    /// Build the required_tasks maps for all the tasks owned by a processor.
-    void build_required_tasks_maps();
-
-    /// Build the waiting_tasks maps for all the tasks owned by a processor.
-    void build_waiting_tasks_maps();                                       
-
-    /// Build convex patches of cells by going up the tree of cells. All the
-    /// cells in a patch are on the same processors. The coarsest patches
-    /// corresponds to the cells of the coarse mesh.
-    void build_cell_patches(
-        std::map<active_cell_iterator,unsigned int> const &cell_to_fecell_map,
-        std::list<std::list<unsigned int>> &cell_patches) const;
-
-    /// Recursive function that goes down the tree of descendants of the current
-    /// cell. The function returns false if one of the descendants is not
-    /// locally owned. It also adds the active descendants to a patch.
-    bool explore_descendants_tree(typename DoFHandler<dim>::cell_iterator const &current_cell,
-        std::list<active_cell_iterator> &active_descendants) const;
-
-    /// Compute the ordering of the cells in each patch for the sweeps and
-    /// create the tasks.
-    void compute_sweep_ordering(
-        std::map<active_cell_iterator,unsigned int> const &cell_to_fecell_map,
-        std::list<std::list<unsigned int>> &cell_patches);
-    
     /// Compute the scattering source due to the upscattering and the
     /// downscattering to the current group.
     void compute_outer_scattering_source(Tensor<1,tensor_dim> &b,
@@ -193,60 +127,22 @@ class RadiativeTransfer : public Epetra_Operator
     void LU_solve(Tensor<2,tensor_dim> const &A,Tensor<1,tensor_dim> &b,
         Tensor<1,tensor_dim> &x,Tensor<1,tensor_dim,unsigned int> const &pivot) const;
 
-    /// Received the angular flux from a required tasks.
-    void receive_angular_flux() const;
-
-    /// Send the angular flux computed in task to all the waiting tasks.
-    void send_angular_flux(Task const &task,std::list<double*> &buffers,
-        std::list<MPI_Request*> &requests) const;
-
     /// Number of moments.
     unsigned int n_mom;
     /// Current group.
     unsigned int group;
     /// Number of groups.
     unsigned int n_groups;
-    /// Number of tasks left to execute. Because of the Trilinos interface
-    /// in Epetra_Operator, n_tasks_to_execute is made mutable so it
-    /// can be changed in a const function.
-    mutable unsigned int n_tasks_to_execute;
     /// Total number of degrees of freedom.
     types::global_dof_index n_dofs;
     /// Epetra communicator.
     Epetra_MpiComm const* comm;
     /// Pointer to Epetra_Map associated to flux_moments and group_flux
     Epetra_Map const* map;
-    /// List of tasks that are ready to be used by sweep. Because of the 
-    /// Trilinos interface in Epetra_Operator, tasks_ready is made mutable 
-    /// so it can be changed in a const function.
-    mutable std::list<unsigned int> tasks_ready;
-    /// If the waiting task is on the current processor, this map can be used
-    /// to find the position of the task in the tasks vector. The key of the map
-    /// is the task id of the waiting task and the value is the position in
-    /// the local tasks vector. Because of the Trilinos interface in 
-    /// Epetra_Operator, local_tasks_map is made mutable so it can be can be 
-    /// changed in a const function.
-    mutable std::unordered_map<unsigned int,unsigned int> local_tasks_map;
-    /// The key of this map is the subdomain_id and the task id of the required
-    /// task, which is on another processor, and the value is a vector of the 
-    /// position of the waiting tasks in the local vector of tasks. Because of 
-    /// the Trilinos interface in Epetra_Operator, ghost_required_tasks is made 
-    /// mutable so it can be can be changed in a const function.
-    mutable std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<unsigned int>,boost::hash<std::pair<types::subdomain_id,unsigned int>>> 
-      ghost_required_tasks;
-    /// This vector is used to store the position in a received MPI message from
-    /// a given task of a given dof. Because of the Trilinos interface in
-    /// Epetra_Operator, global_required_tasks is made mutable so it can be
-    /// can be changed in a const function.
-    mutable std::vector<std::tuple<types::subdomain_id,unsigned int,
-            std::unordered_map<types::global_dof_index,unsigned int>>> global_required_tasks;
     /// Scattering source for each moment.
     std::vector<Vector<double>*> scattering_source;
     /// FECells owned by the current processor.
     std::vector<FECell<dim,tensor_dim>> fecell_mesh;
-    /// Tasks owned by the current processor.
-    std::vector<Task> tasks;
     /// Pointer to the discontinuous finite element object.
     FE_DGQ<dim>* fe;
     /// Pointer to the distributed triangulation.
@@ -259,6 +155,8 @@ class RadiativeTransfer : public Epetra_Operator
     RTQuadrature* quad;
     /// Pointer to the material property.
     RTMaterialProperties* material_properties;
+    /// Shared pointer to the scheduler.
+    std::shared_ptr<Scheduler<dim,tensor_dim>> scheduler;    
 };
 
 template <int dim,int tensor_dim>
@@ -283,12 +181,6 @@ template <int dim,int tensor_dim>
 inline void RadiativeTransfer<dim,tensor_dim>::set_group(unsigned int g)
 {
   group = g;
-}
-
-template <int dim,int tensor_dim>
-inline unsigned int RadiativeTransfer<dim,tensor_dim>::get_n_tasks_to_execute() const
-{
-  return n_tasks_to_execute;
 }
 
 #endif
