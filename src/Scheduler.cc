@@ -11,8 +11,9 @@
 
 template <int dim,int tensor_dim>
 Scheduler<dim,tensor_dim>::Scheduler(RTQuadrature const* quad,Epetra_MpiComm const* comm) :
-  quad(quad),
-  comm(comm)
+  comm(comm),
+  mpi_comm(comm->GetMpiComm()),
+  quad(quad)
 {}
 
 
@@ -27,7 +28,7 @@ void Scheduler<dim,tensor_dim>::setup(const unsigned int n_levels,
   std::list<std::list<unsigned int>> cell_patches;
   build_cell_patches(n_levels,cell_to_fecell_map,cell_patches);
 
-  // Compute the sweep ordering
+  // Compute the sweep ordering.
   compute_sweep_ordering(cell_to_fecell_map,cell_patches);
 }
 
@@ -204,8 +205,7 @@ void Scheduler<dim,tensor_dim>::compute_sweep_ordering(
 
       // Build incomplete_required_tasks, i.e. the required tasks without task_id
       // since it is not known yet.
-      std::vector<std::pair<types::subdomain_id,std::vector<types::global_dof_index>>>
-        incomplete_required_tasks;
+      std::vector<Task::subdomain_dof_pair> incomplete_required_tasks;
       for (auto const & fecell_id : patch)
       {
         active_cell_iterator cell((*fecell_mesh)[fecell_id].get_cell());
@@ -224,8 +224,8 @@ void Scheduler<dim,tensor_dim>::compute_sweep_ordering(
             {
               std::vector<types::global_dof_index> dof_indices(tensor_dim);
               upwind_cell->get_dof_indices(dof_indices);
-              std::pair<types::subdomain_id,std::vector<types::global_dof_index>>
-                subdomain_dof_pair(upwind_cell->subdomain_id(),dof_indices);
+              Task::subdomain_dof_pair subdomain_dof_pair(upwind_cell->subdomain_id(),
+                  dof_indices);
               incomplete_required_tasks.push_back(subdomain_dof_pair);
             }
           }
@@ -268,7 +268,6 @@ void Scheduler<dim,tensor_dim>::build_waiting_tasks_maps()
 {
   const unsigned int n_proc(comm->NumProc());
   const unsigned int n_tasks(tasks.size());
-  MPI_Comm mpi_comm(comm->GetMpiComm());
 
   // Send the number of elements that each processor will receive
   int* send_n_dofs_buffer = new int [n_proc];
@@ -320,7 +319,7 @@ void Scheduler<dim,tensor_dim>::build_waiting_tasks_maps()
       std::vector<types::global_dof_index> const* task_dof(
           tasks[i].get_incomplete_dofs(j));
       send_dof_buffer[current_offset] = static_cast<types::global_dof_index>(
-          tasks[i].get_id());
+          tasks[i].get_local_id());
       send_dof_buffer[current_offset+1] = static_cast<types::global_dof_index>(
           tasks[i].get_idir());
       send_dof_buffer[current_offset+2] = static_cast<types::global_dof_index>(
@@ -403,7 +402,7 @@ void Scheduler<dim,tensor_dim>::build_local_waiting_tasks_map(Task &task,
       if (dofs.size()!=0)
       {
         task.add_to_waiting_tasks(Task::task_tuple (subdomain_id,task_id,dofs));
-        task.add_to_waiting_subdomains(Task::domain_pair (subdomain_id,dofs));
+        task.add_to_waiting_subdomains(Task::subdomain_dof_pair (subdomain_id,dofs));
       }
     }
     i += n_dofs+3;
@@ -424,7 +423,6 @@ void Scheduler<dim,tensor_dim>::build_required_tasks_maps()
 {  
   const unsigned int n_proc(comm->NumProc());
   const unsigned int n_tasks(tasks.size());
-  MPI_Comm mpi_comm(comm->GetMpiComm());
 
   // Send the number of elements that each processor will receive
   int* send_n_dofs_buffer = new int [n_proc];
@@ -478,9 +476,9 @@ void Scheduler<dim,tensor_dim>::build_required_tasks_maps()
       std::vector<types::global_dof_index> const* task_dof(
           tasks[i].get_waiting_tasks_dofs(j));
       send_dof_buffer[current_offset] = static_cast<types::global_dof_index>(
-          tasks[i].get_id());
+          tasks[i].get_local_id());
       send_dof_buffer[current_offset+1] = static_cast<types::global_dof_index>(
-          tasks[i].get_waiting_tasks_id(j));
+          tasks[i].get_waiting_tasks_local_id(j));
       send_dof_buffer[current_offset+2] = static_cast<types::global_dof_index>(
           n_dofs_task);
       for (unsigned int k=0; k<n_dofs_task; ++k)
@@ -527,7 +525,7 @@ void Scheduler<dim,tensor_dim>::build_local_required_tasks_map(Task &task,
     types::global_dof_index* recv_dof_buffer,int* recv_dof_disps_x,
     const unsigned int recv_dof_buffer_size)
 {
-  const unsigned int current_task_id(task.get_id());
+  const unsigned int current_task_id(task.get_local_id());
 
   // Build the required_tasks map
   unsigned int subdomain_id(0);
@@ -558,9 +556,8 @@ void Scheduler<dim,tensor_dim>::build_global_required_tasks()
   const unsigned int n_tasks(tasks.size());
   AssertIndexRange(0,n_tasks);
   const types::subdomain_id subdomain_id(tasks[0].get_subdomain_id());
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>> tmp_map;
+  std::unordered_map<Task::global_id,std::vector<types::global_dof_index>,
+    boost::hash<Task::global_id>> tmp_map;
   // Loop over all the required_tasks and create a temporary map with sorted
   // dofs
   for (unsigned int i=0; i<n_tasks; ++i)
@@ -572,8 +569,7 @@ void Scheduler<dim,tensor_dim>::build_global_required_tasks()
       // Check that the required task is not owned by the processor
       if (std::get<0>(*map_it)!=subdomain_id)
       {
-        std::pair<types::subdomain_id,unsigned int> current_task(std::get<0>(*map_it),
-            std::get<1>(*map_it));
+        global_id current_task(std::get<0>(*map_it),std::get<1>(*map_it));
         Assert(std::is_sorted(tmp_map[current_task].begin(),tmp_map[current_task].end()),
             ExcMessage("The temporary map tmp_map is not sorted."));
         Assert(std::is_sorted(std::get<2>(*map_it).begin(),std::get<2>(*map_it).end()),
@@ -596,13 +592,10 @@ void Scheduler<dim,tensor_dim>::build_global_required_tasks()
 
   // Build the global_required_tasks map, by looping over the tmp_map and
   // adding the position of the dofs in the MPI messages
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
-      tmp_map_it(tmp_map.begin());
-  std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<types::global_dof_index>,
-    boost::hash<std::pair<types::subdomain_id,unsigned int>>>::iterator 
+  std::unordered_map<Task::global_id,std::vector<types::global_dof_index>,
+    boost::hash<Task::global_id>>::iterator tmp_map_it(tmp_map.begin());
+  std::unordered_map<Task::global_id,std::vector<types::global_dof_index>,
+    boost::hash<Task::global_id>>::iterator 
       tmp_map_end(tmp_map.end());
   for (; tmp_map_it!=tmp_map_end; ++tmp_map_it)
   {
@@ -622,7 +615,7 @@ void Scheduler<dim,tensor_dim>::build_local_tasks_map()
 {
   const unsigned int n_tasks(tasks.size());
   for (unsigned int i=0; i<n_tasks; ++i)
-    local_tasks_map[tasks[i].get_id()] = i;
+    local_tasks_map[tasks[i].get_local_id()] = i;
 }
 
 
@@ -652,21 +645,19 @@ template <int dim,int tensor_dim>
 void Scheduler<dim,tensor_dim>::send_angular_flux(Task const &task,
     std::list<double*> &buffers,std::list<MPI_Request*> &requests) const
 {
-  MPI_Comm mpi_comm(comm->GetMpiComm());
-
-  std::vector<std::pair<types::subdomain_id,std::vector<types::global_dof_index>>>
-    ::const_iterator map_it(task.get_waiting_subdomains_cbegin());
-  std::vector<std::pair<types::subdomain_id,std::vector<types::global_dof_index>>>
-    ::const_iterator map_end(task.get_waiting_subdomains_cend());
+  std::vector<Task::subdomain_dof_pair>::const_iterator map_it(
+      task.get_waiting_subdomains_cbegin());
+  std::vector<Task::subdomain_dof_pair>::const_iterator map_end(
+      task.get_waiting_subdomains_cend());
 
   // Loop over all the waiting processors
   types::subdomain_id source(task.get_subdomain_id());
-  unsigned int tag(task.get_id());
+  unsigned int tag(task.get_local_id());
   for (; map_it!=map_end; ++map_it)
   {
     types::subdomain_id destination(map_it->first);
-    if (source!=destination)
     // If source and destination processors are different, MPI is used
+    if (source!=destination)
     {
       int count(map_it->second.size());
       double* buffer = new double [count];
@@ -700,6 +691,8 @@ void Scheduler<dim,tensor_dim>::send_angular_flux(Task const &task,
           for (; dofs_it!=dofs_end; ++dofs_it)
             tasks[local_pos].set_required_dof(*dofs_it,task.get_required_angular_flux(*dofs_it));
 
+          // TODO: this may need to be changed. tasks_ready might not be the
+          // best when using CAPPPFBScheduler
           // If all the required dofs are know, i.e., the task is ready, the
           // tasks is added to the tasks_ready list
           if (tasks[local_pos].is_ready()==true)
@@ -714,8 +707,6 @@ void Scheduler<dim,tensor_dim>::send_angular_flux(Task const &task,
 template <int dim,int tensor_dim>
 void Scheduler<dim,tensor_dim>::receive_angular_flux() const 
 {
-  MPI_Comm mpi_comm(comm->GetMpiComm());
-
   // Loop on the global_required_tasks map
   std::vector<std::tuple<types::subdomain_id,unsigned int,
     std::unordered_map<types::global_dof_index,unsigned int>>>::iterator
@@ -734,7 +725,7 @@ void Scheduler<dim,tensor_dim>::receive_angular_flux() const
 
     if (flag==true)
     {
-      const std::pair<types::subdomain_id,unsigned int> ghost_task(source,tag);
+      const Task::global_id ghost_task(source,tag);
       int count(std::get<2>(*global_map_it).size());
       double* buffer = new double [count];
 
@@ -759,6 +750,8 @@ void Scheduler<dim,tensor_dim>::receive_angular_flux() const
           tasks[*required_tasks_it].set_required_dof(required_dof,buffer[buffer_pos]);
         }
 
+        // TODO: this may need to be changed. tasks_ready might not be the
+        // best when using CAPPPFBScheduler
         // If the task has all the required dofs, it goes into the tasks_ready
         // list
         if (tasks[*required_tasks_it].is_ready()==true)
@@ -769,35 +762,6 @@ void Scheduler<dim,tensor_dim>::receive_angular_flux() const
     }
   }      
 }
-
-
-template <int dim,int tensor_dim>
-void Scheduler<dim,tensor_dim>::free_buffers(
-    std::list<double*> &buffers,std::list<MPI_Request*> &requests) const
-{  
-  std::list<double*>::iterator buffers_it(buffers.begin());
-  std::list<double*>::iterator buffers_end(buffers.end());
-  std::list<MPI_Request*>::iterator requests_it(requests.begin());
-  while (buffers_it!=buffers_end)
-  {  
-    // If the message has been received, the buffer and the request are delete. 
-    // Otherwise, we just try the next buffer.
-    int flag;
-    MPI_Test(*requests_it,&flag,MPI_STATUS_IGNORE);
-    if (flag==true)
-    {
-      delete [] *buffers_it;
-      delete *requests_it;
-      buffers_it = buffers.erase(buffers_it);
-      requests_it = requests.erase(requests_it);
-    }                            
-    else
-    {                               
-      ++buffers_it;
-      ++requests_it;
-    }
-  }
-}      
 
 
 //*****Explicit instantiations*****//

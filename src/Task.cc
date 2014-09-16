@@ -10,8 +10,8 @@
 #include <algorithm>
 
 Task::Task(unsigned int idir,unsigned int id,types::subdomain_id subdomain_id,
-    std::vector<unsigned int> &sweep_order,std::vector<std::pair<types::subdomain_id,
-    std::vector<types::global_dof_index>>> &incomplete_required_tasks) :
+    std::vector<unsigned int> &sweep_order,
+    std::vector<subdomain_dof_pair> &incomplete_required_tasks) :
   idir(idir),
   id(id),
   n_required_dofs(0),
@@ -55,13 +55,13 @@ void Task::compress_waiting_tasks()
 
 void Task::compress_waiting_subdomains()
 {
-  std::vector<domain_pair> tmp;
+  std::vector<subdomain_dof_pair> tmp;
   // Group the elements of the vector that have the same subdomain_id
   for (auto &wait_subdom : waiting_subdomains)
   {
     const types::subdomain_id sub_id(wait_subdom.first);
-    std::vector<domain_pair>::iterator tmp_it(tmp.begin());
-    std::vector<domain_pair>::iterator tmp_end(tmp.end());
+    std::vector<subdomain_dof_pair>::iterator tmp_it(tmp.begin());
+    std::vector<subdomain_dof_pair>::iterator tmp_end(tmp.end());
     for (; tmp_it!=tmp_end; ++tmp_it)
       if (tmp_it->first==sub_id)
         break;
@@ -106,12 +106,6 @@ bool Task::is_ready() const
   return ready;
 }
 
-void Task::clear_temporary_data()
-{
-  incomplete_required_tasks.clear();
-  waiting_tasks.clear();
-}
-
 void Task::finalize_maps()
 {
   // Create local_waiting_tasks
@@ -129,18 +123,18 @@ void Task::finalize_maps()
   const unsigned int required_tasks_size(required_tasks.size());
   for (unsigned int i=0; i<required_tasks_size; ++i)
   {
-    std::pair<types::subdomain_id,unsigned int> pair(std::get<0>(required_tasks[i]),
+    global_id required_task_id(std::get<0>(required_tasks[i]),
         std::get<1>(required_tasks[i]));
-    required_tasks_map[pair] = i;
+    required_tasks_map[required_task_id] = i;
   }
 
-  // Clear incomplete_required_tasks and waiting_tasks
-  clear_temporary_data();
+  // Clear incomplete_required_tasks
+  incomplete_required_tasks.clear();
 }
 
 void Task::print(std::ostream &output_stream)
 {
-  output_stream<<"ID "<<id<<std::endl;
+  output_stream<<"local ID "<<id<<std::endl;
   output_stream<<"idir "<<idir<<std::endl;
   output_stream<<"sweep order"<<std::endl;
   for (unsigned int i=0; i<sweep_order.size(); ++i)

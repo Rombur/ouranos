@@ -28,7 +28,7 @@ class RandomScheduler : public Scheduler<dim,tensor_dim>
     RandomScheduler(RTQuadrature const* quad,Epetra_MpiComm const* comm);
 
     /// Get the scheduler ready to process tasks.
-    void initialize_scheduling() const override;
+    void start() const override;
 
     /// Get a pointer to the next task which is ready.
     Task const* const get_next_task() const override;

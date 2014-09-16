@@ -13,9 +13,11 @@ RandomScheduler<dim,tensor_dim>::RandomScheduler(RTQuadrature const* quad,
   Scheduler<dim,tensor_dim>(quad,comm)
 {}
 
+
 template <int dim,int tensor_dim>
-void RandomScheduler<dim,tensor_dim>::initialize_scheduling() const
+void RandomScheduler<dim,tensor_dim>::start() const
 {
+  this->tasks_ready.clear();
   this->n_tasks_to_execute = this->tasks.size();
   // Add to the tasks_ready list all the tasks that do not require another
   // task to start

@@ -6,7 +6,7 @@ env = env.Clone()
 # Source files
 src_files = Split('ouranos.cc GLC.cc LS.cc RTQuadrature.cc Parameters.cc '+
   'Geometry.cc FECell.cc RadiativeTransfer.cc RTMaterialProperties.cc Task.cc '+
-  'Scheduler.cc RandomScheduler.cc')
+  'Scheduler.cc RandomScheduler.cc CAPPFBScheduler.cc')
 
 # Build the program in src
 ouranos = env.Program('ouranos',src_files)

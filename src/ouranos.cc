@@ -81,13 +81,16 @@ void solve(ConditionalOStream const &pcout,unsigned int const n_mom,
               flux_moments.trilinos_vector());
           std::list<double*> buffers;
           std::list<MPI_Request*> requests;
-          scheduler->initialize_scheduling();
+          scheduler->start();
           while (scheduler->get_n_tasks_to_execute()!=0)
           {
             radiative_transfer.sweep(*(scheduler->get_next_task()),buffers,
                 requests,flux_moments.trilinos_vector(),&group_flux);
             scheduler->free_buffers(buffers,requests);
           }
+          // Free all the buffers left.
+          while (buffers.size()!=0)
+            scheduler->free_buffers(buffers,requests);
 
           old_flux_moments -= flux_moments;
           const double num(old_flux_moments.l2_norm());
@@ -156,12 +159,15 @@ void solve(ConditionalOStream const &pcout,unsigned int const n_mom,
         TrilinosWrappers::MPI::Vector rhs(flux_moments);
         std::list<double*> buffers;
         std::list<MPI_Request*> requests;
-        scheduler->initialize_scheduling();
+        scheduler->start();
         while (scheduler->get_n_tasks_to_execute()!=0)
         {
           radiative_transfer.sweep(*(scheduler->get_next_task()),buffers,
               requests,rhs.trilinos_vector(),&group_flux);
           scheduler->free_buffers(buffers,requests);
+          // Free all the buffers left.
+          while (buffers.size()!=0)
+            scheduler->free_buffers(buffers,requests);
         }
 
         SolverControl solver_control(max_inner_it,inner_tol);

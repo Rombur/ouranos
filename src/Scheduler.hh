@@ -12,6 +12,7 @@
 #include <map>
 #include <unordered_set>
 #include <utility>
+#include "boost/functional/hash/hash.hpp"
 #include "Epetra_Comm.h"
 #include "deal.II/base/exceptions.h"
 #include "deal.II/dofs/dof_handler.h"
@@ -31,6 +32,7 @@ class Scheduler
 {
   public :
     typedef typename DoFHandler<dim>::active_cell_iterator active_cell_iterator;
+    typedef std::pair<types::subdomain_id,unsigned int> global_id;
 
     /// Constructor. 
     Scheduler(RTQuadrature const* quad,Epetra_MpiComm const* comm);
@@ -45,14 +47,15 @@ class Scheduler
         std::map<active_cell_iterator,unsigned int> const &cell_to_fecell_map);
     
     /// Get the scheduler ready to process tasks.
-    virtual void initialize_scheduling() const=0;
+    virtual void start() const=0;
 
     /// Send the angular flux computed in task to all the waiting tasks.
     void send_angular_flux(Task const &task,std::list<double*> &buffers,
         std::list<MPI_Request*> &requests) const;
 
     /// Free the buffers and MPI_Request used to send MPI messages.
-    void free_buffers(std::list<double*> &buffers,std::list<MPI_Request*> &requests) 
+    template <typename data_type>
+    void free_buffers(std::list<data_type*> &buffers,std::list<MPI_Request*> &requests) 
       const;
 
     /// Return the number of tasks left to execute.
@@ -65,6 +68,10 @@ class Scheduler
     /// Received the angular flux from a required task.
     void receive_angular_flux() const;
 
+    /// Epetra communicator.
+    Epetra_MpiComm const* comm;
+    /// MPI communicator.
+    MPI_Comm mpi_comm;
     /// Number of tasks left to execute. Because of the Trilinos interface
     /// in Epetra_Operator, n_tasks_to_execute is made mutable so it
     /// can be changed in a const function.
@@ -115,7 +122,7 @@ class Scheduler
     bool explore_descendants_tree(typename DoFHandler<dim>::cell_iterator const &current_cell,
         std::list<active_cell_iterator> &active_descendants) const;
 
-    /// Compute the ordering of the cells in each patch for the sweeps and
+    /// Compute the ordering of the cells on each patch for the sweeps and
     /// create the tasks.
     void compute_sweep_ordering(
         std::map<active_cell_iterator,unsigned int> const &cell_to_fecell_map,
@@ -123,8 +130,6 @@ class Scheduler
 
     /// Pointer to the quadrature.
     RTQuadrature const* quad;
-    /// Epetra communicator.
-    Epetra_MpiComm const* comm;
     /// If the waiting task is on the current processor, this map can be used
     /// to find the position of the task in the tasks vector. The key of the map
     /// is the task id of the waiting task and the value is the position in
@@ -137,8 +142,7 @@ class Scheduler
     /// position of the waiting tasks in the local vector of tasks. Because of 
     /// the Trilinos interface in Epetra_Operator, ghost_required_tasks is made 
     /// mutable so it can be can be changed in a const function.
-    mutable std::unordered_map<std::pair<types::subdomain_id,unsigned int>,
-    std::vector<unsigned int>,boost::hash<std::pair<types::subdomain_id,unsigned int>>> 
+    mutable std::unordered_map<global_id,std::vector<unsigned int>,boost::hash<global_id>>
       ghost_required_tasks;
     /// This vector is used to store the position in a received MPI message from
     /// a given task of a given dof. Because of the Trilinos interface in
@@ -155,6 +159,36 @@ inline unsigned int Scheduler<dim,tensor_dim>::get_n_tasks_to_execute() const
 {
   return n_tasks_to_execute;
 }
+
+
+template <int dim,int tensor_dim>
+template <typename data_type>
+void Scheduler<dim,tensor_dim>::free_buffers(
+    std::list<data_type*> &buffers,std::list<MPI_Request*> &requests) const
+{  
+  typename std::list<data_type*>::iterator buffers_it(buffers.begin());
+  typename std::list<data_type*>::iterator buffers_end(buffers.end());
+  std::list<MPI_Request*>::iterator requests_it(requests.begin());
+  while (buffers_it!=buffers_end)
+  {  
+    // If the message has been received, the buffer and the request are delete. 
+    // Otherwise, we just try the next buffer.
+    int flag;
+    MPI_Test(*requests_it,&flag,MPI_STATUS_IGNORE);
+    if (flag==true)
+    {
+      delete [] *buffers_it;
+      delete *requests_it;
+      buffers_it = buffers.erase(buffers_it);
+      requests_it = requests.erase(requests_it);
+    }                            
+    else
+    {                               
+      ++buffers_it;
+      ++requests_it;
+    }
+  }
+}      
 
 #endif
 

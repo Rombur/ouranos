@@ -104,14 +104,17 @@ int RadiativeTransfer<dim,tensor_dim>::Apply(Epetra_MultiVector const &x,
   // Create the buffers and the MPI_Request
   std::list<double*> buffers;
   std::list<MPI_Request*> requests;
-  // Initialize the scheduler by creating the tasks_ready list
-  scheduler->initialize_scheduling();
+  // Start the scheduler by creating the tasks_ready list
+  scheduler->start();
   // Sweep through the mesh
   while (scheduler->get_n_tasks_to_execute()!=0)
   {
     sweep(*(scheduler->get_next_task()),buffers,requests,y);
     scheduler->free_buffers(buffers,requests);
   }
+  // Free all the buffers left.
+  while (buffers.size()!=0)
+    scheduler->free_buffers(buffers,requests);
 
   for (int i=0; i<y.MyLength(); ++i)
     y[0][i] = z[0][i]-y[0][i];
