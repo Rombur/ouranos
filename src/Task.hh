@@ -70,6 +70,9 @@ class Task
     /// Return true if the task is ready for sweep.
     bool is_ready() const;
 
+    //TODO comment
+    bool is_required(global_id task_id) const;
+
     /// Return the local task ID.
     unsigned int get_local_id() const;
 
@@ -110,7 +113,10 @@ class Task
     /// Return the local ID of the task.
     types::subdomain_id get_subdomain_id() const;
 
-    /// Return the global ID of the task.
+    /// Return the global task ID.
+    global_id get_global_id() const;
+
+    /// Return the global ID of the waiting task.
     global_id get_waiting_tasks_global_id(unsigned int i) const;
 
     /// Return the value of the angular flux associated to given dof.
@@ -138,6 +144,10 @@ class Task
     /// Return a const_iterator to the end of the local_waiting_tasks vector.
     std::vector<std::pair<unsigned int,std::vector<types::global_dof_index>>>
       ::const_iterator get_local_waiting_tasks_cend() const;
+
+    //TODO comment plus change place
+    std::vector<task_tuple>::const_iterator get_waiting_tasks_cbegin() const;
+    std::vector<task_tuple>::const_iterator get_waiting_tasks_cend() const;
 
     /// Return a pointer to the dofs of the ith element of waiting_tasks.
     std::vector<types::global_dof_index> const* get_waiting_tasks_dofs(
@@ -221,6 +231,11 @@ inline void Task::set_local_required_dof(types::global_dof_index dof,double valu
 {
   required_dofs[dof] = value;
 }
+
+inline bool Task::is_required(global_id task_id) const
+{
+  return ((required_tasks_map.find(task_id)==required_tasks_map.cend()) ? false : true);
+}
     
 inline unsigned int Task::get_local_id() const
 {
@@ -292,6 +307,11 @@ inline types::subdomain_id Task::get_subdomain_id() const
   return subdomain_id;
 }
 
+inline Task::global_id Task::get_global_id() const
+{
+  return global_id(subdomain_id,id);
+}
+
 inline Task::global_id Task::get_waiting_tasks_global_id(unsigned int i) const
 {
   AssertIndexRange(i,waiting_tasks.size());
@@ -318,6 +338,16 @@ inline std::vector<std::pair<unsigned int,std::vector<types::global_dof_index>>>
 Task::get_local_waiting_tasks_cend() const
 {
   return local_waiting_tasks.cend();
+}
+
+inline std::vector<Task::task_tuple>::const_iterator Task::get_waiting_tasks_cbegin() const
+{
+  return waiting_tasks.cbegin();
+}
+
+inline std::vector<Task::task_tuple>::const_iterator Task::get_waiting_tasks_cend() const
+{
+  return waiting_tasks.cend();
 }
 
 inline std::vector<types::global_dof_index> const* Task::get_waiting_tasks_dofs(

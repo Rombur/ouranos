@@ -11,6 +11,7 @@
 #include <list>
 #include <unordered_set>
 #include <vector>
+#include "mpi.h"
 #include "boost/functional/hash/hash.hpp"
 #include "Scheduler.hh"
 #include "Task.hh"
@@ -29,7 +30,7 @@ class RTQuadrature;
  * Yang</em>.
  */
 template <int dim,int tensor_dim>
-class CAPPFBScheduler
+class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
 {
   public :
     /// Instead of using a floating point to represent the time, a discrete time is
@@ -63,13 +64,13 @@ class CAPPFBScheduler
 
     void forward_iteration();
 
-    void compute_backward_ranks();
+    void compute_backward_ranks(std::vector<discrete_time> &ranks);
 
-    void backward_sort();
+    void decreasing_rank_sort(std::vector<discrete_time> &ranks);
 
     void backward_scheduling();
 
-    void compute_forward_ranks();
+    void compute_forward_ranks(std::vector<discrete_time> &ranks);
 
     void forward_sort();
 
@@ -86,8 +87,14 @@ class CAPPFBScheduler
         std::vector<std::tuple<Task::global_id,discrete_time,discrete_time>>
         &required_tasks_schedule) const;
 
-    get_required_tasks_schedule(std::vector<std::pair<Task::global_id,
+    void get_required_tasks_schedule(std::vector<std::pair<Task::global_id,
         discrete_time>> &required_tasks_schedule) const;
+
+    void receive_start_time_waiting_tasks(Task const &task,
+        std::vector<std::pair<Task::global_id,discrete_time>> &waiting_tasks_schedule) const;
+
+    void send_start_time_required_tasks(Task const &task, discrete_time task_start_time,
+        std::list<discrete_time*> &buffers,std::list<MPI_Request*> &requests) const;
 
     unsigned int max_iter;
     unsigned int tol;
@@ -95,7 +102,7 @@ class CAPPFBScheduler
     discrete_time end_time;
     std::vector<std::tuple<Task*,discrete_time,discrete_time>> schedule;
     // This needs to be cleared later on
-    std::unordered_map<global_id,unsigned int,boost::hash<global_id>> schedule_id_map;
+    std::unordered_map<unsigned int,unsigned int> schedule_id_map;
 
 };
 

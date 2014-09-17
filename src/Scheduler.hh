@@ -42,12 +42,12 @@ class Scheduler
 
     /// Build patches of cells that will be sweep on, compute the sweep ordering
     /// on each of these patches, and finally build the tasks used in the sweep.
-    void setup(const unsigned int n_levels,
+    virtual void setup(const unsigned int n_levels,
         std::vector<FECell<dim,tensor_dim>> const* fecell_mesh_ptr,
         std::map<active_cell_iterator,unsigned int> const &cell_to_fecell_map);
     
     /// Get the scheduler ready to process tasks.
-    virtual void start() const=0;
+    virtual void start() const = 0;
 
     /// Send the angular flux computed in task to all the waiting tasks.
     void send_angular_flux(Task const &task,std::list<double*> &buffers,
@@ -82,6 +82,12 @@ class Scheduler
     mutable std::list<unsigned int> tasks_ready;
     /// Tasks owned by the current processor.
     std::vector<Task> tasks;
+    /// This vector is used to store the position in a received MPI message from
+    /// a given task of a given dof. Because of the Trilinos interface in
+    /// Epetra_Operator, global_required_tasks is made mutable so it can be
+    /// can be changed in a const function.
+    mutable std::vector<std::tuple<types::subdomain_id,unsigned int,
+            std::unordered_map<types::global_dof_index,unsigned int>>> global_required_tasks;
 
   private :
     /// Get all the dof indices associated to the given task.
@@ -144,12 +150,6 @@ class Scheduler
     /// mutable so it can be can be changed in a const function.
     mutable std::unordered_map<global_id,std::vector<unsigned int>,boost::hash<global_id>>
       ghost_required_tasks;
-    /// This vector is used to store the position in a received MPI message from
-    /// a given task of a given dof. Because of the Trilinos interface in
-    /// Epetra_Operator, global_required_tasks is made mutable so it can be
-    /// can be changed in a const function.
-    mutable std::vector<std::tuple<types::subdomain_id,unsigned int,
-            std::unordered_map<types::global_dof_index,unsigned int>>> global_required_tasks;
     /// Pointer to the FECells owned by the current processor.
     std::vector<FECell<dim,tensor_dim>> const* fecell_mesh;
 };
