@@ -32,7 +32,6 @@ class Scheduler
 {
   public :
     typedef typename DoFHandler<dim>::active_cell_iterator active_cell_iterator;
-    typedef std::pair<types::subdomain_id,unsigned int> global_id;
 
     /// Constructor. 
     Scheduler(RTQuadrature const* quad,Epetra_MpiComm const* comm);
@@ -76,10 +75,6 @@ class Scheduler
     /// in Epetra_Operator, n_tasks_to_execute is made mutable so it
     /// can be changed in a const function.
     mutable unsigned int n_tasks_to_execute;
-    /// List of tasks that are ready to be used by sweep. Because of the 
-    /// Trilinos interface in Epetra_Operator, tasks_ready is made mutable 
-    /// so it can be changed in a const function.
-    mutable std::list<unsigned int> tasks_ready;
     /// Tasks owned by the current processor.
     std::vector<Task> tasks;
     /// This vector is used to store the position in a received MPI message from
@@ -148,8 +143,8 @@ class Scheduler
     /// position of the waiting tasks in the local vector of tasks. Because of 
     /// the Trilinos interface in Epetra_Operator, ghost_required_tasks is made 
     /// mutable so it can be can be changed in a const function.
-    mutable std::unordered_map<global_id,std::vector<unsigned int>,boost::hash<global_id>>
-      ghost_required_tasks;
+    mutable std::unordered_map<Task::global_id,std::vector<unsigned int>,
+            boost::hash<Task::global_id>> ghost_required_tasks;
     /// Pointer to the FECells owned by the current processor.
     std::vector<FECell<dim,tensor_dim>> const* fecell_mesh;
 };

@@ -32,7 +32,12 @@ class RandomScheduler : public Scheduler<dim,tensor_dim>
 
     /// Get a pointer to the next task which is ready.
     Task const* const get_next_task() const override;
+
+  private :  
+    /// List of tasks that are ready to be used by sweep. Because of the 
+    /// Trilinos interface in Epetra_Operator, tasks_ready is made mutable 
+    /// so it can be changed in a const function.
+    mutable std::list<unsigned int> tasks_ready;
 };
 
 #endif
-

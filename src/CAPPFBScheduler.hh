@@ -42,7 +42,7 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     /// Constructor. @p max_iter is the maximum number of iterations that the
     /// heuristic will perform, @p tol is the tolerance for convergence.
     CAPPFBScheduler(RTQuadrature const* quad,Epetra_MpiComm const* comm,
-        unsigned int max_iter,unsigned int tol);
+        unsigned int max_iter,discrete_time tol);
 
     /// Build patches of cells that will be sweep on, compute the sweep ordering
     /// on each of these patches, and finally build the tasks used in the sweep.
@@ -58,50 +58,88 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     Task const* const get_next_task() const override;
 
   private :
+    //TODO the initial scheduling may not be optimal. If the vectors where the
+    //search are done are too big, the heuristic may be slow.
+    /// Create the initial scheduling that will be used as a initial guess.
     void create_initial_scheduling();
 
-    void backward_iteration();
+    /// Send the end time of the task to the waiting tasks.
+    void send_task_done(Task const &task,discrete_time task_end_time,
+        std::list<discrete_time*> &buffers,std::list<MPI_Request*> &requests) const;
 
-    void forward_iteration();
-
-    void compute_backward_ranks(std::vector<discrete_time> &ranks);
-
-    void decreasing_rank_sort(std::vector<discrete_time> &ranks);
-
-    void backward_scheduling();
-
-    void compute_forward_ranks(std::vector<discrete_time> &ranks);
-
-    void forward_sort();
-
-    void forward_scheduling();
-
-    void update_schedule_id_map();
-
-    void send_task_done(Task const &task,discrete_time task_start_time,
-        discrete_time task_end_time,std::list<discrete_time*> &buffers,
-        std::list<MPI_Request*> &requests) const;
-
+    /// Receive the end time of the task sent by send_tasks_done and add the 
+    /// task to tasks_done and required_tasks_schedule.
     void receive_tasks_done(std::unordered_set<Task::global_id,
         boost::hash<Task::global_id>> &tasks_done, 
-        std::vector<std::tuple<Task::global_id,discrete_time,discrete_time>>
-        &required_tasks_schedule) const;
+        std::vector<std::pair<Task::global_id,discrete_time>>
+        &required_tasks_schedule);
 
-    void get_required_tasks_schedule(std::vector<std::pair<Task::global_id,
+    /// Perform the backward iteration, i.e., try to start every task as late as
+    /// possible.
+    void backward_iteration();
+
+    /// Compute the rank used in the backward iteration.
+    void compute_backward_ranks(std::vector<discrete_time> &ranks);
+
+    /// Sort the rank created by compute_backward_ranks in decreasing order.
+    void decreasing_rank_sort(std::vector<discrete_time> &ranks);
+
+    /// Schedule the tasks, using the sorted ranks, such that the tasks are
+    /// started as last as possible.
+    void backward_scheduling();
+
+    /// Perform the forward iteration, i.e., try to start every task as early as
+    /// possible.
+    void forward_iteration();
+
+    /// Compute the rank used in the backward iteration.
+    void compute_forward_ranks(std::vector<discrete_time> &ranks);
+
+    /// Sort the rank created by compute_forward_ranks in increasing order.
+    void forward_sort();
+
+    /// Schedule the tasks, using the sorted ranks, such that the tasks are
+    /// started as early as possible.
+    void forward_scheduling();
+
+    /// Update schedule_id_map, which is a map between the local ID of the tasks
+    /// and the positions in the schedule vector.
+    void update_schedule_id_map();
+
+    /// Build the required_tasks_schedule vector. The vector contains pairs of
+    /// task global ID and end time of tasks that are required by the local
+    /// tasks.
+    void build_required_tasks_schedule(std::vector<std::pair<Task::global_id,
         discrete_time>> &required_tasks_schedule) const;
 
-    void receive_start_time_waiting_tasks(Task const &task,
-        std::vector<std::pair<Task::global_id,discrete_time>> &waiting_tasks_schedule) const;
-
+    /// Send the start time of the task to the required tasks during the
+    /// backward scheduling. In backward scheduling, the sweep is done in
+    /// reverse therefore required tasks and waiting tasks exchange role
+    /// compared to the forward role.
     void send_start_time_required_tasks(Task const &task, discrete_time task_start_time,
         std::list<discrete_time*> &buffers,std::list<MPI_Request*> &requests) const;
 
+    /// Receive the start time of the waiting tasks of the task during the
+    /// backward scheduling. In backward scheduling, the sweep is done in
+    /// reverse therefore required tasks and waiting tasks exchange role
+    /// compared to the forward role.
+    void receive_start_time_waiting_tasks(Task const &task,
+        std::vector<std::pair<Task::global_id,discrete_time>> &waiting_tasks_schedule) const;
+
+    /// Maximum number of CAP-PFB iterations.
     unsigned int max_iter;
-    unsigned int tol;
+    /// Tolerance for the convergence of CAP-PFB.
+    discrete_time tol;
+    /// Global start time of the scheduling.
     discrete_time start_time;
+    /// Global end time of the scheduling.
     discrete_time end_time;
+    /// Vector containing the ordered tasks, their start time, and their end
+    /// time.
     std::vector<std::tuple<Task*,discrete_time,discrete_time>> schedule;
-    // This needs to be cleared later on
+    // TODO This needs to be cleared later on
+    /// Map between the local ID of the tasks and the positions in the schedule
+    /// vector.
     std::unordered_map<unsigned int,unsigned int> schedule_id_map;
 
 };

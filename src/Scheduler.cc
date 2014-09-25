@@ -569,7 +569,7 @@ void Scheduler<dim,tensor_dim>::build_global_required_tasks()
       // Check that the required task is not owned by the processor
       if (std::get<0>(*map_it)!=subdomain_id)
       {
-        global_id current_task(std::get<0>(*map_it),std::get<1>(*map_it));
+        Task::global_id current_task(std::get<0>(*map_it),std::get<1>(*map_it));
         Assert(std::is_sorted(tmp_map[current_task].begin(),tmp_map[current_task].end()),
             ExcMessage("The temporary map tmp_map is not sorted."));
         Assert(std::is_sorted(std::get<2>(*map_it).begin(),std::get<2>(*map_it).end()),
@@ -690,13 +690,6 @@ void Scheduler<dim,tensor_dim>::send_angular_flux(Task const &task,
               waiting_tasks_it->second.cend());
           for (; dofs_it!=dofs_end; ++dofs_it)
             tasks[local_pos].set_required_dof(*dofs_it,task.get_required_angular_flux(*dofs_it));
-
-          // TODO: this may need to be changed. tasks_ready might not be the
-          // best when using CAPPPFBScheduler
-          // If all the required dofs are know, i.e., the task is ready, the
-          // tasks is added to the tasks_ready list
-          if (tasks[local_pos].is_ready()==true)
-            tasks_ready.push_back(local_pos);
         }
       }
     }
@@ -749,13 +742,6 @@ void Scheduler<dim,tensor_dim>::receive_angular_flux() const
           const unsigned int buffer_pos(std::get<2>(*global_map_it)[required_dof]);
           tasks[*required_tasks_it].set_required_dof(required_dof,buffer[buffer_pos]);
         }
-
-        // TODO: this may need to be changed. tasks_ready might not be the
-        // best when using CAPPPFBScheduler
-        // If the task has all the required dofs, it goes into the tasks_ready
-        // list
-        if (tasks[*required_tasks_it].is_ready()==true)
-          tasks_ready.push_back(*required_tasks_it);
       }
 
       delete [] buffer;
