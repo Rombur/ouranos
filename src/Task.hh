@@ -70,7 +70,7 @@ class Task
     /// Return true if the task is ready for sweep.
     bool is_ready() const;
 
-    //TODO comment
+    /// Return true if the given task is required by the current task.
     bool is_required(global_id task_id) const;
 
     /// Return the local task ID.
@@ -145,8 +145,10 @@ class Task
     std::vector<std::pair<unsigned int,std::vector<types::global_dof_index>>>
       ::const_iterator get_local_waiting_tasks_cend() const;
 
-    //TODO comment plus change place
+    /// Return a const_iterator to the beginning of the waiting_tasks vector.
     std::vector<task_tuple>::const_iterator get_waiting_tasks_cbegin() const;
+
+    /// Return a const_iterator to the end of the waiting_tasks vector.
     std::vector<task_tuple>::const_iterator get_waiting_tasks_cend() const;
 
     /// Return a pointer to the dofs of the ith element of waiting_tasks.

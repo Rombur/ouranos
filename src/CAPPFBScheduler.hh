@@ -58,6 +58,11 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     Task const* const get_next_task() const override;
 
   private :
+    /// Enum to simplify access to the different elements of the tuple in
+    /// schedule: (pointer to the task, start time of the task, end time of the
+    /// task, rank of the task).
+    enum {TASK,START,END,RANK};
+
     //TODO the initial scheduling may not be optimal. If the vectors where the
     //search are done are too big, the heuristic may be slow.
     /// Create the initial scheduling that will be used as a initial guess.
@@ -79,10 +84,16 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     void backward_iteration();
 
     /// Compute the rank used in the backward iteration.
-    void compute_backward_ranks(std::vector<discrete_time> &ranks);
+    void compute_backward_ranks();
+
+    /// This function returns true if the rank of first if higher than the rank
+    /// of second. If the ranks are identical, the end time of the associated
+    /// task is compared.
+    bool decreasing_rank_comp(std::tuple<Task*,discrete_time,discrete_time,discrete_time> const &first,
+        std::tuple<Task*,discrete_time,discrete_time,discrete_time> const &second);
 
     /// Sort the rank created by compute_backward_ranks in decreasing order.
-    void decreasing_rank_sort(std::vector<discrete_time> &ranks);
+    void decreasing_rank_sort();
 
     /// Schedule the tasks, using the sorted ranks, such that the tasks are
     /// started as last as possible.
@@ -93,7 +104,7 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     void forward_iteration();
 
     /// Compute the rank used in the backward iteration.
-    void compute_forward_ranks(std::vector<discrete_time> &ranks);
+    void compute_forward_ranks();
 
     /// Sort the rank created by compute_forward_ranks in increasing order.
     void forward_sort();
@@ -128,15 +139,21 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
 
     /// Maximum number of CAP-PFB iterations.
     unsigned int max_iter;
+    ///
+    mutable unsigned int schedule_pos;
     /// Tolerance for the convergence of CAP-PFB.
     discrete_time tol;
     /// Global start time of the scheduling.
     discrete_time start_time;
     /// Global end time of the scheduling.
     discrete_time end_time;
-    /// Vector containing the ordered tasks, their start time, and their end
-    /// time.
-    std::vector<std::tuple<Task*,discrete_time,discrete_time>> schedule;
+    /// Best ordering of the tasks. This is the ordering that will be used
+    /// during the sweeping.
+    std::vector<Task*> best_schedule;
+    /// Vector containing the ordered tasks, their start time, their end
+    /// time, and their rank.
+    // TODO this needs to be cleared later on
+    std::vector<std::tuple<Task*,discrete_time,discrete_time,discrete_time>> schedule;
     // TODO This needs to be cleared later on
     /// Map between the local ID of the tasks and the positions in the schedule
     /// vector.

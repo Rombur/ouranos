@@ -7,6 +7,8 @@
 
 #include "CAPPFBScheduler.hh"
 
+#include <algorithm>
+#include <functional>
 
 template <int dim,int tensor_dim>
 CAPPFBScheduler<dim,tensor_dim>::CAPPFBScheduler(RTQuadrature const* quad,
@@ -30,21 +32,42 @@ void CAPPFBScheduler<dim,tensor_dim>::setup(const unsigned int n_levels,
   // - for loop:
   //  - backward iteration (+ save best scheduling)
   //  - forward iteration (+ save best scheduling)
+
+  create_initial_scheduling();
+  const unsigned int n_tasks(schedule.size());
+  std::vector<Task*> best_schedule(n_tasks);
+  //TODO copy task from schedule
+  discrete_time best_schedule_time(end_time-start_time);
+  for (unsigned int i=0; i<max_iter; ++i)
+  {
+    backward_iteration();
+    if (best_schedule_time>(end_time-start_time))
+    {
+      //TODO
+    }
+   // forward_iteration();
+  }
 }
 
 
 template <int dim,int tensor_dim>
 void CAPPFBScheduler<dim,tensor_dim>::start() const
 {
-  // TODO
+  this->n_tasks_to_execute = this->tasks.size();
+  schedule_pos = 0U;
 }
 
 
 template <int dim,int tensor_dim>
 Task const* const CAPPFBScheduler<dim,tensor_dim>::get_next_task() const
 {
-  //TODO
-  return std::get<0>(schedule[0]);
+  const unsigned int next_task_pos(schedule_pos);
+  while (best_schedule[next_task_pos]->is_ready()==false)
+    this->receive_angular_flux();
+
+  ++schedule_pos;
+
+  return best_schedule[next_task_pos];
 }
 
 
@@ -71,8 +94,8 @@ void CAPPFBScheduler<dim,tensor_dim>::create_initial_scheduling()
         for (auto required_task=task.get_required_tasks_cbegin();
             required_task<task.get_required_tasks_cend(); ++required_task)
         {
-          Task::global_id required_task_id(std::get<0>(*required_task),
-              std::get<1>(*required_task));
+          Task::global_id required_task_id(std::get<TASK>(*required_task),
+              std::get<START>(*required_task));
           if (tasks_done.count(required_task_id)==0)
           {
             ready = false;
@@ -87,10 +110,10 @@ void CAPPFBScheduler<dim,tensor_dim>::create_initial_scheduling()
           // Search in the tasks that are not owned by the processor.
           for (auto const & scheduled_task : required_tasks_schedule)
           {
-            const Task::global_id task_id(std::get<0>(scheduled_task));
+            const Task::global_id task_id(std::get<TASK>(scheduled_task));
             if (task.is_required(task_id)==true)
-              if (std::get<1>(scheduled_task)>task_start_time)
-                task_start_time = std::get<1>(scheduled_task);
+              if (std::get<START>(scheduled_task)>task_start_time)
+                task_start_time = std::get<START>(scheduled_task);
           }
 
           // Take the maximum of task_start_time and end_time to be sure that
@@ -98,8 +121,8 @@ void CAPPFBScheduler<dim,tensor_dim>::create_initial_scheduling()
           task_start_time = std::max(task_start_time,end_time);
           // The number of work units is the number of cells in the patch.
           end_time = task_start_time + task.get_sweep_order_size();
-          schedule.push_back(std::tuple<Task*,discrete_time,discrete_time>(&task,
-                task_start_time,end_time));
+          schedule.push_back(std::tuple<Task*,discrete_time,discrete_time,
+              discrete_time>(&task,task_start_time,end_time,0));
           schedule_id_map[task.get_local_id()] = n_tasks_done;
           tasks_done.insert(task.get_global_id());
           ++n_tasks_done;
@@ -172,8 +195,8 @@ void CAPPFBScheduler<dim,tensor_dim>::receive_tasks_done(
       global_map_end(this->global_required_tasks.end());
   for (; global_map_it!=global_map_end; ++global_map_it)
   {
-    types::subdomain_id source(std::get<0>(*global_map_it));
-    unsigned int tag(std::get<1>(*global_map_it));
+    types::subdomain_id source(std::get<TASK>(*global_map_it));
+    unsigned int tag(std::get<START>(*global_map_it));
     int flag;
 
     // Check if we can receive a message
@@ -202,38 +225,37 @@ void CAPPFBScheduler<dim,tensor_dim>::receive_tasks_done(
 template <int dim,int tensor_dim>
 void CAPPFBScheduler<dim,tensor_dim>::backward_iteration()
 {
-  std::vector<discrete_time> ranks(this->tasks.size());
-  compute_backward_ranks(ranks);
-  decreasing_rank_sort(ranks);
+  compute_backward_ranks();
+  decreasing_rank_sort();
   backward_scheduling();
 }
 
 
 template <int dim,int tensor_dim>
-void CAPPFBScheduler<dim,tensor_dim>::compute_backward_ranks(std::vector<discrete_time> &ranks) 
+void CAPPFBScheduler<dim,tensor_dim>::compute_backward_ranks() 
 {
   // We need the updated end times of the tasks required to execute the tasks
   // locally owned.
   std::vector<std::pair<Task::global_id,discrete_time>> required_tasks_schedule;
   build_required_tasks_schedule(required_tasks_schedule);
-  const types::subdomain_id current_subdomain(std::get<0>(schedule[0])->get_subdomain_id());
+  const types::subdomain_id current_subdomain(std::get<TASK>(schedule[0])->get_subdomain_id());
 
   for (auto const & scheduled_task : schedule)
   {
-    const unsigned int current_task_pos(schedule_id_map[std::get<0>(scheduled_task)->get_local_id()]);
-    for (auto required_task=std::get<0>(scheduled_task)->get_required_tasks_cbegin();
-        required_task<std::get<0>(scheduled_task)->get_required_tasks_cend(); ++required_task)
+    const unsigned int current_task_pos(schedule_id_map[std::get<TASK>(scheduled_task)->get_local_id()]);
+    for (auto required_task=std::get<TASK>(scheduled_task)->get_required_tasks_cbegin();
+        required_task<std::get<TASK>(scheduled_task)->get_required_tasks_cend(); ++required_task)
     {
       // Search for the time when the latest required task is finished first
       // among the tasks locally owned and after among the tasks owned by other
       // processors.
-      Task::global_id required_task_id(std::get<0>(*required_task),
-          std::get<1>(*required_task));
+      Task::global_id required_task_id(std::get<TASK>(*required_task),
+          std::get<START>(*required_task));
       discrete_time candidate_time(0);
       if (required_task_id.first==current_subdomain)
       {
         unsigned int pos(schedule_id_map[required_task_id.second]);
-        candidate_time = ranks[pos];
+        candidate_time = std::get<RANK>(schedule[pos]);
       }
       else
       {
@@ -249,56 +271,36 @@ void CAPPFBScheduler<dim,tensor_dim>::compute_backward_ranks(std::vector<discret
         }
       }
 
-      if (candidate_time>ranks[current_task_pos])
-        ranks[current_task_pos] = candidate_time;
+      if (candidate_time>std::get<RANK>(schedule[current_task_pos]))
+        std::get<RANK>(schedule[current_task_pos]) = candidate_time;
     }
   }
 }
 
 
+
 template <int dim,int tensor_dim>
-void CAPPFBScheduler<dim,tensor_dim>::decreasing_rank_sort(std::vector<discrete_time> &ranks)
+bool CAPPFBScheduler<dim,tensor_dim>::decreasing_rank_comp(
+    std::tuple<Task*,discrete_time,discrete_time,discrete_time> const &first,
+    std::tuple<Task*,discrete_time,discrete_time,discrete_time> const &second)
 {
-  // Sort the tasks by decreasing rank
-  const unsigned int n_tasks(ranks.size());
-  for (unsigned int new_pos=0; new_pos<n_tasks; ++new_pos)
-  {
-    std::vector<discrete_time>::iterator max_rank(std::max_element(
-          ranks.begin()+new_pos,ranks.end()));
-    const unsigned int old_pos(max_rank-ranks.begin());
-    // Put the task earlier in the vector.
-    std::swap(ranks[old_pos],ranks[new_pos]);
-    std::swap(schedule[old_pos],schedule[new_pos]);
-  }
+  // Sort the tasks by decreasing rank. The ties are break by looking at the end
+  // time of the end time of the tasks.
+  if (std::get<RANK>(first)!=std::get<RANK>(second))
+    return (std::get<RANK>(first)>std::get<RANK>(second));
+  else
+    return (std::get<END>(first)>std::get<END>(second));
+}
 
-  // Sort the tasks with the same rank
-  unsigned int pos(0);
-  while (pos<n_tasks)
-  {
-    unsigned int end_pos(pos+1);
-    while (ranks[pos]==ranks[end_pos])
-    {
-      end_pos += 1;
-      if (end_pos==n_tasks)
-        break;
-    }
-    const std::vector<std::tuple<Task*,discrete_time,discrete_time>>
-      ::iterator schedule_end_pos(schedule.begin()+end_pos);
-    for (unsigned int new_pos=pos; new_pos<end_pos; ++new_pos)
-    {
-      std::vector<std::tuple<Task*,discrete_time,discrete_time>>
-        ::iterator latest_task(schedule.begin()+new_pos);
-      std::vector<std::tuple<Task*,discrete_time,discrete_time>>
-        ::iterator schedule_it(schedule.begin()+new_pos+1);
-      for (; schedule_it!=schedule_end_pos; ++schedule_it)
-        if (std::get<2>(*latest_task)<std::get<2>(*schedule_it))
-          latest_task = schedule_it;
 
-      const unsigned int old_pos(latest_task-schedule.begin());
-      std::swap(schedule[old_pos],schedule[new_pos]);
-    }
-    pos = end_pos;
-  }
+
+template <int dim,int tensor_dim>
+void CAPPFBScheduler<dim,tensor_dim>::decreasing_rank_sort()
+{
+  // Sort the tasks by decreading rank
+  std::sort(schedule.begin(),schedule.end(),
+      std::bind(&CAPPFBScheduler<dim,tensor_dim>::decreasing_rank_comp,this,
+        std::placeholders::_1,std::placeholders::_2));
 
   // Need to update schedule_id_map since schedule has been reordered
   update_schedule_id_map();
@@ -322,7 +324,7 @@ void CAPPFBScheduler<dim,tensor_dim>::backward_scheduling()
   for (unsigned int i=0; i<n_tasks; ++i)
   {
     discrete_time candidate_time(end_time);
-    Task* task(std::get<0>(schedule[i]));
+    Task* task(std::get<TASK>(schedule[i]));
     const unsigned int n_waiting_tasks(task->get_n_waiting_tasks());
     // Check when the waiting tasks are done. Since this sweep is done backward
     // the waiting tasks needs to be "done" before the task can be executed.
@@ -340,14 +342,14 @@ void CAPPFBScheduler<dim,tensor_dim>::backward_scheduling()
         {
           global_id waiting_task_id(task->get_waiting_tasks_global_id(j));
           // If the waiting task is local, search in schedule
-          if (std::get<0>(waiting_task_id)==task->get_subdomain_id())
+          if (std::get<TASK>(waiting_task_id)==task->get_subdomain_id())
           {
             for (auto const &scheduled_task : schedule)
             {
-              if (waiting_task_id==std::get<0>(scheduled_task)->get_global_id())
+              if (waiting_task_id==std::get<TASK>(scheduled_task)->get_global_id())
               {
-                if (candidate_time>std::get<1>(scheduled_task))
-                  candidate_time = std::get<1>(scheduled_task);
+                if (candidate_time>std::get<START>(scheduled_task))
+                  candidate_time = std::get<START>(scheduled_task);
                 
                 break;
               }
@@ -359,10 +361,10 @@ void CAPPFBScheduler<dim,tensor_dim>::backward_scheduling()
             bool found(false);
             for (auto const & scheduled_waiting_task : waiting_tasks_schedule)
             { 
-              if (waiting_task_id==std::get<0>(scheduled_waiting_task))
+              if (waiting_task_id==std::get<TASK>(scheduled_waiting_task))
               {
-                if (candidate_time>std::get<1>(scheduled_waiting_task))
-                  candidate_time = std::get<1>(scheduled_waiting_task);
+                if (candidate_time>std::get<START>(scheduled_waiting_task))
+                  candidate_time = std::get<START>(scheduled_waiting_task);
                 found = true;
 
                 break;
@@ -399,11 +401,11 @@ void CAPPFBScheduler<dim,tensor_dim>::backward_scheduling()
       idle_processor[candidate_time-i] = false;
 
     // Update the starting and ending time of the task.
-    std::get<2>(schedule[i]) = candidate_time;
-    std::get<1>(schedule[i]) = candidate_time - execution_time;
+    std::get<END>(schedule[i]) = candidate_time;
+    std::get<START>(schedule[i]) = candidate_time - execution_time;
 
     // Send the starting time of the tasks to all the required tasks.
-    send_start_time_required_tasks(*task,std::get<1>(schedule[i]),buffers,
+    send_start_time_required_tasks(*task,std::get<START>(schedule[i]),buffers,
         requests);
     this->free_buffers(buffers,requests);
   }
@@ -419,7 +421,7 @@ void CAPPFBScheduler<dim,tensor_dim>::update_schedule_id_map()
 {
   const unsigned int n_tasks(schedule.size());
   for (unsigned int i=0; i<n_tasks; ++i)
-    schedule_id_map[std::get<0>(schedule[i])->get_local_id()] = i;
+    schedule_id_map[std::get<TASK>(schedule[i])->get_local_id()] = i;
 }
 
 
@@ -440,13 +442,13 @@ void CAPPFBScheduler<dim,tensor_dim>::build_required_tasks_schedule(std::vector<
   for (auto const & scheduled_task : schedule)
   {
     const discrete_time task_local_id = static_cast<discrete_time>(
-        std::get<0>(scheduled_task)->get_local_id());
-    const discrete_time task_end_time(std::get<2>(scheduled_task));
+        std::get<TASK>(scheduled_task)->get_local_id());
+    const discrete_time task_end_time(std::get<END>(scheduled_task));
     const discrete_time_pair task_time(task_local_id,task_end_time);
     std::vector<Task::subdomain_dof_pair>::const_iterator waiting_subdomain_it(
-        std::get<0>(scheduled_task)->get_waiting_subdomains_cbegin());
+        std::get<TASK>(scheduled_task)->get_waiting_subdomains_cbegin());
     const std::vector<Task::subdomain_dof_pair>::const_iterator waiting_subdomain_end(
-        std::get<0>(scheduled_task)->get_waiting_subdomains_cend());
+        std::get<TASK>(scheduled_task)->get_waiting_subdomains_cend());
     for (; waiting_subdomain_it!=waiting_subdomain_end; ++waiting_subdomain_it)
     {
       const types::subdomain_id destination(waiting_subdomain_it->first);
@@ -456,7 +458,7 @@ void CAPPFBScheduler<dim,tensor_dim>::build_required_tasks_schedule(std::vector<
 
   // Send the task IDs and the end times to the waiting processors.
   int tag(0);
-  const types::subdomain_id current_subdomain(std::get<0>
+  const types::subdomain_id current_subdomain(std::get<TASK>
       (schedule[0])->get_subdomain_id());
   std::unordered_map<types::subdomain_id,std::unordered_set<discrete_time_pair,
     boost::hash<discrete_time_pair>>>::const_iterator subdomain_time_map_it(
@@ -496,13 +498,13 @@ void CAPPFBScheduler<dim,tensor_dim>::build_required_tasks_schedule(std::vector<
   for (auto const & scheduled_task : schedule)
   {
     std::vector<Task::task_tuple>::const_iterator required_tasks_it(
-        std::get<0>(scheduled_task)->get_required_tasks_cbegin());
+        std::get<TASK>(scheduled_task)->get_required_tasks_cbegin());
     const std::vector<Task::task_tuple>::const_iterator required_tasks_end(
-        std::get<0>(scheduled_task)->get_required_tasks_cend());
+        std::get<TASK>(scheduled_task)->get_required_tasks_cend());
     for (; required_tasks_it!=required_tasks_end; ++required_tasks_it)
     {
-      types::subdomain_id source(std::get<0>(*required_tasks_it));
-      subdomain_task_map[source].insert(std::get<1>(*required_tasks_it));
+      types::subdomain_id source(std::get<TASK>(*required_tasks_it));
+      subdomain_task_map[source].insert(std::get<START>(*required_tasks_it));
     }
   }
 
@@ -593,10 +595,10 @@ void CAPPFBScheduler<dim,tensor_dim>::receive_start_time_waiting_tasks(
 
   for (; waiting_tasks_it!=waiting_tasks_end; ++waiting_tasks_it)
   {
-    types::subdomain_id source(std::get<0>(*waiting_tasks_it));
+    types::subdomain_id source(std::get<TASK>(*waiting_tasks_it));
     if(source!=current_subdomain)
     {
-      unsigned int tag(std::get<1>(*waiting_tasks_it));
+      unsigned int tag(std::get<START>(*waiting_tasks_it));
       int flag;
 
       // Check if we can receive a message
@@ -612,8 +614,8 @@ void CAPPFBScheduler<dim,tensor_dim>::receive_start_time_waiting_tasks(
         MPI_Recv(buffer,count,MPI_UNSIGNED_LONG_LONG,source,tag,this->mpi_comm,
             MPI_STATUS_IGNORE);
 
-        global_id waiting_tasks_global_id(std::get<0>(*waiting_tasks_it),
-            std::get<1>(*waiting_tasks_it));
+        global_id waiting_tasks_global_id(std::get<TASK>(*waiting_tasks_it),
+            std::get<START>(*waiting_tasks_it));
         waiting_tasks_schedule.push_back(std::pair<Task::global_id,discrete_time>
             (waiting_tasks_global_id,buffer[0]));
 
@@ -639,7 +641,7 @@ void CAPPFBScheduler<dim,tensor_dim>::send_start_time_required_tasks(
 
   for (; required_tasks_it!=required_tasks_end; ++required_tasks_it)
   {
-    types::subdomain_id destination(std::get<0>(*required_tasks_it));
+    types::subdomain_id destination(std::get<TASK>(*required_tasks_it));
 
     if (source!=destination)
     {

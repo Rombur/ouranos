@@ -394,8 +394,6 @@ void Scheduler<dim,tensor_dim>::build_local_waiting_tasks_map(Task &task,
       {
         // If the dof in recv_dof_buffer is in local_dof_indices, the dof is
         // added in the waiting map  .
-        // TODO: this line is very slow because is it executed too many times.
-        // Needs to find sth else.
         if (local_dof_indices.count(recv_dof_buffer[i+3+j])==1)
           dofs.push_back(recv_dof_buffer[i+3+j]);
       }
