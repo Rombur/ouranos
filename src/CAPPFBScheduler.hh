@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Bruno Turcksin.
+/* Copyright (c) 2014-2015, Bruno Turcksin.
  *
  * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
@@ -37,7 +37,6 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     /// used where one unit of time represents one unit of work.
     typedef unsigned long long int discrete_time;
     typedef typename DoFHandler<dim>::active_cell_iterator active_cell_iterator;
-    typedef std::pair<types::subdomain_id,unsigned int> global_id;
 
     /// Constructor. @p max_iter is the maximum number of iterations that the
     /// heuristic will perform, @p tol is the tolerance for convergence.
@@ -63,21 +62,22 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     /// task, rank of the task).
     enum {TASK,START,END,RANK};
 
-    //TODO the initial scheduling may not be optimal. If the vectors where the
-    //search are done are too big, the heuristic may be slow.
     /// Create the initial scheduling that will be used as a initial guess.
     void create_initial_scheduling();
+
+    /// Copy schedule to best_schedule. The flag is true is schedule is a
+    /// forward sweep and false if it is a backward sweep. 
+    void copy_best_schedule(bool forward);
 
     /// Send the end time of the task to the waiting tasks.
     void send_task_done(Task const &task,discrete_time task_end_time,
         std::list<discrete_time*> &buffers,std::list<MPI_Request*> &requests) const;
 
     /// Receive the end time of the task sent by send_tasks_done and add the 
-    /// task to tasks_done and required_tasks_schedule.
+    /// task to tasks_done and required_tasks_end_time.
     void receive_tasks_done(std::unordered_set<Task::global_id,
         boost::hash<Task::global_id>> &tasks_done, 
-        std::vector<std::pair<Task::global_id,discrete_time>>
-        &required_tasks_schedule);
+        std::vector<std::vector<discrete_time>> &required_tasks_end_time);
 
     /// Perform the backward iteration, i.e., try to start every task as late as
     /// possible.
@@ -87,10 +87,10 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     void compute_backward_ranks();
 
     /// This function returns true if the rank of first if higher than the rank
-    /// of second. If the ranks are identical, the end time of the associated
-    /// task is compared.
+    /// of second. If the ranks are identical, the end time of the tasks are 
+    /// compared.
     bool decreasing_rank_comp(std::tuple<Task*,discrete_time,discrete_time,discrete_time> const &first,
-        std::tuple<Task*,discrete_time,discrete_time,discrete_time> const &second);
+        std::tuple<Task*,discrete_time,discrete_time,discrete_time> const &second) const;
 
     /// Sort the rank created by compute_backward_ranks in decreasing order.
     void decreasing_rank_sort();
@@ -106,8 +106,14 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     /// Compute the rank used in the backward iteration.
     void compute_forward_ranks();
 
+    /// This function returns true if the rank of first if lower than the rank
+    /// of second. If the ranks are identical, the start time of the tasks are 
+    //compared.
+    bool increasing_rank_comp(std::tuple<Task*,discrete_time,discrete_time,discrete_time> const &first,
+        std::tuple<Task*,discrete_time,discrete_time,discrete_time> const &second) const;
+
     /// Sort the rank created by compute_forward_ranks in increasing order.
-    void forward_sort();
+    void increasing_rank_sort();
 
     /// Schedule the tasks, using the sorted ranks, such that the tasks are
     /// started as early as possible.
@@ -122,6 +128,12 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     /// tasks.
     void build_required_tasks_schedule(std::vector<std::pair<Task::global_id,
         discrete_time>> &required_tasks_schedule) const;
+    
+    /// Build the waitinf_tasks_schedule vector. The vector contains pair of
+    /// tasks global ID and the start time of taks that are waiting the local
+    /// tasks to be done.
+    void build_waiting_tasks_schedule(std::vector<std::pair<Task::global_id,
+        discrete_time>> &waiting_tasks_schedule) const;
 
     /// Send the start time of the task to the required tasks during the
     /// backward scheduling. In backward scheduling, the sweep is done in
@@ -137,10 +149,21 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     void receive_start_time_waiting_tasks(Task const &task,
         std::vector<std::pair<Task::global_id,discrete_time>> &waiting_tasks_schedule) const;
 
+    /// Send the end time of the task to all the waiting task.
+    void send_end_time_waiting_tasks(Task const &task, discrete_time task_start_time,
+        std::list<discrete_time*> &buffers,std::list<MPI_Request*> &requests) const;
+
+    /// Receive the end time of the required tasks.
+    void receive_end_time_required_tasks(Task const &task,
+        std::vector<std::pair<Task::global_id,discrete_time>> &required_tasks_schedule) const;
+
+    /// Clear schedule and schedule_id_map once they are not used anymore.
+    void clear();
+
     /// Maximum number of CAP-PFB iterations.
     unsigned int max_iter;
-    ///
-    mutable unsigned int schedule_pos;
+    /// Position in best_schedule of the next task to execute.
+    mutable unsigned int next_task_pos;
     /// Tolerance for the convergence of CAP-PFB.
     discrete_time tol;
     /// Global start time of the scheduling.
@@ -152,9 +175,7 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     std::vector<Task*> best_schedule;
     /// Vector containing the ordered tasks, their start time, their end
     /// time, and their rank.
-    // TODO this needs to be cleared later on
     std::vector<std::tuple<Task*,discrete_time,discrete_time,discrete_time>> schedule;
-    // TODO This needs to be cleared later on
     /// Map between the local ID of the tasks and the positions in the schedule
     /// vector.
     std::unordered_map<unsigned int,unsigned int> schedule_id_map;

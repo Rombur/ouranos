@@ -119,6 +119,9 @@ class Task
     /// Return the global ID of the waiting task.
     global_id get_waiting_tasks_global_id(unsigned int i) const;
 
+    /// Return the global ID to the required task.
+    global_id get_required_tasks_global_id(unsigned int i) const;
+
     /// Return the value of the angular flux associated to given dof.
     double get_required_angular_flux(types::global_dof_index dof) const;
 
@@ -208,20 +211,24 @@ class Task
     std::vector<subdomain_dof_pair> incomplete_required_tasks;
 };
 
+
 inline void Task::add_to_waiting_tasks(task_tuple const &tmp_task)
 {
   waiting_tasks.push_back(tmp_task);
 }
+
 
 inline void Task::add_to_waiting_subdomains(subdomain_dof_pair const &waiting_subdomains_dofs)
 {
   waiting_subdomains.push_back(waiting_subdomains_dofs);
 }
 
+
 inline void Task::clear_required_dofs() const
 {
   required_dofs.clear();
 }
+
 
 inline void Task::set_required_dof(types::global_dof_index dof,double value) const
 {
@@ -229,35 +236,42 @@ inline void Task::set_required_dof(types::global_dof_index dof,double value) con
   --n_missing_dofs;
 }
 
+
 inline void Task::set_local_required_dof(types::global_dof_index dof,double value) const
 {
   required_dofs[dof] = value;
 }
 
+
 inline bool Task::is_required(global_id task_id) const
 {
   return ((required_tasks_map.find(task_id)==required_tasks_map.cend()) ? false : true);
 }
-    
+
+
 inline unsigned int Task::get_local_id() const
 {
   return id;
 }
 
+
 inline unsigned int Task::get_idir() const
 {
   return idir;
 }
-    
+
+
 inline unsigned int Task::get_sweep_order_size() const
 {
   return sweep_order.size();
 }
 
+
 inline unsigned int Task::get_incomplete_n_required_tasks() const
 {
   return incomplete_required_tasks.size();
 }
+
 
 inline unsigned int Task::get_waiting_tasks_local_id(unsigned int i) const
 {
@@ -265,17 +279,21 @@ inline unsigned int Task::get_waiting_tasks_local_id(unsigned int i) const
   return std::get<1>(waiting_tasks[i]);
 }
 
+
 inline unsigned int Task::get_waiting_tasks_n_dofs(unsigned int i) const
 {
   AssertIndexRange(i,waiting_tasks.size());
   return std::get<2>(waiting_tasks[i]).size();
 }
 
+
 inline types::subdomain_id Task::get_incomplete_subdomain_id(unsigned int i) const
 {
   AssertIndexRange(i,incomplete_required_tasks.size());
+
   return incomplete_required_tasks[i].first;
 }
+
 
 inline types::subdomain_id Task::get_waiting_tasks_subdomain_id(unsigned int i) const
 {
@@ -283,52 +301,71 @@ inline types::subdomain_id Task::get_waiting_tasks_subdomain_id(unsigned int i) 
   return std::get<0>(waiting_tasks[i]);
 }
 
+
 inline unsigned int Task::get_incomplete_n_dofs(unsigned int i) const
 {
   AssertIndexRange(i,incomplete_required_tasks.size());
   return incomplete_required_tasks[i].second.size();
 }
 
+
 inline unsigned int Task::get_n_waiting_tasks() const
 {
   return waiting_tasks.size();
 }
+
 
 inline unsigned int Task::get_n_required_tasks() const
 {
   return required_tasks.size();
 }
 
+
 inline double Task::get_required_angular_flux(types::global_dof_index dof) const
 {
   return required_dofs[dof];
 }
- 
+
+
 inline types::subdomain_id Task::get_subdomain_id() const
 {
   return subdomain_id;
 }
+
 
 inline Task::global_id Task::get_global_id() const
 {
   return global_id(subdomain_id,id);
 }
 
+
 inline Task::global_id Task::get_waiting_tasks_global_id(unsigned int i) const
 {
   AssertIndexRange(i,waiting_tasks.size());
+
   return global_id(std::get<0>(waiting_tasks[i]),std::get<1>(waiting_tasks[i]));
 }
+
+
+inline Task::global_id Task::get_required_tasks_global_id(unsigned int i) const
+{
+  AssertIndexRange(i,required_tasks.size());
+
+  return global_id(std::get<0>(required_tasks[i]),std::get<1>(required_tasks[i]));
+}
+
 
 inline std::vector<Task::subdomain_dof_pair>::const_iterator Task::get_waiting_subdomains_cbegin() const
 {
   return waiting_subdomains.cbegin();
 }
 
+
 inline std::vector<Task::subdomain_dof_pair>::const_iterator Task::get_waiting_subdomains_cend() const
 {
   return waiting_subdomains.cend();
 }
+
 
 inline std::vector<std::pair<unsigned int,std::vector<types::global_dof_index>>>::const_iterator 
 Task::get_local_waiting_tasks_cbegin() const
@@ -336,21 +373,25 @@ Task::get_local_waiting_tasks_cbegin() const
   return local_waiting_tasks.cbegin();
 }
 
+
 inline std::vector<std::pair<unsigned int,std::vector<types::global_dof_index>>>::const_iterator 
 Task::get_local_waiting_tasks_cend() const
 {
   return local_waiting_tasks.cend();
 }
 
+
 inline std::vector<Task::task_tuple>::const_iterator Task::get_waiting_tasks_cbegin() const
 {
   return waiting_tasks.cbegin();
 }
 
+
 inline std::vector<Task::task_tuple>::const_iterator Task::get_waiting_tasks_cend() const
 {
   return waiting_tasks.cend();
 }
+
 
 inline std::vector<types::global_dof_index> const* Task::get_waiting_tasks_dofs(
     unsigned int i)
@@ -360,20 +401,24 @@ inline std::vector<types::global_dof_index> const* Task::get_waiting_tasks_dofs(
   return &(std::get<2>(waiting_tasks[i]));
 }
 
+
 inline std::vector<Task::task_tuple>::const_iterator Task::get_required_tasks_cbegin() const
 {
   return required_tasks.cbegin();
 }
-    
+
+
 inline std::vector<Task::task_tuple>::const_iterator Task::get_required_tasks_cend() const
 {
   return required_tasks.cend();
 }
 
+
 inline std::vector<unsigned int> const* Task::get_sweep_order() const
 {
   return &sweep_order;
 }
+
 
 inline std::vector<types::global_dof_index> const* Task::get_incomplete_dofs(
     unsigned int i) const
@@ -382,12 +427,14 @@ inline std::vector<types::global_dof_index> const* Task::get_incomplete_dofs(
   return &(incomplete_required_tasks[i].second);
 }
 
+
 inline std::vector<types::global_dof_index>* const 
 Task::get_required_dofs(types::subdomain_id required_subdomain_id,unsigned int required_task_id) const
 {   
   // Dont use iterator because need to do the search twice
   // In map need find because of const
   const unsigned int pos(required_tasks_map.find(global_id (required_subdomain_id,required_task_id))->second);
+
   return const_cast<std::vector<types::global_dof_index>* const> (&(std::get<2>(required_tasks[pos])));
 }
 

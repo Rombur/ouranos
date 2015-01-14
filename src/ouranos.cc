@@ -267,7 +267,8 @@ void output_results(std::string const &filename,unsigned int const n_mom,
 
 int main(int argc,char **argv)
 {  
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc,argv);
+  const unsigned int n_threads(1);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc,argv,n_threads);
 
   try
   {

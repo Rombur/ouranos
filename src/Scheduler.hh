@@ -77,6 +77,13 @@ class Scheduler
     mutable unsigned int n_tasks_to_execute;
     /// Tasks owned by the current processor.
     std::vector<Task> tasks;
+    /// The key of this map is the subdomain_id and the task id of the required
+    /// task, which is on another processor, and the value is a vector of the 
+    /// position of the waiting tasks in the local vector of tasks. Because of 
+    /// the Trilinos interface in Epetra_Operator, ghost_required_tasks is made 
+    /// mutable so it can be can be changed in a const function.
+    mutable std::unordered_map<Task::global_id,std::vector<unsigned int>,
+            boost::hash<Task::global_id>> ghost_required_tasks;
     /// This vector is used to store the position in a received MPI message from
     /// a given task of a given dof. Because of the Trilinos interface in
     /// Epetra_Operator, global_required_tasks is made mutable so it can be
@@ -138,13 +145,6 @@ class Scheduler
     /// Epetra_Operator, local_tasks_map is made mutable so it can be can be 
     /// changed in a const function.
     mutable std::unordered_map<unsigned int,unsigned int> local_tasks_map;
-    /// The key of this map is the subdomain_id and the task id of the required
-    /// task, which is on another processor, and the value is a vector of the 
-    /// position of the waiting tasks in the local vector of tasks. Because of 
-    /// the Trilinos interface in Epetra_Operator, ghost_required_tasks is made 
-    /// mutable so it can be can be changed in a const function.
-    mutable std::unordered_map<Task::global_id,std::vector<unsigned int>,
-            boost::hash<Task::global_id>> ghost_required_tasks;
     /// Pointer to the FECells owned by the current processor.
     std::vector<FECell<dim,tensor_dim>> const* fecell_mesh;
 };

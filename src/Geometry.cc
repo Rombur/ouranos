@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2014, Bruno Turcksin.
+/* Copyright (c) 2013-2015, Bruno Turcksin.
  *
  * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
@@ -12,6 +12,7 @@
 #include "deal.II/grid/grid_generator.h"
 #include "deal.II/grid/tria_accessor.h"
 #include "deal.II/grid/tria_iterator.h"
+
 
 template<int dim>
 Geometry<dim>::Geometry(ConditionalOStream const &pcout,std::string &geometry_filename,
@@ -91,6 +92,7 @@ Geometry<dim>::Geometry(ConditionalOStream const &pcout,std::string &geometry_fi
   // Distribute the degrees of freedom on the DoFHandler
   dof_handler.distribute_dofs(fe);
 }
+
   
 template<int dim>
 void Geometry<dim>::declare_parameters(ParameterHandler &prm)
@@ -108,6 +110,7 @@ void Geometry<dim>::declare_parameters(ParameterHandler &prm)
   prm.declare_entry("Source IDs","0",Patterns::List(Patterns::Integer(0)),
       "Source IDs.");
 }
+
 
 template<int dim>
 void Geometry<dim>::parse_parameters(ParameterHandler &prm,
@@ -137,6 +140,7 @@ void Geometry<dim>::parse_parameters(ParameterHandler &prm,
   source_ids = get_list_uint(input,n_sub);
 }
 
+
 template<int dim>
 std::vector<unsigned int> Geometry<dim>::get_list_uint(std::string &input,
     unsigned int n_elements)
@@ -164,6 +168,7 @@ std::vector<unsigned int> Geometry<dim>::get_list_uint(std::string &input,
   return values;
 }
 
+
 template<int dim>
 std::vector<double> Geometry<dim>::get_list_double(std::string &input,
     unsigned int n_elements)
@@ -190,6 +195,7 @@ std::vector<double> Geometry<dim>::get_list_double(std::string &input,
 
   return values;
 }
+
 
 template <int dim>
 void Geometry<dim>::set_material_src_ids(parallel::distributed::Triangulation<dim> 
