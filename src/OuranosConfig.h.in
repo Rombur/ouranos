@@ -1,0 +1,11 @@
+/* Copyright (c) 2015, Bruno Turcksin.
+ *
+ * This file is subject to the Modified BSD License and may not be distributed
+ * without copyright and license information. Please refer to the file
+ * license.txt for the text and further information on this license.
+ */
+
+#define Ouranos_VERSION_MAJOR @Ouranos_VERSION_MAJOR@
+#define Ouranos_VERSION_MINOR @Ouranos_VERSION_MINOR@
+
+FOUND deal.II @DEAL_II_VERSION@ at @DEAL_II_PATH@
