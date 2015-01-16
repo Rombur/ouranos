@@ -23,7 +23,7 @@ ADD_EXECUTABLE(fecell_test FECell_test.cc)
 DEAL_II_SETUP_TARGET(fecell_test)
 
 ADD_EXECUTABLE(rtmaterialproperties_test RTMaterialProperties_test.cc)
-DEAL_II_SETUP_TARGET(rtmaterialproperties)
+DEAL_II_SETUP_TARGET(rtmaterialproperties_test)
 
 ADD_EXECUTABLE(radiativetransfer_test RadiativeTransfer_test.cc)
 DEAL_II_SETUP_TARGET(radiativetransfer_test)

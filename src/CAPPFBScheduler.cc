@@ -8,7 +8,9 @@
 #include "CAPPFBScheduler.hh"
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
+#include <string>
 
 template <int dim,int tensor_dim>
 CAPPFBScheduler<dim,tensor_dim>::CAPPFBScheduler(RTQuadrature const* quad,
@@ -99,7 +101,7 @@ void CAPPFBScheduler<dim,tensor_dim>::create_initial_scheduling()
         for (auto required_task=task.get_required_tasks_cbegin();
             required_task<task.get_required_tasks_cend(); ++required_task)
         {
-          Task::global_id required_task_id(std::get<0>(*required_task),
+          const Task::global_id required_task_id(std::get<0>(*required_task),
               std::get<1>(*required_task));
           if (tasks_done.count(required_task_id)==0)
           {
@@ -274,7 +276,7 @@ void CAPPFBScheduler<dim,tensor_dim>::compute_backward_ranks()
       discrete_time candidate_time(0);
       if (required_task_id.first==current_subdomain)
       {
-        unsigned int pos(schedule_id_map[required_task_id.second]);
+        const unsigned int pos(schedule_id_map[required_task_id.second]);
         candidate_time = std::get<RANK>(schedule[pos]);
       }
       else
@@ -332,8 +334,13 @@ void CAPPFBScheduler<dim,tensor_dim>::backward_scheduling()
   std::list<MPI_Request*> requests;
 
   // Create a vector that represents the discrete time when the processor is
-  // idle.
-  std::vector<bool> idle_processor(end_time);
+  // idle. We don't want the vector to be too large (small start_time) but we
+  // need to allow the new scheduling to take more time than the current one.
+  int n_procs(0);
+  MPI_Comm_size(this->mpi_comm,&n_procs);
+  end_time += std::sqrt(10*n_procs);
+  discrete_time candidate_start_time(end_time);
+  std::vector<bool> idle_processor(end_time-start_time);
 
   // Tasks that are waiting for the local tasks but are non-local.
   std::vector<std::pair<Task::global_id,discrete_time>> waiting_tasks_schedule;
@@ -348,8 +355,21 @@ void CAPPFBScheduler<dim,tensor_dim>::backward_scheduling()
     if (n_waiting_tasks!=0)
     {
       bool ready(false);
+#ifdef DEBUG
+      double while_start_time(MPI_Wtick());
+#endif
       while (ready==false)
       {
+#ifdef DEBUG
+        double while_current_time(MPI_Wtick());
+        int rank(0);
+        MPI_Comm_rank(this->mpi_comm,&rank);
+        std::string error_message("No improvement in Backward Scheduling during ");
+        error_message += "the last 5 minutes on processor: ";
+        error_message += std::to_string(rank);
+        Assert((while_current_time-while_start_time)<600.,
+            ExcMessage(error_message));
+#endif
         ready = true;
         
         // Receive start time of waiting tasks
@@ -404,7 +424,7 @@ void CAPPFBScheduler<dim,tensor_dim>::backward_scheduling()
       enough_free_time = true;
       for (unsigned int i=0; i<execution_time; ++i)
       {
-        if (idle_processor[candidate_time-i]==false)
+        if (idle_processor[candidate_time-i-start_time]==false)
         {
           candidate_time -= i+1;
           enough_free_time = false;
@@ -415,11 +435,13 @@ void CAPPFBScheduler<dim,tensor_dim>::backward_scheduling()
     }
     // Mark the processor as busy.
     for (unsigned int i=0; i<execution_time; ++i)
-      idle_processor[candidate_time-i] = false;
+      idle_processor[candidate_time-i-start_time] = false;
 
     // Update the start and end time of the task.
     std::get<END>(schedule_elem) = candidate_time;
     std::get<START>(schedule_elem) = candidate_time - execution_time + 1;
+    if (std::get<START>(schedule_elem)<candidate_start_time)
+      candidate_start_time = std::get<START>(schedule_elem);
 
     // Send the start time of the tasks to all the required tasks.
     send_start_time_required_tasks(*task,std::get<START>(schedule_elem),buffers,
@@ -432,6 +454,7 @@ void CAPPFBScheduler<dim,tensor_dim>::backward_scheduling()
     this->free_buffers(buffers,requests);
 
   // Update start time.
+  start_time = candidate_start_time;
   MPI_Allreduce(MPI_IN_PLACE,&start_time,1,MPI_UNSIGNED_LONG_LONG,MPI_MIN,this->mpi_comm);
 }
 
@@ -525,10 +548,14 @@ void CAPPFBScheduler<dim,tensor_dim>::forward_scheduling()
   std::list<discrete_time*> buffers;
   std::list<MPI_Request*> requests;
 
-
   // Create a vector that represents the discrete time when the processor is
-  // idle.
-  std::vector<bool> idle_processor(end_time);
+  // idle. We don't want the vector to be too large (small start_time) but we
+  // need to allow the new scheduling to take more time than the current one.
+  int n_procs(0);
+  MPI_Comm_size(this->mpi_comm,&n_procs);
+  end_time += std::sqrt(10*n_procs);
+  discrete_time candidate_end_time(start_time);
+  std::vector<bool> idle_processor(end_time-start_time);
 
   // Tasks that are required for the local tasks but are non-local.
   std::vector<std::pair<Task::global_id,discrete_time>> required_tasks_schedule;
@@ -542,8 +569,21 @@ void CAPPFBScheduler<dim,tensor_dim>::forward_scheduling()
     if (n_required_tasks!=0)
     {
       bool ready(false);
+#ifdef DEBUG
+      double while_start_time(MPI_Wtick());
+#endif
       while (ready==false)
       {
+#ifdef DEBUG
+        double while_current_time(MPI_Wtick());
+        int rank(0);
+        MPI_Comm_rank(this->mpi_comm,&rank);
+        std::string error_message("No improvement in Forward Scheduling during ");
+        error_message += "the last 5 minutes on processor: ";
+        error_message += std::to_string(rank);
+        Assert((while_current_time-while_start_time)<600.,
+            ExcMessage(error_message));
+#endif
         ready = true;
         // Receive end time of required tasks
         receive_end_time_required_tasks(*task,required_tasks_schedule);
@@ -597,7 +637,7 @@ void CAPPFBScheduler<dim,tensor_dim>::forward_scheduling()
       enough_free_time = true;
       for (unsigned int i=0; i<execution_time; ++i)
       {
-        if (idle_processor[candidate_time+i]==false)
+        if (idle_processor[candidate_time+i-start_time]==false)
         {
           candidate_time += i+1;
           enough_free_time = false;
@@ -608,11 +648,13 @@ void CAPPFBScheduler<dim,tensor_dim>::forward_scheduling()
     }
     // Mark the processor as busy.
     for (unsigned int i=0; i<execution_time; ++i)
-      idle_processor[candidate_time+i] = false;
+      idle_processor[candidate_time+i-start_time] = false;
 
     // Update the start and end time of the task.
     std::get<START>(schedule_elem) = candidate_time;
     std::get<END>(schedule_elem) = candidate_time + execution_time - 1;
+    if (std::get<END>(schedule_elem)<candidate_end_time)
+      candidate_end_time = std::get<END>(schedule_elem);
 
     // Send the end time of the task to all the waiting tasks.
     send_end_time_waiting_tasks(*task,std::get<END>(schedule_elem),buffers,
@@ -625,6 +667,7 @@ void CAPPFBScheduler<dim,tensor_dim>::forward_scheduling()
     this->free_buffers(buffers,requests);
 
   // Update start time.
+  end_time = candidate_end_time;
   MPI_Allreduce(MPI_IN_PLACE,&end_time,1,MPI_UNSIGNED_LONG_LONG,MPI_MAX,this->mpi_comm);
 }
 

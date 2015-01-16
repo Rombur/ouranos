@@ -55,7 +55,7 @@ DEAL_II_INITIALIZE_CACHED_VARIABLES()
 PROJECT(${TARGET})
 
 # Version Number
-SET(Ouranos_VERSION_MAJOR 1)
+SET(Ouranos_VERSION_MAJOR 0)
 SET(Ouranos_VERSION_MINOR 1)
 
 # Create a configure file
