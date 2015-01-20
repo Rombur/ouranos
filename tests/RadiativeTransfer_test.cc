@@ -35,7 +35,7 @@ TEST_CASE("Radiative Transfer (one cell per patch)","Check One-Group Radiative T
 {
   ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
         MPI_COMM_WORLD)==0);
-  std::string parameters_filename("./tests/rt_parameters_single_cell.inp");
+  std::string parameters_filename("rt_parameters_single_cell.inp");
   Parameters parameters(parameters_filename);
   std::string geometry_filename(parameters.get_geometry_filename());
   std::string xs_filename(parameters.get_xs_filename());
@@ -74,7 +74,7 @@ TEST_CASE("Radiative Transfer (one cell per patch)","Check One-Group Radiative T
   TrilinosWrappers::MPI::Vector rhs(flux_moments);
   std::list<double*> buffers;
   std::list<MPI_Request*> requests;
-  scheduler->initialize_scheduling();
+  scheduler->start();
   while (scheduler->get_n_tasks_to_execute()!=0)
   {
     radiative_transfer.sweep(*(scheduler->get_next_task()),buffers,
@@ -165,7 +165,7 @@ TEST_CASE("Radiative Transfer / (multiple cells per patch)","Check One-Group Rad
 {
   ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
         MPI_COMM_WORLD)==0);
-  std::string parameters_filename("./tests/rt_parameters_multiple_cells.inp");
+  std::string parameters_filename("rt_parameters_multiple_cells.inp");
   Parameters parameters(parameters_filename);
   std::string geometry_filename(parameters.get_geometry_filename());
   std::string xs_filename(parameters.get_xs_filename());
@@ -204,7 +204,7 @@ TEST_CASE("Radiative Transfer / (multiple cells per patch)","Check One-Group Rad
   TrilinosWrappers::MPI::Vector rhs(flux_moments);
   std::list<double*> buffers;
   std::list<MPI_Request*> requests;
-  scheduler->initialize_scheduling();
+  scheduler->start();
   while (scheduler->get_n_tasks_to_execute()!=0)
   {
     radiative_transfer.sweep(*(scheduler->get_next_task()),buffers,
@@ -293,9 +293,9 @@ TEST_CASE("Radiative Transfer / (multiple cells per patch)","Check One-Group Rad
 
 int main (int argc, char** argv)
 {
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc,argv);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc,argv,1);
 
-  int result = Catch::Main(argc,argv);
+  int result = Catch::Session().run(argc,argv);
 
   return result;
 }

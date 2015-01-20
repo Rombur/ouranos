@@ -20,7 +20,7 @@ TEST_CASE("Geometry/2D","Check Geometry for 2D")
 {
   ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
         MPI_COMM_WORLD)==0);
-  std::string filename("./tests/geometry_2D.inp");
+  std::string filename("geometry_2D.inp");
   FE_DGQ<2> fe(1);
   Geometry<2> geometry(pcout,filename,fe);
   // Check the number of divisions
@@ -48,7 +48,7 @@ TEST_CASE("Geometry/3D","Check Geometry for 3D")
 {
   ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
         MPI_COMM_WORLD)==0);
-  std::string filename("./tests/geometry_3D.inp");
+  std::string filename("geometry_3D.inp");
   FE_DGQ<3> fe(1);
   Geometry<3> geometry(pcout,filename,fe);
   // Check the number of divisions
@@ -87,9 +87,9 @@ TEST_CASE("Geometry/3D","Check Geometry for 3D")
 
 int main (int argc, char** argv)
 {
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc,argv);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc,argv,1);
 
-  int result = Catch::Main(argc,argv);
+  int result = Catch::Session().run(argc,argv);
 
   return result;
 }

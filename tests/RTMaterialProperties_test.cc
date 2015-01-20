@@ -14,7 +14,7 @@
 
 TEST_CASE("RTMaterialProperties","Check RTMaterialProperties")
 {
-  std::string filename("./tests/rtmaterial_properties.inp");
+  std::string filename("rtmaterial_properties.inp");
   RTMaterialProperties mat_prop(filename,2,3);
 
   // Check the number of materials

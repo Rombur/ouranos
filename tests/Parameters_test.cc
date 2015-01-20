@@ -15,7 +15,7 @@
 
 TEST_CASE("Parameters","Check the parameters handler")
 {                    
-  std::string filename("./tests/parameters.inp");
+  std::string filename("parameters.inp");
   Parameters parameters(filename);
 
   REQUIRE(parameters.get_dimension()==2);

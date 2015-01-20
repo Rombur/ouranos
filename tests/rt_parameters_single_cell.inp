@@ -1,11 +1,11 @@
 set Dimension = 2
 set FE order = 1
-set Geometry file = ./tests/rt_geometry.inp
+set Geometry file = rt_geometry.inp
 set Refinement factor = 0.3
 set Coarsening factor = 0.1
 
 subsection Radiative Transfer parameters
-  set Cross sections file = ./tests/rt_xs.inp
+  set Cross sections file = rt_xs.inp
   set Solver type = GMRES
   set Max outer iterations = 1
   set Max inner iterations = 100
