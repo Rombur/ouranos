@@ -12,7 +12,7 @@
 #include "../src/RTMaterialProperties.hh"
 
 
-TEST_CASE("RTMaterialProperties","Check RTMaterialProperties")
+TEST_CASE("Check RTMaterialProperties","[RTMaterialProperties]")
 {
   std::string filename("rtmaterial_properties.inp");
   RTMaterialProperties mat_prop(filename,2,3);

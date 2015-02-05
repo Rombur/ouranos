@@ -63,10 +63,6 @@ class Task
     /// has been computed by another task.
     void set_required_dof(types::global_dof_index dof,double value) const;
 
-    /// Set the given angular flux value to the given dof index when the value
-    /// has been computed by the current task.
-    void set_local_required_dof(types::global_dof_index dof,double value) const;
-
     /// Return true if the task is ready for sweep.
     bool is_ready() const;
 
@@ -234,12 +230,6 @@ inline void Task::set_required_dof(types::global_dof_index dof,double value) con
 {
   required_dofs[dof] = value;
   --n_missing_dofs;
-}
-
-
-inline void Task::set_local_required_dof(types::global_dof_index dof,double value) const
-{
-  required_dofs[dof] = value;
 }
 
 

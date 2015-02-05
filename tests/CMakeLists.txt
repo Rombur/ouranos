@@ -35,14 +35,14 @@ ADD_CUSTOM_TARGET(tests
   COMMAND cp ${TESTS_DIR}/parameters.inp ${CMAKE_BINARY_DIR}/tests 
   COMMAND cp ${TESTS_DIR}/rtmaterial_properties.inp ${CMAKE_BINARY_DIR}/tests 
   COMMAND cp ${TESTS_DIR}/rt_geometry.inp ${CMAKE_BINARY_DIR}/tests 
-  COMMAND cp ${TESTS_DIR}/rt_parameters_multiple_cells.inp ${CMAKE_BINARY_DIR}/tests 
-  COMMAND cp ${TESTS_DIR}/rt_parameters_single_cell.inp ${CMAKE_BINARY_DIR}/tests 
+  COMMAND cp ${TESTS_DIR}/rt_parameters_multiple_cells_patch.inp ${CMAKE_BINARY_DIR}/tests 
+  COMMAND cp ${TESTS_DIR}/rt_parameters_single_cell_patch.inp ${CMAKE_BINARY_DIR}/tests 
   COMMAND cp ${TESTS_DIR}/rt_xs.inp ${CMAKE_BINARY_DIR}/tests 
   COMMAND ./rtquadrature_test
   COMMAND ./parameters_test
   COMMAND mpirun -np 1 ./geometry_test
   COMMAND ./fecell_test
   COMMAND ./rtmaterialproperties_test
-  COMMAND mpirun -np 3 ./radiativetransfer_test
+  COMMAND mpirun -np 4 ./radiativetransfer_test
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tests
   )

@@ -641,7 +641,8 @@ Scheduler<dim,tensor_dim>::get_task_local_dof_indices(Task &task)
 
 template <int dim,int tensor_dim>
 void Scheduler<dim,tensor_dim>::send_angular_flux(Task const &task,
-    std::list<double*> &buffers,std::list<MPI_Request*> &requests) const
+    std::list<double*> &buffers,std::list<MPI_Request*> &requests,
+    std::unordered_map<types::global_dof_index,double> &angular_flux) const
 {
   std::vector<Task::subdomain_dof_pair>::const_iterator map_it(
       task.get_waiting_subdomains_cbegin());
@@ -661,7 +662,7 @@ void Scheduler<dim,tensor_dim>::send_angular_flux(Task const &task,
       double* buffer = new double [count];
       // Copy the requested dofs to the buffer
       for (int i=0; i<count; ++i)
-        buffer[i] = task.get_required_angular_flux(map_it->second[i]);
+        buffer[i] = angular_flux[map_it->second[i]];
       buffers.push_back(buffer);
       MPI_Request* request = new MPI_Request;
       requests.push_back(request);
@@ -687,7 +688,7 @@ void Scheduler<dim,tensor_dim>::send_angular_flux(Task const &task,
           std::vector<types::global_dof_index>::const_iterator dofs_end(
               waiting_tasks_it->second.cend());
           for (; dofs_it!=dofs_end; ++dofs_it)
-            tasks[local_pos].set_required_dof(*dofs_it,task.get_required_angular_flux(*dofs_it));
+            tasks[local_pos].set_required_dof(*dofs_it,angular_flux[*dofs_it]);
         }
       }
     }

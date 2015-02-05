@@ -13,7 +13,7 @@
 #include "../src/Parameters.hh"
 
 
-TEST_CASE("Parameters","Check the parameters handler")
+TEST_CASE("Check the parameters handler","[Parameters]")
 {                    
   std::string filename("parameters.inp");
   Parameters parameters(filename);

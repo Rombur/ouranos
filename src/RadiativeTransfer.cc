@@ -202,6 +202,7 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
   FullMatrix<double> const* const D2M(quad->get_D2M());
   Vector<double> const* const omega(quad->get_omega(idir));
   std::vector<int> multivector_indices(tensor_dim);
+  std::set<active_cell_iterator> cells_in_task;
   std::unordered_map<types::global_dof_index,double> angular_flux;
  
   // Sweep on the spatial cells of the current task
@@ -260,8 +261,14 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
           neighbor_cell = cell->neighbor(face);
           std::vector<types::global_dof_index> neighbor_dof_indices(tensor_dim);
           neighbor_cell->get_dof_indices(neighbor_dof_indices);
-          for (unsigned int j=0; j<tensor_dim; ++j)
-            psi_cell[j] *= task.get_required_angular_flux(neighbor_dof_indices[j]);
+          // If the neighbor cell is in the current task, get the value from
+          // angular_flux. Otherwise, get the value from required_dofs.
+          if (cells_in_task.count(neighbor_cell)!=0)
+            for (unsigned int j=0; j<tensor_dim; ++j)
+              psi_cell[j] *= angular_flux[neighbor_dof_indices[j]];
+          else
+            for (unsigned int j=0; j<tensor_dim; ++j)
+              psi_cell[j] *= task.get_required_angular_flux(neighbor_dof_indices[j]);
 
           b += (*upwind_matrix)*psi_cell;
         }
@@ -306,19 +313,23 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
         flux_moments[0][mom*n_dofs+multivector_indices[j]] += d2m*x[j];
     }
 
-    // Send the angular flux to the others processors
+    // Store the angular flux
     for (unsigned int j=0; j<tensor_dim; ++j)
     {
 #ifdef DEAL_II_USE_LARGE_INDEX_TYPE
-      task.set_local_required_dof(map->GID64(multivector_indices[j]),x[j]);
+      angular_flux[map->GID64(multivector_indices[j])] = x[j];
 #else
-      task.set_local_required_dof(map->GID(multivector_indices[j]),x[j]);
+      angular_flux[map->GID(multivector_indices[j])] = x[j];
 #endif
     } 
+
+    // Add the cells to the cells of the current task where the angular 
+    // flux has been computed.
+    cells_in_task.insert(cell);
   }
 
   // Send angular_flux to the waiting task
-  scheduler->send_angular_flux(task,buffers,requests);
+  scheduler->send_angular_flux(task,buffers,requests,angular_flux);
 
   // Delete all required_dofs map that is now useless
   task.clear_required_dofs();

@@ -19,35 +19,33 @@ void RandomScheduler<dim,tensor_dim>::start() const
 {
   tasks_ready.clear();
   this->n_tasks_to_execute = this->tasks.size();
-  // Add to the tasks_ready list all the tasks that do not require another
-  // task to start
   for (unsigned int i=0; i<this->n_tasks_to_execute; ++i)
-    if (this->tasks[i].get_n_required_tasks()==0)
-      tasks_ready.push_back(i);
+    tasks_to_execute.push_back(i);
 }
 
 
 template <int dim,int tensor_dim>
 Task const* const RandomScheduler<dim,tensor_dim>::get_next_task() const
 {
-  // If all the required dofs are know, i.e., the task is ready, the
-  // tasks is added to the tasks_ready list
-  for (unsigned int i=0; i<this->n_tasks_to_execute; ++i)
-    if (this->tasks[i].is_ready()==true)
-      tasks_ready.push_back(i);
-
   // If tasks_ready is empty, we need to wait to receive data
   while (this->tasks_ready.size()==0)
   {
     this->receive_angular_flux();
-    for (unsigned int i=0; i<this->n_tasks_to_execute; ++i)
-      if (this->tasks[i].is_ready()==true)
-        tasks_ready.push_back(i);
+    for (auto task_pos=tasks_to_execute.begin(); task_pos!=tasks_to_execute.end(); ++task_pos)
+    {
+      if (this->tasks[*task_pos].is_ready()==true)
+      {
+        tasks_ready.push_back(*task_pos);
+        tasks_to_execute.erase(task_pos);
+        // Need to go back by one otherwise an element is skipped because of ++task_pos.
+        --task_pos;
+      }
+    }
   }
 
   // Pop a task from the tasks_ready list and decrease the number of tasks
   // that are left to execute by
-  --this->n_tasks_to_execute;
+  --(this->n_tasks_to_execute);
   unsigned int i(tasks_ready.front());
   tasks_ready.pop_front();
 

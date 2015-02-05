@@ -50,7 +50,8 @@ class Scheduler
 
     /// Send the angular flux computed in task to all the waiting tasks.
     void send_angular_flux(Task const &task,std::list<double*> &buffers,
-        std::list<MPI_Request*> &requests) const;
+        std::list<MPI_Request*> &requests,
+        std::unordered_map<types::global_dof_index,double> & angular_flux) const;
 
     /// Free the buffers and MPI_Request used to send MPI messages.
     template <typename data_type>

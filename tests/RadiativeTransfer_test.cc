@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014 Bruno Turcksin
+/* Copyright (c) 2013 - 2015 Bruno Turcksin
  *
  * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
@@ -31,11 +31,11 @@
 #include "../src/RandomScheduler.hh"
 
 
-TEST_CASE("Radiative Transfer (one cell per patch)","Check One-Group Radiative Transfer for 2D on 4 processors")
+TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors","[Radiative Transfer][one cell patch]")
 {
   ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
         MPI_COMM_WORLD)==0);
-  std::string parameters_filename("rt_parameters_single_cell.inp");
+  std::string parameters_filename("rt_parameters_single_cell_patch.inp");
   Parameters parameters(parameters_filename);
   std::string geometry_filename(parameters.get_geometry_filename());
   std::string xs_filename(parameters.get_xs_filename());
@@ -161,11 +161,11 @@ TEST_CASE("Radiative Transfer (one cell per patch)","Check One-Group Radiative T
       REQUIRE(std::fabs(flux_moments[i]-solution[i])<1e-3);
 }
 
-TEST_CASE("Radiative Transfer / (multiple cells per patch)","Check One-Group Radiative Transfer for 2D on 4 processors using patches")
+TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using patches","[Radiative Transfer][multiple cells patch]")
 {
   ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
         MPI_COMM_WORLD)==0);
-  std::string parameters_filename("rt_parameters_multiple_cells.inp");
+  std::string parameters_filename("rt_parameters_multiple_cells_patch.inp");
   Parameters parameters(parameters_filename);
   std::string geometry_filename(parameters.get_geometry_filename());
   std::string xs_filename(parameters.get_xs_filename());

@@ -15,6 +15,7 @@ Task::Task(unsigned int idir,unsigned int id,types::subdomain_id subdomain_id,
   idir(idir),
   id(id),
   n_required_dofs(0),
+  n_missing_dofs(0),
   subdomain_id(subdomain_id),
   sweep_order(sweep_order),
   incomplete_required_tasks(incomplete_required_tasks)

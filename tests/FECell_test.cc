@@ -20,7 +20,7 @@
 #include "../src/FECell.hh"
 
 
-TEST_CASE("FECell/one cell","Check FECell on one cell")
+TEST_CASE("Check FECell on one cell","[FECell][one cell]")
 {
   Triangulation<2> triangulation;
   FE_DGQ<2> fe(1);
@@ -188,7 +188,7 @@ TEST_CASE("FECell/one cell","Check FECell on one cell")
   }
 }
 
-TEST_CASE("FECell/two cells","Check FECell on multicell triangulation")
+TEST_CASE("Check FECell on multiple cells triangulation","[FECELL][multiple cells]")
 {
   Triangulation<2> triangulation;
   FE_DGQ<2> fe(1);
