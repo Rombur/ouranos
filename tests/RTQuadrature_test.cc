@@ -18,7 +18,7 @@
 
 // is_most_normal_direction
 
-TEST_CASE("Check LS quadrature","[RTQuadrature][LS]")
+TEST_CASE("Check LS quadrature","[LS]")
 {
   unsigned int n_dir(12);
   const double four_pi(4.*M_PI);
@@ -121,7 +121,7 @@ TEST_CASE("Check LS quadrature","[RTQuadrature][LS]")
     }
 }
 
-TEST_CASE("Check GLC quadrature","[RTQuadrature][GLC]")
+TEST_CASE("Check GLC quadrature","[GLC]")
 {
   unsigned int n_dir(12);
   unsigned int n_mom(15);

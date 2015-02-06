@@ -8,7 +8,6 @@
 #ifndef _RANDOMSCHEDULER_HH_
 #define _RANDOMSCHEDULER_HH_
 
-#include <deque>
 #include <list>
 #include "Scheduler.hh"
 #include "Task.hh"
@@ -43,7 +42,7 @@ class RandomScheduler : public Scheduler<dim,tensor_dim>
     /// List of tasks that are not in the task_ready list and that have not 
     /// been executed yet. Because of the Trilinos interface in Epetra_Operator, 
     /// tasks_ready is made mutable so it can be changed in a const function.
-    mutable std::deque<unsigned int> tasks_to_execute;
+    mutable std::list<unsigned int> tasks_to_execute;
 };
 
 #endif

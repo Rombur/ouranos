@@ -14,10 +14,9 @@
 
 template <int dim,int tensor_dim>
 CAPPFBScheduler<dim,tensor_dim>::CAPPFBScheduler(RTQuadrature const* quad,
-    Epetra_MpiComm const* comm,unsigned int max_iter,discrete_time tol) :
+    Epetra_MpiComm const* comm,unsigned int max_iter) :
   Scheduler<dim,tensor_dim>(quad,comm),
   max_iter(max_iter),
-  tol(tol),
   start_time(0)
 {}
 

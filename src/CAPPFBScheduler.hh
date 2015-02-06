@@ -39,9 +39,9 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     typedef typename DoFHandler<dim>::active_cell_iterator active_cell_iterator;
 
     /// Constructor. @p max_iter is the maximum number of iterations that the
-    /// heuristic will perform, @p tol is the tolerance for convergence.
+    /// heuristic will perform.
     CAPPFBScheduler(RTQuadrature const* quad,Epetra_MpiComm const* comm,
-        unsigned int max_iter,discrete_time tol);
+        unsigned int max_iter);
 
     /// Build patches of cells that will be sweep on, compute the sweep ordering
     /// on each of these patches, and finally build the tasks used in the sweep.
@@ -164,8 +164,6 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     unsigned int max_iter;
     /// Position in best_schedule of the next task to execute.
     mutable unsigned int next_task_pos;
-    /// Tolerance for the convergence of CAP-PFB.
-    discrete_time tol;
     /// Global start time of the scheduling.
     discrete_time start_time;
     /// Global end time of the scheduling.

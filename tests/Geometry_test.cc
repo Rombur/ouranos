@@ -16,7 +16,7 @@
 #include "../src/Geometry.hh"
 
 
-TEST_CASE("Check Geometry in 2D","[Geometry][2D]")
+TEST_CASE("Check Geometry in 2D","[2D]")
 {
   ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
         MPI_COMM_WORLD)==0);
@@ -44,7 +44,7 @@ TEST_CASE("Check Geometry in 2D","[Geometry][2D]")
   REQUIRE(geometry.get_source_ids(1,2)==0);
 }
 
-TEST_CASE("Check Geometry in 3D","[Geometry][3D]")
+TEST_CASE("Check Geometry in 3D","[3D]")
 {
   ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
         MPI_COMM_WORLD)==0);

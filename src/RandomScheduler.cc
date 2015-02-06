@@ -31,15 +31,16 @@ Task const* const RandomScheduler<dim,tensor_dim>::get_next_task() const
   while (this->tasks_ready.size()==0)
   {
     this->receive_angular_flux();
-    for (auto task_pos=tasks_to_execute.begin(); task_pos!=tasks_to_execute.end(); ++task_pos)
+    auto task_pos=tasks_to_execute.begin();
+    while (task_pos!=tasks_to_execute.end())
     {
       if (this->tasks[*task_pos].is_ready()==true)
       {
         tasks_ready.push_back(*task_pos);
-        tasks_to_execute.erase(task_pos);
-        // Need to go back by one otherwise an element is skipped because of ++task_pos.
-        --task_pos;
+        task_pos = tasks_to_execute.erase(task_pos);
       }
+      else
+        ++task_pos;
     }
   }
 

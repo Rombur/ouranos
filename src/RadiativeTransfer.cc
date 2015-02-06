@@ -43,6 +43,7 @@ RadiativeTransfer<dim,tensor_dim>::RadiativeTransfer(unsigned int n_groups,
     scattering_source[i] = new Vector<double>(dof_handler->n_locally_owned_dofs());
 }
 
+
 template <int dim,int tensor_dim>
 RadiativeTransfer<dim,tensor_dim>::~RadiativeTransfer()
 {
@@ -53,6 +54,7 @@ RadiativeTransfer<dim,tensor_dim>::~RadiativeTransfer()
       scattering_source[i] = nullptr;
     }
 }
+
 
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::setup()
@@ -88,6 +90,7 @@ void RadiativeTransfer<dim,tensor_dim>::setup()
   scheduler->setup(parameters->get_n_levels_patch(),&fecell_mesh,cell_to_fecell_map);
 }
 
+
 template <int dim,int tensor_dim>
 int RadiativeTransfer<dim,tensor_dim>::Apply(Epetra_MultiVector const &x,
     Epetra_MultiVector &y) const
@@ -118,9 +121,10 @@ int RadiativeTransfer<dim,tensor_dim>::Apply(Epetra_MultiVector const &x,
 
   for (int i=0; i<y.MyLength(); ++i)
     y[0][i] = z[0][i]-y[0][i];
-
+  
   return 0;
 }
+
 
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::compute_scattering_source(
@@ -156,6 +160,7 @@ void RadiativeTransfer<dim,tensor_dim>::compute_scattering_source(
   }
 }
 
+
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::compute_outer_scattering_source( 
     Tensor<1,tensor_dim> &b,std::vector<TrilinosWrappers::MPI::Vector> const* const 
@@ -188,6 +193,7 @@ void RadiativeTransfer<dim,tensor_dim>::compute_outer_scattering_source(
     }
   }
 }
+
 
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
@@ -312,7 +318,7 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
       for (unsigned int j=0; j<tensor_dim; ++j)
         flux_moments[0][mom*n_dofs+multivector_indices[j]] += d2m*x[j];
     }
-
+    
     // Store the angular flux
     for (unsigned int j=0; j<tensor_dim; ++j)
     {
@@ -335,6 +341,7 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
   task.clear_required_dofs();
 }
 
+
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::get_multivector_indices(
     std::vector<int> &dof_indices,
@@ -346,6 +353,7 @@ void RadiativeTransfer<dim,tensor_dim>::get_multivector_indices(
     dof_indices[i] = map->LID(static_cast<TrilinosWrappers::types::int_type>
         (local_dof_indices[i]));
 }
+
   
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::LU_decomposition(
@@ -387,6 +395,7 @@ void RadiativeTransfer<dim,tensor_dim>::LU_decomposition(
         A[i][j] -= A[i][k]*A[k][j];
   }
 }
+
 
 template <int dim,int tensor_dim>
 void RadiativeTransfer<dim,tensor_dim>::LU_solve(Tensor<2,tensor_dim> const &A,
