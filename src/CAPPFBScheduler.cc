@@ -14,11 +14,15 @@
 
 template <int dim,int tensor_dim>
 CAPPFBScheduler<dim,tensor_dim>::CAPPFBScheduler(RTQuadrature const* quad,
-    Epetra_MpiComm const* comm,unsigned int max_iter) :
-  Scheduler<dim,tensor_dim>(quad,comm),
+    Epetra_MpiComm const* comm,ConditionalOStream const &pcout,
+    unsigned int max_iter) :
+  Scheduler<dim,tensor_dim>(quad,comm,pcout),
   max_iter(max_iter),
-  start_time(0)
-{}
+  start_time(0),
+  end_time(0)
+{
+  this->pcout<<"CAP-PFB Scheduler constructed."<<std::endl;
+}
 
 
 template <int dim,int tensor_dim>
@@ -30,6 +34,8 @@ void CAPPFBScheduler<dim,tensor_dim>::setup(const unsigned int n_levels,
 
   // Create the initial scheduling used as guess.
   create_initial_scheduling();
+  this->pcout<<"Initial sweep: Time need to sweep through the mesh: "
+    <<end_time-start_time<<std::endl;
 
   // Iterate for a given number of iterations.
   const unsigned int n_tasks(schedule.size());
@@ -39,18 +45,25 @@ void CAPPFBScheduler<dim,tensor_dim>::setup(const unsigned int n_levels,
   for (unsigned int i=0; i<max_iter; ++i)
   {
     backward_iteration();
+    this->pcout<<"Backward sweep: Time need to sweep through the mesh: "
+      <<end_time-start_time<<std::endl;
     if (best_schedule_time>(end_time-start_time))
     {
       best_schedule_time = end_time-start_time;
       copy_best_schedule(false);
     }
     forward_iteration();
+    this->pcout<<"Forward sweep: Time need to sweep through the mesh: "
+      <<end_time-start_time<<std::endl;
     if (best_schedule_time>(end_time-start_time))
     {
       best_schedule_time = end_time-start_time;
       copy_best_schedule(true);
     }
   }
+
+  this->pcout<<"Best sweep: Time need to sweep through the mesh: "
+    <<end_time-start_time<<std::endl;
 
   // Clear schedule and schedule_id_map.
   clear();
@@ -71,9 +84,13 @@ Task const* const CAPPFBScheduler<dim,tensor_dim>::get_next_task() const
   while (best_schedule[next_task_pos]->is_ready()==false)
     this->receive_angular_flux();
 
+  // Decrease the number of tasks that are left to be executed by the current
+  // processor.
+  --(this->n_tasks_to_execute);
+
   ++next_task_pos;
 
-  return best_schedule[next_task_pos];
+  return best_schedule[next_task_pos-1];
 }
 
 
@@ -114,9 +131,9 @@ void CAPPFBScheduler<dim,tensor_dim>::create_initial_scheduling()
         {
           discrete_time task_start_time(0);
           // Search in the tasks that are not owned by the processor.
-          for (auto const & end_time : required_tasks_end_time[task.get_local_id()])
-            if (end_time>task_start_time)
-              task_start_time = end_time;
+          for (auto const & task_end_time : required_tasks_end_time[task.get_local_id()])
+            if (task_end_time>task_start_time)
+              task_start_time = task_end_time;
 
           // Take the maximum of task_start_time and end_time to be sure that
           // the processor is idle long enough.
@@ -134,11 +151,11 @@ void CAPPFBScheduler<dim,tensor_dim>::create_initial_scheduling()
           send_task_done(task,end_time,buffers,requests);
         }
       }
-      // Check if some tasks required have been executed by others processors
-      // and free usunused buffers.
-      receive_tasks_done(tasks_done,required_tasks_end_time);
-      this->free_buffers(buffers,requests);
     }
+    // Check if some tasks required have been executed by others processors
+    // and free usunused buffers.
+    receive_tasks_done(tasks_done,required_tasks_end_time);
+    this->free_buffers(buffers,requests);
   }
   // Free all the buffers left.
   while (buffers.size()!=0)
@@ -339,7 +356,7 @@ void CAPPFBScheduler<dim,tensor_dim>::backward_scheduling()
   MPI_Comm_size(this->mpi_comm,&n_procs);
   end_time += std::sqrt(10*n_procs);
   discrete_time candidate_start_time(end_time);
-  std::vector<bool> idle_processor(end_time-start_time);
+  std::vector<bool> idle_processor(end_time-start_time,true);
 
   // Tasks that are waiting for the local tasks but are non-local.
   std::vector<std::pair<Task::global_id,discrete_time>> waiting_tasks_schedule;
@@ -438,7 +455,7 @@ void CAPPFBScheduler<dim,tensor_dim>::backward_scheduling()
 
     // Update the start and end time of the task.
     std::get<END>(schedule_elem) = candidate_time;
-    std::get<START>(schedule_elem) = candidate_time - execution_time + 1;
+    std::get<START>(schedule_elem) = candidate_time - execution_time;
     if (std::get<START>(schedule_elem)<candidate_start_time)
       candidate_start_time = std::get<START>(schedule_elem);
 
@@ -554,7 +571,7 @@ void CAPPFBScheduler<dim,tensor_dim>::forward_scheduling()
   MPI_Comm_size(this->mpi_comm,&n_procs);
   end_time += std::sqrt(10*n_procs);
   discrete_time candidate_end_time(start_time);
-  std::vector<bool> idle_processor(end_time-start_time);
+  std::vector<bool> idle_processor(end_time-start_time,true);
 
   // Tasks that are required for the local tasks but are non-local.
   std::vector<std::pair<Task::global_id,discrete_time>> required_tasks_schedule;
@@ -651,8 +668,8 @@ void CAPPFBScheduler<dim,tensor_dim>::forward_scheduling()
 
     // Update the start and end time of the task.
     std::get<START>(schedule_elem) = candidate_time;
-    std::get<END>(schedule_elem) = candidate_time + execution_time - 1;
-    if (std::get<END>(schedule_elem)<candidate_end_time)
+    std::get<END>(schedule_elem) = candidate_time + execution_time;
+    if (std::get<END>(schedule_elem)>candidate_end_time)
       candidate_end_time = std::get<END>(schedule_elem);
 
     // Send the end time of the task to all the waiting tasks.

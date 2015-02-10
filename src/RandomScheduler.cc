@@ -9,9 +9,11 @@
 
 template <int dim,int tensor_dim>
 RandomScheduler<dim,tensor_dim>::RandomScheduler(RTQuadrature const* quad,
-    Epetra_MpiComm const* comm) :
-  Scheduler<dim,tensor_dim>(quad,comm)
-{}
+    Epetra_MpiComm const* comm,ConditionalOStream const &pcout) :
+  Scheduler<dim,tensor_dim>(quad,comm,pcout)
+{
+  this->pcout<<"Random Scheduler constructed."<<std::endl;
+}
 
 
 template <int dim,int tensor_dim>
@@ -45,7 +47,7 @@ Task const* const RandomScheduler<dim,tensor_dim>::get_next_task() const
   }
 
   // Pop a task from the tasks_ready list and decrease the number of tasks
-  // that are left to execute by
+  // that are left to be executed by the current processor.
   --(this->n_tasks_to_execute);
   unsigned int i(tasks_ready.front());
   tasks_ready.pop_front();

@@ -14,6 +14,7 @@
 #include <utility>
 #include "boost/functional/hash/hash.hpp"
 #include "Epetra_Comm.h"
+#include "deal.II/base/conditional_ostream.h"
 #include "deal.II/base/exceptions.h"
 #include "deal.II/dofs/dof_handler.h"
 #include "FECell.hh"
@@ -34,7 +35,8 @@ class Scheduler
     typedef typename DoFHandler<dim>::active_cell_iterator active_cell_iterator;
 
     /// Constructor. 
-    Scheduler(RTQuadrature const* quad,Epetra_MpiComm const* comm);
+    Scheduler(RTQuadrature const* quad,Epetra_MpiComm const* comm,
+        ConditionalOStream const &pcout);
 
     /// Destructor.
     virtual ~Scheduler() {};
@@ -72,6 +74,9 @@ class Scheduler
     Epetra_MpiComm const* comm;
     /// MPI communicator.
     MPI_Comm mpi_comm;
+    /// Conditional output stream. This allows to have only one processor do
+    /// the output.
+    ConditionalOStream pcout;
     /// Number of tasks left to execute. Because of the Trilinos interface
     /// in Epetra_Operator, n_tasks_to_execute is made mutable so it
     /// can be changed in a const function.

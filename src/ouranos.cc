@@ -337,7 +337,7 @@ int main(int argc,char **argv)
           {
             //TODO: use a factory function which return a shared_ptr
             std::shared_ptr<Scheduler<2,4>> scheduler(
-                new RandomScheduler<2,4> (quad,&comm));
+                new RandomScheduler<2,4> (quad,&comm,pcout));
             RadiativeTransfer<2,4> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map,scheduler);
@@ -347,7 +347,7 @@ int main(int argc,char **argv)
         case 2 :
           {
             std::shared_ptr<Scheduler<2,9>> scheduler(
-                new RandomScheduler<2,9> (quad,&comm));
+                new RandomScheduler<2,9> (quad,&comm,pcout));
             RadiativeTransfer<2,9> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map,scheduler);
@@ -357,7 +357,7 @@ int main(int argc,char **argv)
         case 3 :
           {
             std::shared_ptr<Scheduler<2,16>> scheduler(
-                new RandomScheduler<2,16> (quad,&comm));
+                new RandomScheduler<2,16> (quad,&comm,pcout));
             RadiativeTransfer<2,16> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map,scheduler);
@@ -367,7 +367,7 @@ int main(int argc,char **argv)
         case 4 :
           {
             std::shared_ptr<Scheduler<2,25>> scheduler(
-                new RandomScheduler<2,25> (quad,&comm));
+                new RandomScheduler<2,25> (quad,&comm,pcout));
             RadiativeTransfer<2,25> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map,scheduler);
@@ -377,7 +377,7 @@ int main(int argc,char **argv)
         case 5 :
           {
             std::shared_ptr<Scheduler<2,36>> scheduler(
-                new RandomScheduler<2,36> (quad,&comm));
+                new RandomScheduler<2,36> (quad,&comm,pcout));
             RadiativeTransfer<2,36> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map,scheduler);
@@ -445,7 +445,7 @@ int main(int argc,char **argv)
         case 1 :
           {
             std::shared_ptr<Scheduler<3,8>> scheduler(
-                new RandomScheduler<3,8> (quad,&comm));
+                new RandomScheduler<3,8> (quad,&comm,pcout));
             RadiativeTransfer<3,8> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map,scheduler);
@@ -455,7 +455,7 @@ int main(int argc,char **argv)
         case 2 :
           {
             std::shared_ptr<Scheduler<3,27>> scheduler(
-                new RandomScheduler<3,27> (quad,&comm));
+                new RandomScheduler<3,27> (quad,&comm,pcout));
             RadiativeTransfer<3,27> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map,scheduler);
@@ -465,7 +465,7 @@ int main(int argc,char **argv)
         case 3 :
           {
             std::shared_ptr<Scheduler<3,64>> scheduler(
-                new RandomScheduler<3,64> (quad,&comm));
+                new RandomScheduler<3,64> (quad,&comm,pcout));
             RadiativeTransfer<3,64> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map,scheduler);
@@ -475,7 +475,7 @@ int main(int argc,char **argv)
         case 4 :
           {
             std::shared_ptr<Scheduler<3,125>> scheduler(
-                new RandomScheduler<3,125> (quad,&comm));
+                new RandomScheduler<3,125> (quad,&comm,pcout));
             RadiativeTransfer<3,125> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map,scheduler);
@@ -485,7 +485,7 @@ int main(int argc,char **argv)
         case 5 :
           {
             std::shared_ptr<Scheduler<3,216>> scheduler(
-                new RandomScheduler<3,216> (quad,&comm));
+                new RandomScheduler<3,216> (quad,&comm,pcout));
             RadiativeTransfer<3,216> radiative_transfer(parameters.get_n_groups(),
                 n_dofs,&fe,geometry.get_triangulation(),dof_handler,&parameters,
                 quad,&material_properties,&comm,&map,scheduler);

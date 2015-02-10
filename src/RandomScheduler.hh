@@ -26,7 +26,8 @@ class RandomScheduler : public Scheduler<dim,tensor_dim>
 {
   public : 
     /// Constructor.
-    RandomScheduler(RTQuadrature const* quad,Epetra_MpiComm const* comm);
+    RandomScheduler(RTQuadrature const* quad,Epetra_MpiComm const* comm,
+        ConditionalOStream const &pcout);
 
     /// Get the scheduler ready to process tasks.
     void start() const override;

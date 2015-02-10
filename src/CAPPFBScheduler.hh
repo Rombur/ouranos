@@ -41,7 +41,7 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     /// Constructor. @p max_iter is the maximum number of iterations that the
     /// heuristic will perform.
     CAPPFBScheduler(RTQuadrature const* quad,Epetra_MpiComm const* comm,
-        unsigned int max_iter);
+        ConditionalOStream const &pcout,unsigned int max_iter);
 
     /// Build patches of cells that will be sweep on, compute the sweep ordering
     /// on each of these patches, and finally build the tasks used in the sweep.

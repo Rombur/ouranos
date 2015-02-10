@@ -10,9 +10,11 @@
 #include "mpi.h"
 
 template <int dim,int tensor_dim>
-Scheduler<dim,tensor_dim>::Scheduler(RTQuadrature const* quad,Epetra_MpiComm const* comm) :
+Scheduler<dim,tensor_dim>::Scheduler(RTQuadrature const* quad,Epetra_MpiComm const* comm,
+    ConditionalOStream const &pcout) :
   comm(comm),
   mpi_comm(comm->GetMpiComm()),
+  pcout(pcout),
   quad(quad)
 {}
 

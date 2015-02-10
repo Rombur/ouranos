@@ -59,7 +59,7 @@ TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using the r
   Epetra_Map map(index_set.make_trilinos_map());
 
   // Create the scheduler.
-  std::shared_ptr<Scheduler<2,4>> scheduler(new RandomScheduler<2,4> (&quad,&comm));
+  std::shared_ptr<Scheduler<2,4>> scheduler(new RandomScheduler<2,4> (&quad,&comm,pcout));
 
   // Create the RadiativeTransfer object
   RadiativeTransfer<2,4> radiative_transfer(1,dof_handler->n_dofs(),&fe,
@@ -190,7 +190,7 @@ TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using patch
   Epetra_Map map(index_set.make_trilinos_map());
 
   // Create the scheduler.
-  std::shared_ptr<Scheduler<2,4>> scheduler(new RandomScheduler<2,4> (&quad,&comm));
+  std::shared_ptr<Scheduler<2,4>> scheduler(new RandomScheduler<2,4> (&quad,&comm,pcout));
 
   // Create the RadiativeTransfer object
   RadiativeTransfer<2,4> radiative_transfer(1,dof_handler->n_dofs(),&fe,
@@ -322,7 +322,7 @@ TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using the C
 
   // Create the scheduler.
   unsigned int max_iter(4);
-  std::shared_ptr<Scheduler<2,4>> scheduler(new CAPPFBScheduler<2,4> (&quad,&comm,max_iter));
+  std::shared_ptr<Scheduler<2,4>> scheduler(new CAPPFBScheduler<2,4> (&quad,&comm,pcout,max_iter));
 
   // Create the RadiativeTransfer object
   RadiativeTransfer<2,4> radiative_transfer(1,dof_handler->n_dofs(),&fe,
@@ -454,7 +454,7 @@ TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using patch
 
   // Create the scheduler.
   unsigned int max_iter(4);
-  std::shared_ptr<Scheduler<2,4>> scheduler(new CAPPFBScheduler<2,4> (&quad,&comm,max_iter));
+  std::shared_ptr<Scheduler<2,4>> scheduler(new CAPPFBScheduler<2,4> (&quad,&comm,pcout,max_iter));
 
   // Create the RadiativeTransfer object
   RadiativeTransfer<2,4> radiative_transfer(1,dof_handler->n_dofs(),&fe,
