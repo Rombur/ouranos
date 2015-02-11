@@ -27,6 +27,7 @@ RTQuadrature::RTQuadrature(unsigned int sn_,unsigned int L_max_,bool galerkin_) 
   D2M.reinit(n_mom,n_dir);
 }
 
+
 void RTQuadrature::build_quadrature(const double weight_sum,const unsigned int dim)
 {
   // Galerkin quadrature is implemented only for 2D triangular quadratures.
@@ -57,6 +58,7 @@ void RTQuadrature::build_quadrature(const double weight_sum,const unsigned int d
   // Compute the most normal directions
   compute_most_normal_directions(dim);
 }
+
 
 void RTQuadrature::deploy_octant()
 {
@@ -96,6 +98,7 @@ void RTQuadrature::deploy_octant()
       weight[i] *= 0.25/sum_weight; 
   }
 }
+
 
 void RTQuadrature::compute_harmonics(const double weight_sum)
 {
@@ -199,6 +202,7 @@ void RTQuadrature::compute_harmonics(const double weight_sum)
     }
   }
 }
+
 
 void RTQuadrature::compute_most_normal_directions(const unsigned int dim)
 {

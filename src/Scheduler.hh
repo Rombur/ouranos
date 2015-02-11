@@ -155,6 +155,7 @@ class Scheduler
     std::vector<FECell<dim,tensor_dim>> const* fecell_mesh;
 };
 
+
 template <int dim,int tensor_dim>
 inline unsigned int Scheduler<dim,tensor_dim>::get_n_tasks_to_execute() const
 {

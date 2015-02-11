@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Bruno Turcksin.
+/* Copyright (c) 2013 - 2015, Bruno Turcksin.
  *
  * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
@@ -37,8 +37,6 @@ void Parameters::declare_parameters(ParameterHandler &prm)
       "Name of the geometry file.");
   prm.declare_entry("Number of refinements","0",Patterns::Integer(0),
       "Number of refinement cycles used for AMR.");
-  prm.declare_entry("Patch level","0",Patterns::Integer(0),
-      "Number of levels of cells to go up when creating the patches.");
   prm.declare_entry("Refinement factor","0.",Patterns::Double(0.,1.),
       "Refinement factor used for AMR.");
   prm.declare_entry("Coarsening factor","0.",Patterns::Double(0.,1.),
@@ -66,6 +64,12 @@ void Parameters::declare_parameters(ParameterHandler &prm)
         "Sum of the weight of the quadrature.");
     prm.declare_entry("Galerkin","false",Patterns::Bool(),
         "Flag for Galerkin quadrature.");
+    prm.declare_entry("Scheduler type","RANDOM",Patterns::Selection("RANDOM|CAP-PFB"),
+        "Type of scheduler (RANDOM or CAP-PFB)");
+    prm.declare_entry("Max CAP-PFB iterations","1",Patterns::Integer(1),
+        "Maximum number of CAP-PFB iterations.");
+    prm.declare_entry("Patch level","0",Patterns::Integer(0),
+        "Number of levels of cells to go up when creating the patches.");
     prm.declare_entry("Xmin BC","vacuum",
         Patterns::Selection("vacuum|isotropic|most normal|reflective"),
         "Boundary condition for the face with the smallest x.");
@@ -112,7 +116,6 @@ void Parameters::parse_parameters(ParameterHandler &prm)
   fe_order = prm.get_integer("FE order");
   geometry_filename = prm.get("Geometry file");
   n_refinements = prm.get_integer("Number of refinements");
-  n_levels = prm.get_integer("Patch level");
   refinement_factor = prm.get_double("Refinement factor");
   coarsening_factor = prm.get_double("Coarsening factor");
   output_filename = prm.get("Output file");
@@ -161,6 +164,17 @@ void Parameters::parse_parameters(ParameterHandler &prm)
     }
 
     galerkin = prm.get_bool("Galerkin");
+
+    input = prm.get("Scheduler type");
+    if (input.compare("CAP-PFB")==0)
+    {
+      scheduler_type = CAP_PFB;
+      max_cappfb_it = prm.get_double("Max CAP-PFB iterations");
+    }
+    else
+      scheduler_type = RANDOM;
+
+    n_levels = prm.get_integer("Patch level");
 
     bc_type.resize(2.*dim);
     input = prm.get("Xmin BC");

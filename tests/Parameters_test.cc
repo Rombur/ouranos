@@ -1,7 +1,7 @@
-/* Copyright (c) 2013, 2014 Bruno Turcksin
+/* Copyright (c) 2013 - 2015 Bruno Turcksin
  *
  * This file is subject to the Modified BSD License and may not be distributed
- * without copyright and license information. Pleas refer to the file
+ * without copyright and license information. Please refer to the file
  * license.txt for the text and further information on this license.
  */
 
@@ -22,7 +22,6 @@ TEST_CASE("Check the parameters handler","[Parameters]")
   REQUIRE(parameters.get_fe_order()==4);
   REQUIRE(parameters.get_geometry_filename()=="geometry.inp");
   REQUIRE(parameters.get_n_refinements()==2);
-  REQUIRE(parameters.get_n_levels_patch()==1);
   REQUIRE(parameters.get_refinement_factor()==0.3);
   REQUIRE(parameters.get_coarsening_factor()==0.1);
   REQUIRE(parameters.get_output_filename()=="output");
@@ -37,6 +36,9 @@ TEST_CASE("Check the parameters handler","[Parameters]")
   REQUIRE(parameters.get_quad_type()==GLC_QUAD);
   REQUIRE(parameters.get_weight_sum()==2.*M_PI);
   REQUIRE(parameters.get_galerkin()==false);
+  REQUIRE(parameters.get_scheduler_type()==CAP_PFB);
+  REQUIRE(parameters.get_max_cappfb_it()==3);
+  REQUIRE(parameters.get_n_levels_patch()==1);
   REQUIRE(parameters.get_bc_type(0)==VACUUM);
   REQUIRE(parameters.get_bc_type(1)==ISOTROPIC);
   REQUIRE(parameters.get_bc_type(2)==REFLECTIVE);

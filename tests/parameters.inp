@@ -2,7 +2,6 @@ set Dimension = 2
 set FE order = 4
 set Geometry file = geometry.inp
 set Number of refinements = 2
-set Patch level = 1
 set Refinement factor = 0.3
 set Coarsening factor = 0.1
 set Output file = output
@@ -18,6 +17,9 @@ subsection Radiative Transfer parameters
   set Quadrature type = GLC
   set Sum weight = 2PI
   set Galerkin = false
+  set Scheduler type = CAP-PFB
+  set Max CAP-PFB iterations = 3
+  set Patch level = 1
   set Xmin BC = vacuum
   set Xmax BC = isotropic
   set Ymin BC = reflective

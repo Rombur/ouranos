@@ -1,7 +1,6 @@
 set Dimension = 2
 set FE order = 1
 set Geometry file = rt_geometry.inp
-set Patch level = 3
 set Refinement factor = 0.3
 set Coarsening factor = 0.1
 
@@ -16,6 +15,7 @@ subsection Radiative Transfer parameters
   set Quadrature type = GLC
   set Sum weight = 1
   set Galerkin = false
+  set Patch level = 3
   set Xmin BC = vacuum
   set Xmax BC = vacuum
   set Ymin BC = vacuum

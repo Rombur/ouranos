@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Bruno Turcksin.
+/* Copyright (c) 2013 - 2015, Bruno Turcksin.
  *
  * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
@@ -23,6 +23,8 @@ enum BC_TYPE{VACUUM,ISOTROPIC,MOST_NORMAL,REFLECTIVE};
 /// Symmetric.
 enum QUAD_TYPE{GLC_QUAD,LS_QUAD};
 
+enum SCHEDULER_TYPE{RANDOM,CAP_PFB};
+
 /// Enum on the solver type: SI (Source Iteration), GMRES, or BICGSTAB.
 enum SOLVER_TYPE{SI,GMRES,BICGSTAB};
 
@@ -41,7 +43,10 @@ class Parameters
     /// Return the dimension of the problem.
     unsigned int get_dimension() const;
 
-    /// Return the macimum number of inner_iterations.
+    /// Return the maximum number of CAP-PFB iterations.
+    unsigned int get_max_cappfb_it() const;
+
+    /// Return the maximum number of inner iterations.
     unsigned int get_max_inner_it() const;
 
     /// Return the maximum nimber of outer iterations.
@@ -93,6 +98,9 @@ class Parameters
     /// Return the type of quadrature used by the RT (GLC or LS).
     QUAD_TYPE get_quad_type() const;
 
+    /// Return the type of scheduler used by the RT (RANDOM or CAP-PFB).
+    SCHEDULER_TYPE get_scheduler_type() const;
+
     /// Return the type of solver used by the RT (SI, BICGSTAB, or GMRES).
     SOLVER_TYPE get_solver_type() const;
 
@@ -123,6 +131,8 @@ class Parameters
     unsigned fe_order;
     /// Sn order.
     unsigned int sn_order;
+    /// Maximum number of CAP-PFB iterations for RT scheduler.
+    unsigned int max_cappfb_it;
     /// Maximum number of outer iterations for RT solver.
     unsigned int max_out_it;
     /// Maximum number of inner iterations for RT solver.
@@ -137,6 +147,8 @@ class Parameters
     unsigned int n_src;
     /// Type of quadrature: GLC or LS.
     QUAD_TYPE quad_type;
+    /// Type of scheduler: RANDOM or CAP-PFB.
+    SCHEDULER_TYPE scheduler_type;
     /// Type of solver for radiative transfer: SI, GMRES, or BiCGSTAB.
     SOLVER_TYPE solver_type;
     /// Tolerance for the outer radiative transfer solver.
@@ -171,6 +183,11 @@ inline bool Parameters::get_galerkin() const
 inline unsigned int Parameters::get_dimension() const
 {
   return dim;
+}
+    
+inline unsigned int Parameters::get_max_cappfb_it() const
+{
+  return max_cappfb_it;
 }
 
 inline unsigned int Parameters::get_max_inner_it() const
@@ -276,6 +293,11 @@ inline BC_TYPE Parameters::get_bc_type(unsigned int face) const
 inline QUAD_TYPE Parameters::get_quad_type() const
 {
   return quad_type;
+}
+
+inline SCHEDULER_TYPE Parameters::get_scheduler_type() const
+{
+  return scheduler_type;
 }
 
 inline SOLVER_TYPE Parameters::get_solver_type() const
