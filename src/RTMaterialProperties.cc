@@ -33,6 +33,7 @@ RTMaterialProperties::RTMaterialProperties(
   parse_parameters(prm);
 }
 
+
 void RTMaterialProperties::declare_parameters(ParameterHandler &prm)
 {
   prm.declare_entry("L_max","0",Patterns::Integer(0),"L_max");
@@ -41,6 +42,7 @@ void RTMaterialProperties::declare_parameters(ParameterHandler &prm)
   prm.declare_entry("Sigma_s","0.",Patterns::List(Patterns::Double(0.)),
       "Scattering cross sections.");
 }
+
 
 void RTMaterialProperties::parse_parameters(ParameterHandler &prm)
 {

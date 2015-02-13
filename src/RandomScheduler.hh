@@ -25,9 +25,18 @@ template <int dim,int tensor_dim>
 class RandomScheduler : public Scheduler<dim,tensor_dim>
 {
   public : 
+    typedef typename DoFHandler<dim>::active_cell_iterator active_cell_iterator;
+
     /// Constructor.
     RandomScheduler(RTQuadrature const* quad,Epetra_MpiComm const* comm,
         ConditionalOStream const &pcout);
+
+    /// Build patches of cells that will be sweep on, compute the sweep ordering
+    /// on each of these patches, and finally build the tasks used in the sweep.
+    void setup(const unsigned int n_levels,
+        std::vector<FECell<dim,tensor_dim>> const* fecell_mesh_ptr,
+        std::map<active_cell_iterator,unsigned int> const &cell_to_fecell_map)
+      override;
 
     /// Get the scheduler ready to process tasks.
     void start() const override;

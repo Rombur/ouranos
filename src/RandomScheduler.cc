@@ -17,6 +17,18 @@ RandomScheduler<dim,tensor_dim>::RandomScheduler(RTQuadrature const* quad,
 
 
 template <int dim,int tensor_dim>
+void RandomScheduler<dim,tensor_dim>::setup(const unsigned int n_levels,
+    std::vector<FECell<dim,tensor_dim>> const* fecell_mesh_ptr,
+    std::map<active_cell_iterator,unsigned int> const &cell_to_fecell_map)
+{
+  Scheduler<dim,tensor_dim>::setup(n_levels,fecell_mesh_ptr,cell_to_fecell_map);
+
+  for (auto & task : this->tasks)
+    task.clear();
+}
+
+
+template <int dim,int tensor_dim>
 void RandomScheduler<dim,tensor_dim>::start() const
 {
   tasks_ready.clear();

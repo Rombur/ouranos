@@ -65,7 +65,7 @@ void CAPPFBScheduler<dim,tensor_dim>::setup(const unsigned int n_levels,
   this->pcout<<"Best sweep: Time need to sweep through the mesh: "
     <<end_time-start_time<<std::endl;
 
-  // Clear schedule and schedule_id_map.
+  // Clear schedule, schedule_id_map, and waiting_tasks in each tasks.
   clear();
 }
 
@@ -1175,6 +1175,9 @@ void CAPPFBScheduler<dim,tensor_dim>::clear()
 {
   schedule_id_map.clear();
   schedule.clear();
+
+  for (auto & task : this->tasks)
+    task.clear();
 }
 
 

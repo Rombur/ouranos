@@ -63,6 +63,9 @@ class Task
     /// has been computed by another task.
     void set_required_dof(types::global_dof_index dof,double value) const;
 
+    /// Clear waiting_tasks.
+    void clear();
+
     /// Return true if the task is ready for sweep.
     bool is_ready() const;
 
@@ -189,7 +192,6 @@ class Task
     std::unordered_map<global_id,unsigned int,boost::hash<global_id>> required_tasks_map;
     /// Vector of the tasks waiting for the current task to be done. Each element of the
     /// vector is a tuple of subdomain_id, task id, and dof indices.
-    // TODO: delete after scheduling ? This vector is a temporary vector used to during the setup.
     std::vector<task_tuple> waiting_tasks;
     /// Vector of the waiting tasks that are the same processor as the current task.
     std::vector<std::pair<unsigned int,std::vector<types::global_dof_index>>> local_waiting_tasks;
@@ -230,6 +232,12 @@ inline void Task::set_required_dof(types::global_dof_index dof,double value) con
 {
   required_dofs[dof] = value;
   --n_missing_dofs;
+}
+
+
+inline void Task::clear()
+{
+  waiting_tasks.clear();
 }
 
 
