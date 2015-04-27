@@ -5,8 +5,7 @@
  * license.txt for the text and further information on this license.
  */
 
-#define CATCH_CONFIG_MAIN
-#include "catch.hpp"
+#include "catch.hh"
 
 #include <string>
 #include "../src/RTMaterialProperties.hh"
