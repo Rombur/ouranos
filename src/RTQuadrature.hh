@@ -48,13 +48,13 @@ class RTQuadrature
     unsigned int get_l(const unsigned int i) const;
 
     /// Return a pointer to omega for direction idir.
-    Vector<double> const* const get_omega(unsigned int idir) const;
+    Vector<double> const* get_omega(unsigned int idir) const;
 
     /// Return the moment-to-discrete matrix.
-    FullMatrix<double> const* const get_M2D() const;
+    FullMatrix<double> const* get_M2D() const;
 
     /// Return the discrete-to-moment matrix.
-    FullMatrix<double> const* const get_D2M() const;
+    FullMatrix<double> const* get_D2M() const;
 
   protected :
     /// Purely virtual function. Compute omega in one octant.
@@ -115,17 +115,17 @@ inline unsigned int RTQuadrature::get_l(const unsigned int i) const
   return moment_to_order[i];
 }
 
-inline Vector<double> const* const RTQuadrature::get_omega(unsigned int idir) const
+inline Vector<double> const* RTQuadrature::get_omega(unsigned int idir) const
 {
   return &omega[idir];
 }
 
-inline FullMatrix<double> const* const RTQuadrature::get_M2D() const
+inline FullMatrix<double> const* RTQuadrature::get_M2D() const
 {
   return &M2D;
 }
 
-inline FullMatrix<double> const* const RTQuadrature::get_D2M() const
+inline FullMatrix<double> const* RTQuadrature::get_D2M() const
 {
   return &D2M;
 }

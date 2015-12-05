@@ -1,6 +1,5 @@
 /* Copyright (c) 2013 - 2015 Bruno Turcksin
- *
- * This file is subject to the Modified BSD License and may not be distributed
+ * * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
  * license.txt for the text and further information on this license.
  */
@@ -32,8 +31,8 @@
 #include "../src/CAPPFBScheduler.hh"
 
 
-TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using the random scheduler",
-    "[one cell patch][random scheduler]")
+TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using one 
+    cell patch and the random scheduler", "[one cell patch][random scheduler]")
 {
   ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
         MPI_COMM_WORLD)==0);
@@ -79,7 +78,8 @@ TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using the r
   scheduler->start();
   while (scheduler->get_n_tasks_to_execute()!=0)
   {
-    radiative_transfer.sweep(*(scheduler->get_next_task()),buffers,
+    Task task(*(scheduler->get_next_task()));
+    radiative_transfer.sweep(task,buffers,
         requests,rhs.trilinos_vector(),&group_flux);
     scheduler->free_buffers(buffers,requests);
   }
@@ -160,10 +160,11 @@ TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using the r
 
   for (unsigned int i=0; i<64; ++i)
     if (index_set.is_element(i)==true)
-      REQUIRE(std::fabs(flux_moments[i]-solution[i])<1e-3);
+      REQUIRE(std::fabs(flux_moments[i]-solution[i])<1e-4);
 }
 
-TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using patches and the random scheduler",
+TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using 
+    mutiple cells patch and the random scheduler", 
     "[multiple cells patch][random scheduler]")
 {
   ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
@@ -291,11 +292,11 @@ TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using patch
 
   for (unsigned int i=0; i<64; ++i)
     if (index_set.is_element(i)==true)
-      REQUIRE(std::fabs(flux_moments[i]-solution[i])<1e-3);
+      REQUIRE(std::fabs(flux_moments[i]-solution[i])<1e-4);
 }
 
-TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using the CAP-PFB scheduler",
-    "[one cell patch][CAP-PFB scheduler]")
+TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using one
+   cell patch and the CAP-PFB scheduler", "[one cell patch][CAP-PFB scheduler]")
 {
   ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(
         MPI_COMM_WORLD)==0);
@@ -426,7 +427,8 @@ TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using the C
       REQUIRE(std::fabs(flux_moments[i]-solution[i])<1e-3);
 }
 
-TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using patches and the CAP-PFB scheduler",
+TEST_CASE("Check One-Group Radiative Transfer for 2D on 4 processors using multiple 
+    cells patch and the CAP-PFB scheduler",
     "[multiple cells patch][CAP-PFB scheduler]")
 {
   ConditionalOStream pcout(std::cout,Utilities::MPI::this_mpi_process(

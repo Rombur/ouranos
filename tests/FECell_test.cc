@@ -9,7 +9,6 @@
 
 #include <cmath>
 #include <vector>
-#include "deal.II/base/point.h"
 #include "deal.II/base/quadrature_lib.h"
 #include "deal.II/base/tensor.h"
 #include "deal.II/fe/fe_dgq.h"
@@ -47,16 +46,16 @@ TEST_CASE("Check FECell on one cell","[one cell]")
   REQUIRE(fecell.get_source_id()==0);
 
   // Check normal vectors
-  Point<2> const * const normal_0 = fecell.get_normal_vector(0);
+  Tensor<1,2> const * const normal_0 = fecell.get_normal_vector(0);
   REQUIRE(std::fabs((*normal_0)[0]-(-1.))<1e-12);
   REQUIRE(std::fabs((*normal_0)[1])<1e-12);
-  Point<2> const * const normal_1 = fecell.get_normal_vector(1);
+  Tensor<1,2> const * const normal_1 = fecell.get_normal_vector(1);
   REQUIRE(std::fabs((*normal_1)[0]-1.)<1e-12);
   REQUIRE(std::fabs((*normal_1)[1])<1e-12);
-  Point<2> const * const normal_2 = fecell.get_normal_vector(2);
+  Tensor<1,2> const * const normal_2 = fecell.get_normal_vector(2);
   REQUIRE(std::fabs((*normal_2)[0])<1e-12);
   REQUIRE(std::fabs((*normal_2)[1]-(-1.))<1e-12);
-  Point<2> const * const normal_3 = fecell.get_normal_vector(3);
+  Tensor<1,2> const * const normal_3 = fecell.get_normal_vector(3);
   REQUIRE(std::fabs((*normal_3)[0])<1e-12);
   REQUIRE(std::fabs((*normal_3)[1]-1.)<1e-12);
   
@@ -218,16 +217,16 @@ TEST_CASE("Check FECell on multiple cells triangulation","[multiple cells]")
   REQUIRE(fecell.get_source_id()==0);
 
   // Check normal vectors
-  Point<2> const * const normal_0 = fecell.get_normal_vector(0);
+  Tensor<1,2> const * const normal_0 = fecell.get_normal_vector(0);
   REQUIRE(std::fabs((*normal_0)[0]-(-1.))<1e-12);
   REQUIRE(std::fabs((*normal_0)[1])<1e-12);
-  Point<2> const * const normal_1 = fecell.get_normal_vector(1);
+  Tensor<1,2> const * const normal_1 = fecell.get_normal_vector(1);
   REQUIRE(std::fabs((*normal_1)[0]-1.)<1e-12);
   REQUIRE(std::fabs((*normal_1)[1])<1e-12);
-  Point<2> const * const normal_2 = fecell.get_normal_vector(2);
+  Tensor<1,2> const * const normal_2 = fecell.get_normal_vector(2);
   REQUIRE(std::fabs((*normal_2)[0])<1e-12);
   REQUIRE(std::fabs((*normal_2)[1]-(-1.))<1e-12);
-  Point<2> const * const normal_3 = fecell.get_normal_vector(3);
+  Tensor<1,2> const * const normal_3 = fecell.get_normal_vector(3);
   REQUIRE(std::fabs((*normal_3)[0])<1e-12);
   REQUIRE(std::fabs((*normal_3)[1]-1.)<1e-12);
   

@@ -42,7 +42,7 @@ class RandomScheduler : public Scheduler<dim,tensor_dim>
     void start() const override;
 
     /// Get a pointer to the next task which is ready.
-    Task const* const get_next_task() const override;
+    Task const* get_next_task() const override;
 
   private :  
     /// List of tasks that are ready to be used by sweep. Because of the 

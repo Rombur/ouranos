@@ -26,6 +26,9 @@ DEAL_II_SETUP_TARGET(fecell_test)
 ADD_EXECUTABLE(rtmaterialproperties_test RTMaterialProperties_test.cc ${TESTING_SOURCES} ${HEADERS})
 DEAL_II_SETUP_TARGET(rtmaterialproperties_test)
 
+ADD_EXECUTABLE(scheduler_test Scheduler_test.cc ${TESTING_SOURCES} ${HEADERS})
+DEAL_II_SETUP_TARGET(scheduler_test)
+
 ADD_EXECUTABLE(radiativetransfer_test RadiativeTransfer_test.cc ${TESTING_SOURCES} ${HEADERS})
 DEAL_II_SETUP_TARGET(radiativetransfer_test)
 
@@ -43,6 +46,7 @@ ADD_CUSTOM_TARGET(tests
   COMMAND mpirun -np 1 ./geometry_test
   COMMAND ./fecell_test
   COMMAND ./rtmaterialproperties_test
+  COMMAND mpirun -np 4 ./scheduler_test
   COMMAND mpirun -np 4 ./radiativetransfer_test
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tests
   )

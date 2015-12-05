@@ -39,7 +39,7 @@ void RandomScheduler<dim,tensor_dim>::start() const
 
 
 template <int dim,int tensor_dim>
-Task const* const RandomScheduler<dim,tensor_dim>::get_next_task() const
+Task const* RandomScheduler<dim,tensor_dim>::get_next_task() const
 {
   // If tasks_ready is empty, we need to wait to receive data
   while (this->tasks_ready.size()==0)

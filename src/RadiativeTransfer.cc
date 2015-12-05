@@ -248,10 +248,10 @@ void RadiativeTransfer<dim,tensor_dim>::sweep(Task const &task,
     // Surfacic terms
     for (unsigned int face=0; face<2*dim; ++face)
     {
-      Point<dim> const* const normal_vector = fecell->get_normal_vector(face);
+      Tensor<1,dim> const* normal_vector = fecell->get_normal_vector(face);
       double n_dot_omega(0.);
       for (unsigned int d=0; d<dim; ++d)
-        n_dot_omega += (*omega)[d]*(*normal_vector)(d);
+        n_dot_omega += (*omega)[d]*(*normal_vector)[d];
 
       if (n_dot_omega<0.)
       {

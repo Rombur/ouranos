@@ -54,7 +54,7 @@ class CAPPFBScheduler : public Scheduler<dim,tensor_dim>
     void start() const override;
 
     /// Get a pointer to the next task which is ready.
-    Task const* const get_next_task() const override;
+    Task const* get_next_task() const override;
 
   private :
     /// Enum to simplify access to the different elements of the tuple in

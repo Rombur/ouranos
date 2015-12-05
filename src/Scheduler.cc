@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Bruno Turcksin.
+/* Copyright (c) 2014 - 2015, Bruno Turcksin.
  *
  * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
@@ -208,7 +208,7 @@ void Scheduler<dim,tensor_dim>::compute_sweep_ordering(
       // Build incomplete_required_tasks, i.e. the required tasks without task_id
       // since it is not known yet.
       std::vector<Task::subdomain_dof_pair> incomplete_required_tasks;
-      for (auto const & fecell_id : patch)
+      for (auto const &fecell_id : patch)
       {
         active_cell_iterator cell((*fecell_mesh)[fecell_id].get_cell());
         for (unsigned int i=0; i<dim; ++i)
@@ -226,6 +226,8 @@ void Scheduler<dim,tensor_dim>::compute_sweep_ordering(
             {
               std::vector<types::global_dof_index> dof_indices(tensor_dim);
               upwind_cell->get_dof_indices(dof_indices);
+              Assert(std::is_sorted(dof_indices.begin(),dof_indices.end()),
+                  ExcInternalError());
               Task::subdomain_dof_pair subdomain_dof_pair(upwind_cell->subdomain_id(),
                   dof_indices);
               incomplete_required_tasks.push_back(subdomain_dof_pair);
@@ -344,9 +346,7 @@ void Scheduler<dim,tensor_dim>::build_waiting_tasks_maps()
   recv_dof_disps_x[n_proc] = recv_dof_buffer_size;
   
   // Now every processor can fill in the waiting_tasks map of each task
-  for (unsigned int i=0; i<n_tasks; ++i)
-    build_local_waiting_tasks_map(tasks[i],recv_dof_buffer,recv_dof_disps_x,
-        recv_dof_buffer_size);
+  build_local_waiting_tasks_map(recv_dof_buffer,recv_dof_disps_x,recv_dof_buffer_size);
 
   delete [] recv_dof_disps_x;
   delete [] recv_dof_buffer;
@@ -366,12 +366,21 @@ void Scheduler<dim,tensor_dim>::build_waiting_tasks_maps()
 
 
 template <int dim,int tensor_dim>
-void Scheduler<dim,tensor_dim>::build_local_waiting_tasks_map(Task &task,
+void Scheduler<dim,tensor_dim>::build_local_waiting_tasks_map(
     types::global_dof_index* recv_dof_buffer,int* recv_dof_disps_x,
     const unsigned int recv_dof_buffer_size)
 {
-  // Get the dofs associated to the current task.
-  std::unordered_set<types::global_dof_index> local_dof_indices(get_task_local_dof_indices(task));
+  std::unordered_map<types::global_dof_index,unsigned int> dof_task_id_map;
+  for (auto &task : tasks)
+  {
+    const unsigned int task_id(task.get_local_id());
+
+    // Get the dofs associated to the current task.
+    std::vector<types::global_dof_index> local_dof_indices(get_task_local_dof_indices(task));
+
+    for (auto &dof : local_dof_indices)
+      dof_task_id_map[dof] = task_id;
+  }
 
   // Build the waiting_tasks map.
   unsigned int i(0);
@@ -388,33 +397,33 @@ void Scheduler<dim,tensor_dim>::build_local_waiting_tasks_map(Task &task,
       ++subdomain_id;
       next_subdomain_disps = recv_dof_disps_x[subdomain_id+1];
     }
-    // Search for dofs present in recv_dof_buffer and local_dof_indices
-    if (idir==task.get_idir())
+
+    for (unsigned int j=0; j<n_dofs; ++j)
     {
-      std::vector<types::global_dof_index> dofs;
-      for (unsigned int j=0; j<n_dofs; ++j)
-      {
-        // If the dof in recv_dof_buffer is in local_dof_indices, the dof is
-        // added in the waiting map  .
-        if (local_dof_indices.count(recv_dof_buffer[i+3+j])==1)
-          dofs.push_back(recv_dof_buffer[i+3+j]);
-      }
-      if (dofs.size()!=0)
-      {
-        task.add_to_waiting_tasks(Task::task_tuple (subdomain_id,task_id,dofs));
-        task.add_to_waiting_subdomains(Task::subdomain_dof_pair (subdomain_id,dofs));
-      }
+      const types::global_dof_index dof(recv_dof_buffer[i+3+j]);
+      Task::dof_index_vector dof_vector;
+      dof_vector.push_back(dof);
+      tasks[dof_task_id_map[dof]].add_to_waiting_tasks(
+          Task::task_tuple (subdomain_id,task_id,dof_vector));
+      tasks[dof_task_id_map[dof]].add_to_waiting_subdomains(
+          Task::subdomain_dof_pair (subdomain_id,dof_vector));
+
     }
+
     i += n_dofs+3;
   }
 
-  // Compress the waiting_tasks, i.e., suppress duplicated tasks that have the
-  // same subdomain_id and task_id and accumulate the dofs in the unique tasks.
-  task.compress_waiting_tasks();
 
-  // Sort the dofs associated to waiting processors (subdomains) and suppress
-  // duplicates.
-  task.compress_waiting_subdomains();
+  for (auto &task : tasks)
+  {
+    // Compress the waiting_tasks, i.e., suppress duplicated tasks that have the
+    // same subdomain_id and task_id and accumulate the dofs in the unique tasks.
+    task.compress_waiting_tasks();
+
+    // Sort the dofs associated to waiting processors (subdomains) and suppress
+    // duplicates.
+    task.compress_waiting_subdomains();
+  }
 }  
 
 
@@ -499,9 +508,8 @@ void Scheduler<dim,tensor_dim>::build_required_tasks_maps()
   recv_dof_disps_x[n_proc] = recv_dof_buffer_size;
   
   // Now every processor can fill in the required_tasks map of each task
-  for (unsigned int i=0; i<n_tasks; ++i)
-    build_local_required_tasks_map(tasks[i],recv_dof_buffer,recv_dof_disps_x,
-        recv_dof_buffer_size);
+  build_local_required_tasks_map(recv_dof_buffer,recv_dof_disps_x,
+      recv_dof_buffer_size);
 
   delete [] recv_dof_disps_x;
   delete [] recv_dof_buffer;
@@ -521,16 +529,15 @@ void Scheduler<dim,tensor_dim>::build_required_tasks_maps()
 
 
 template <int dim,int tensor_dim>
-void Scheduler<dim,tensor_dim>::build_local_required_tasks_map(Task &task,
+void Scheduler<dim,tensor_dim>::build_local_required_tasks_map(
     types::global_dof_index* recv_dof_buffer,int* recv_dof_disps_x,
     const unsigned int recv_dof_buffer_size)
 {
-  const unsigned int current_task_id(task.get_local_id());
-
   // Build the required_tasks map
+  unsigned int i(0);
   unsigned int subdomain_id(0);
   unsigned int next_subdomain_disps(recv_dof_disps_x[1]);
-  for (unsigned int i=0; i<recv_dof_buffer_size;)
+  while (i<recv_dof_buffer_size)
   {
     const unsigned int sender_task_id(recv_dof_buffer[i]);
     const unsigned int recv_task_id(recv_dof_buffer[i+1]);
@@ -541,9 +548,9 @@ void Scheduler<dim,tensor_dim>::build_local_required_tasks_map(Task &task,
       ++subdomain_id;
       next_subdomain_disps = recv_dof_disps_x[subdomain_id+1];
     }
-    // If the receiver task is the current task, add the dofs to required_tasks_map
-    if (recv_task_id==current_task_id)
-      task.add_to_required_tasks(subdomain_id,sender_task_id,recv_dof_buffer,i+3,n_dofs);
+    // A task local id is its position in the vector tasks
+    tasks[recv_task_id].add_to_required_tasks(subdomain_id,sender_task_id,
+        recv_dof_buffer,i+3,n_dofs);
     
     i += n_dofs+3;
   }
@@ -620,10 +627,10 @@ void Scheduler<dim,tensor_dim>::build_local_tasks_map()
 
 
 template <int dim,int tensor_dim>
-std::unordered_set<types::global_dof_index> 
+std::vector<types::global_dof_index> 
 Scheduler<dim,tensor_dim>::get_task_local_dof_indices(Task &task)
 {
-  std::unordered_set<types::global_dof_index> local_dof_indices;
+  std::vector<types::global_dof_index> local_dof_indices;
   std::vector<unsigned int> const* sweep_order(task.get_sweep_order());
   const unsigned int sweep_order_size(task.get_sweep_order_size());
   // Loop over the cells in the sweep associated to this task
@@ -633,8 +640,8 @@ Scheduler<dim,tensor_dim>::get_task_local_dof_indices(Task &task)
     active_cell_iterator cell((*fecell_mesh)[(*sweep_order)[i]].get_cell());
     std::vector<types::global_dof_index> cell_dof_indices(tensor_dim);
     cell->get_dof_indices(cell_dof_indices);
-    for (unsigned int j=0; j<tensor_dim; ++j)
-      local_dof_indices.insert(cell_dof_indices[j]);
+    local_dof_indices.insert(local_dof_indices.end(),cell_dof_indices.begin(),
+        cell_dof_indices.end());
   }
 
   return local_dof_indices;
@@ -712,7 +719,7 @@ void Scheduler<dim,tensor_dim>::receive_angular_flux() const
   {
     types::subdomain_id source(std::get<0>(*global_map_it));
     unsigned int tag(std::get<1>(*global_map_it));
-    int flag;
+    int flag(false);
 
     // Check if we can receive a message
     MPI_Iprobe(source,tag,mpi_comm,&flag,MPI_STATUS_IGNORE);
@@ -728,20 +735,16 @@ void Scheduler<dim,tensor_dim>::receive_angular_flux() const
 
       // Set the required dofs by looping on the tasks that are waiting for
       // the ghost cell
-      std::vector<unsigned int>::const_iterator required_tasks_it(
-          ghost_required_tasks[ghost_task].cbegin());
-      std::vector<unsigned int>::const_iterator required_tasks_end(
-          ghost_required_tasks[ghost_task].cend());
-      for (; required_tasks_it!=required_tasks_end; ++required_tasks_it)
+      for (auto &required_task_pos : ghost_required_tasks[ghost_task])
       {
         std::vector<types::global_dof_index> const* const required_dofs(
-            tasks[*required_tasks_it].get_required_dofs(source,tag));
+            tasks[required_task_pos].get_required_dofs(source,tag));
         const unsigned int required_dofs_size(required_dofs->size());
         for (unsigned int j=0; j<required_dofs_size; ++j)
         {
           const unsigned int required_dof((*required_dofs)[j]);
           const unsigned int buffer_pos(std::get<2>(*global_map_it)[required_dof]);
-          tasks[*required_tasks_it].set_required_dof(required_dof,buffer[buffer_pos]);
+          tasks[required_task_pos].set_required_dof(required_dof,buffer[buffer_pos]);
         }
       }
 

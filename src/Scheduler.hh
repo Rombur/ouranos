@@ -10,6 +10,7 @@
 
 #include <list>
 #include <map>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include "boost/functional/hash/hash.hpp"
@@ -64,7 +65,7 @@ class Scheduler
     unsigned int get_n_tasks_to_execute() const;
 
     /// Get a pointer to the next task which is ready.
-    virtual Task const* const get_next_task() const = 0;
+    virtual Task const* get_next_task() const = 0;
 
   protected :
     /// Received the angular flux from a required task.
@@ -99,17 +100,15 @@ class Scheduler
 
   private :
     /// Get all the dof indices associated to the given task.
-    std::unordered_set<types::global_dof_index> get_task_local_dof_indices(Task &task);
+    std::vector<types::global_dof_index> get_task_local_dof_indices(Task &task);
 
     /// Build the required_tasks map associated to the given task.
-    void build_local_required_tasks_map(Task &task,
-        types::global_dof_index* recv_dof_buffer,int* recv_dof_disps_x,
-        const unsigned int recv_n_dofs_buffer);
+    void build_local_required_tasks_map(types::global_dof_index* recv_dof_buffer,
+        int* recv_dof_disps_x,const unsigned int recv_n_dofs_buffer);
 
     /// Build the waiting_tasks map associated to the task.
-    void build_local_waiting_tasks_map(Task &task,
-        types::global_dof_index* recv_dof_buffer,int* recv_dof_disps_x,
-        const unsigned int recv_dof_buffer_size);
+    void build_local_waiting_tasks_map(types::global_dof_index* recv_dof_buffer,
+        int* recv_dof_disps_x,const unsigned int recv_dof_buffer_size);
 
     /// Build the global_required_tasks map.
     void build_global_required_tasks();

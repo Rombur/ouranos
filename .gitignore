@@ -2,7 +2,7 @@
 *.swp
 *.swo
 *.txt
-bin
+bin*
 *.dblite
 *.o
 ouranos

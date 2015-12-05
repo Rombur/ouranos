@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014 Bruno Turcksin.
+/* Copyright (c) 2013 - 2015 Bruno Turcksin.
  *
  * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
@@ -14,12 +14,14 @@ Task::Task(unsigned int idir,unsigned int id,types::subdomain_id subdomain_id,
     std::vector<subdomain_dof_pair> &incomplete_required_tasks) :
   idir(idir),
   id(id),
+  n_required_tasks(0),
   n_required_dofs(0),
   n_missing_dofs(0),
   subdomain_id(subdomain_id),
   sweep_order(sweep_order),
   incomplete_required_tasks(incomplete_required_tasks)
 {}
+
 
 void Task::compress_waiting_tasks()
 {
@@ -54,6 +56,7 @@ void Task::compress_waiting_tasks()
   }
 }
 
+
 void Task::compress_waiting_subdomains()
 {
   std::vector<subdomain_dof_pair> tmp;
@@ -86,14 +89,17 @@ void Task::compress_waiting_subdomains()
   }
 }
 
-void Task::add_to_required_tasks(types::subdomain_id s_id,unsigned int t_id,types::global_dof_index* recv,
-    unsigned int pos,unsigned int n)
+
+void Task::add_to_required_tasks(types::subdomain_id s_id, unsigned int t_id,
+    types::global_dof_index* recv, unsigned int pos, unsigned int n)
 {
   std::vector<types::global_dof_index> tmp(&recv[pos],&recv[pos+n]);
   required_tasks.push_back(task_tuple(s_id,t_id,tmp));
   n_required_dofs += n;
   n_missing_dofs = n_required_dofs;
+  ++n_required_tasks;
 }
+
 
 bool Task::is_ready() const
 {
@@ -106,6 +112,7 @@ bool Task::is_ready() const
 
   return ready;
 }
+
 
 void Task::finalize_maps()
 {
@@ -120,18 +127,19 @@ void Task::finalize_maps()
     }
   }
 
-  // Create required_tasks_map
-  const unsigned int required_tasks_size(required_tasks.size());
-  for (unsigned int i=0; i<required_tasks_size; ++i)
-  {
-    global_id required_task_id(std::get<0>(required_tasks[i]),
-        std::get<1>(required_tasks[i]));
-    required_tasks_map[required_task_id] = i;
-  }
+//  // Create required_tasks_map
+//  const unsigned int required_tasks_size(required_tasks.size());
+//  for (unsigned int i=0; i<required_tasks_size; ++i)
+//  {
+//    global_id required_task_id(std::get<0>(required_tasks[i]),
+//        std::get<1>(required_tasks[i]));
+//    required_tasks_map[required_task_id] = i;
+//  }
 
   // Clear incomplete_required_tasks
   incomplete_required_tasks.clear();
 }
+
 
 void Task::print(std::ostream &output_stream)
 {

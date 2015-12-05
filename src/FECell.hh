@@ -10,7 +10,6 @@
 
 #include <vector>
 #include "deal.II/base/exceptions.h"
-#include "deal.II/base/point.h"
 #include "deal.II/base/tensor.h"
 #include "deal.II/dofs/dof_handler.h"
 #include "deal.II/fe/fe_values.h"
@@ -41,19 +40,19 @@ class FECell
     typename DoFHandler<dim>::active_cell_iterator get_cell() const;
 
     /// Return a pointer to the normal vector of a given face.
-    Point<dim> const* const get_normal_vector(unsigned int face) const;
+    Tensor<1,dim> const* get_normal_vector(unsigned int face) const;
 
     /// Return a pointer to the mass matrix.
-    Tensor<2,tensor_dim> const* const get_mass_matrix() const;
+    Tensor<2,tensor_dim> const* get_mass_matrix() const;
 
     /// Return a pointer to the kth components of the gradient matrix.
-    Tensor<2,tensor_dim> const* const get_grad_matrix(unsigned int k) const;
+    Tensor<2,tensor_dim> const* get_grad_matrix(unsigned int k) const;
 
     /// Return a pointer to the downwind matrix associated to a given face.
-    Tensor<2,tensor_dim> const* const get_downwind_matrix(unsigned int face) const;
+    Tensor<2,tensor_dim> const* get_downwind_matrix(unsigned int face) const;
 
     /// Return a pointer to the upwind matrix associated to a given face.
-    Tensor<2,tensor_dim> const* const get_upwind_matrix(unsigned int face) const;
+    Tensor<2,tensor_dim> const* get_upwind_matrix(unsigned int face) const;
 
   private :
     /// Material id of the current cell.
@@ -63,7 +62,7 @@ class FECell
     /// Current cell.
     typename DoFHandler<dim>::active_cell_iterator cell;
     /// Vector of normal vectors to the faces.
-    std::vector<Point<dim>> normal_vector;
+    std::vector<Tensor<1,dim>> normal_vector;
     /// Mass matrix \f$\int_D b_i\ b_j\ dr\f$.
     Tensor<2,tensor_dim> mass_matrix;
     /// Vector of the matrices correspondant to the components of gradient
@@ -97,21 +96,21 @@ FECell<dim,tensor_dim>::get_cell() const
 }
 
 template <int dim,int tensor_dim>
-inline Point<dim> const* const 
+inline Tensor<1,dim> const* 
 FECell<dim,tensor_dim>::get_normal_vector(unsigned int face) const
 {
   return &normal_vector[face];
 }
 
 template <int dim,int tensor_dim>
-inline Tensor<2,tensor_dim> const* const 
+inline Tensor<2,tensor_dim> const* 
 FECell<dim,tensor_dim>::get_mass_matrix() const
 {
   return &mass_matrix;
 }
 
 template <int dim,int tensor_dim>
-inline Tensor<2,tensor_dim> const* const 
+inline Tensor<2,tensor_dim> const* 
 FECell<dim,tensor_dim>::get_grad_matrix(unsigned int k) const
 {
   AssertIndexRange(k,dim);
@@ -119,7 +118,7 @@ FECell<dim,tensor_dim>::get_grad_matrix(unsigned int k) const
 }
 
 template <int dim,int tensor_dim>
-inline Tensor<2,tensor_dim> const* const
+inline Tensor<2,tensor_dim> const* 
 FECell<dim,tensor_dim>::get_downwind_matrix(unsigned int face) const
 {
   AssertIndexRange(face,2*dim);
@@ -127,7 +126,7 @@ FECell<dim,tensor_dim>::get_downwind_matrix(unsigned int face) const
 }
 
 template <int dim,int tensor_dim>
-inline Tensor<2,tensor_dim> const* const
+inline Tensor<2,tensor_dim> const* 
 FECell<dim,tensor_dim>::get_upwind_matrix(unsigned int face) const
 {
   AssertIndexRange(face,2*dim);

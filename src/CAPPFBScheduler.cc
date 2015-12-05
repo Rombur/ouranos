@@ -79,7 +79,7 @@ void CAPPFBScheduler<dim,tensor_dim>::start() const
 
 
 template <int dim,int tensor_dim>
-Task const* const CAPPFBScheduler<dim,tensor_dim>::get_next_task() const
+Task const* CAPPFBScheduler<dim,tensor_dim>::get_next_task() const
 {
   while (best_schedule[next_task_pos]->is_ready()==false)
     this->receive_angular_flux();
@@ -580,7 +580,7 @@ void CAPPFBScheduler<dim,tensor_dim>::forward_scheduling()
   {
     discrete_time candidate_time(start_time);
     Task* task(std::get<TASK>(schedule_elem));
-    unsigned int n_required_tasks(task->get_n_required_tasks());
+    const unsigned int n_required_tasks(task->get_n_required_tasks());
     // Check if the required tasks are done.
     if (n_required_tasks!=0)
     {

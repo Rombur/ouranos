@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014 Bruno Turcksin.
+/* Copyright (c) 2013 - 2015 Bruno Turcksin.
  *
  * This file is subject to the Modified BSD License and may not be distributed
  * without copyright and license information. Please refer to the file
@@ -8,9 +8,8 @@
 #ifndef _TASK_HH_
 #define _TASK_HH_
 
+#include <algorithm>
 #include <iostream>
-#include <unordered_map>
-#include <tuple>
 #include <utility>
 #include <vector>
 #include "boost/functional/hash/hash.hpp"
@@ -23,9 +22,11 @@ using namespace dealii;
 class Task
 {
   public :
+    //TODO delete extra-functions and update comments
     typedef std::pair<types::subdomain_id,unsigned int> global_id;
-    typedef std::pair<types::subdomain_id,std::vector<types::global_dof_index>> subdomain_dof_pair;
-    typedef std::tuple<types::subdomain_id,unsigned int,std::vector<types::global_dof_index>> task_tuple; 
+    typedef std::vector<types::global_dof_index> dof_index_vector;
+    typedef std::pair<types::subdomain_id,dof_index_vector> subdomain_dof_pair;
+    typedef std::tuple<types::subdomain_id,unsigned int,dof_index_vector> task_tuple; 
 
     Task(unsigned int idir,unsigned int id,types::subdomain_id subdomain_id,
         std::vector<unsigned int> &sweep_order,
@@ -140,11 +141,11 @@ class Task
 
     /// Return a const_iterator to the beginning of the local_waiting_tasks
     /// vector.
-    std::vector<std::pair<unsigned int,std::vector<types::global_dof_index>>>
+    std::vector<std::pair<unsigned int,dof_index_vector>>
       ::const_iterator get_local_waiting_tasks_cbegin() const;
 
     /// Return a const_iterator to the end of the local_waiting_tasks vector.
-    std::vector<std::pair<unsigned int,std::vector<types::global_dof_index>>>
+    std::vector<std::pair<unsigned int,dof_index_vector>>
       ::const_iterator get_local_waiting_tasks_cend() const;
 
     /// Return a const_iterator to the beginning of the waiting_tasks vector.
@@ -154,11 +155,10 @@ class Task
     std::vector<task_tuple>::const_iterator get_waiting_tasks_cend() const;
 
     /// Return a pointer to the dofs of the ith element of waiting_tasks.
-    std::vector<types::global_dof_index> const* get_waiting_tasks_dofs(
-        unsigned int i);
+    dof_index_vector const* get_waiting_tasks_dofs(unsigned int i);
 
     /// Return a pointer to the dofs of the given required task.
-    std::vector<types::global_dof_index>* const get_required_dofs(
+    dof_index_vector const* get_required_dofs(
         types::subdomain_id required_subdomain_id,unsigned int required_task_id) const;
 
     /// Return a pointer to sweep_order.
@@ -166,14 +166,14 @@ class Task
 
     /// Return a pointer to the dofs of the ith element of
     /// incomplete_required_dofs.
-    std::vector<types::global_dof_index> const* get_incomplete_dofs(unsigned int i) 
-      const;
+    dof_index_vector const* get_incomplete_dofs(unsigned int i) const;
 
   private :
     /// Direction associated to the task.
     unsigned int idir;
     /// Task Id not unique globally but unique per processor.
     unsigned int id;
+    unsigned int n_required_tasks;
     /// Number of required dofs before the task is ready.
     unsigned int n_required_dofs;
     /// Current number of required dofs that are still missing before 
@@ -186,15 +186,16 @@ class Task
     /// element of the vector is a tuple of subdomain_id, task id, and dof 
     /// indices.
     std::vector<task_tuple> required_tasks;
+    //TODO to remove
     /// Map used to find the position of a given task in the required_tasks
     /// vector (the key is the subdomain_id and the task id of the
     /// required task and the value is the position in the vector).
-    std::unordered_map<global_id,unsigned int,boost::hash<global_id>> required_tasks_map;
+    //std::unordered_map<global_id,unsigned int,boost::hash<global_id>> required_tasks_map;
     /// Vector of the tasks waiting for the current task to be done. Each element of the
     /// vector is a tuple of subdomain_id, task id, and dof indices.
     std::vector<task_tuple> waiting_tasks;
     /// Vector of the waiting tasks that are the same processor as the current task.
-    std::vector<std::pair<unsigned int,std::vector<types::global_dof_index>>> local_waiting_tasks;
+    std::vector<std::pair<unsigned int,dof_index_vector>> local_waiting_tasks;
     /// Subdomains waiting angular fluxes from this task, dofs have to be
     /// sorted
     std::vector<subdomain_dof_pair> waiting_subdomains;
@@ -202,7 +203,7 @@ class Task
     /// flux associated to the indices. Because of the Trilinos interface in 
     /// Epetra_Operator, required_dofs is made mutable so it can be changed 
     /// in a const function.
-    mutable std::unordered_map<types::global_dof_index,double> required_dofs;
+    mutable std::map<types::global_dof_index,double> required_dofs;
     /// Vector containing the order in which the cells of this task are swept.
     std::vector<unsigned int> sweep_order;
     /// Temporary data used to build the required_tasks map.
@@ -243,7 +244,18 @@ inline void Task::clear()
 
 inline bool Task::is_required(global_id task_id) const
 {
-  return ((required_tasks_map.find(task_id)==required_tasks_map.cend()) ? false : true);
+  // TODO if find doesn't work because of const write own find
+  // TODO move from inline
+  bool required(false);
+  for (auto & required_task : required_tasks)
+    if ((std::get<0>(required_task)==task_id.first) && 
+        (std::get<1>(required_task)==task_id.second))
+    {
+      required = true;
+      break;
+    }
+
+  return required;
 }
 
 
@@ -315,7 +327,7 @@ inline unsigned int Task::get_n_waiting_tasks() const
 
 inline unsigned int Task::get_n_required_tasks() const
 {
-  return required_tasks.size();
+  return n_required_tasks;
 }
 
 
@@ -347,7 +359,7 @@ inline Task::global_id Task::get_waiting_tasks_global_id(unsigned int i) const
 
 inline Task::global_id Task::get_required_tasks_global_id(unsigned int i) const
 {
-  AssertIndexRange(i,required_tasks.size());
+  AssertIndexRange(i,n_required_tasks);
 
   return global_id(std::get<0>(required_tasks[i]),std::get<1>(required_tasks[i]));
 }
@@ -365,14 +377,14 @@ inline std::vector<Task::subdomain_dof_pair>::const_iterator Task::get_waiting_s
 }
 
 
-inline std::vector<std::pair<unsigned int,std::vector<types::global_dof_index>>>::const_iterator 
+inline std::vector<std::pair<unsigned int,Task::dof_index_vector>>::const_iterator 
 Task::get_local_waiting_tasks_cbegin() const
 {
   return local_waiting_tasks.cbegin();
 }
 
 
-inline std::vector<std::pair<unsigned int,std::vector<types::global_dof_index>>>::const_iterator 
+inline std::vector<std::pair<unsigned int,Task::dof_index_vector>>::const_iterator 
 Task::get_local_waiting_tasks_cend() const
 {
   return local_waiting_tasks.cend();
@@ -391,7 +403,7 @@ inline std::vector<Task::task_tuple>::const_iterator Task::get_waiting_tasks_cen
 }
 
 
-inline std::vector<types::global_dof_index> const* Task::get_waiting_tasks_dofs(
+inline Task::dof_index_vector const* Task::get_waiting_tasks_dofs(
     unsigned int i)
 {
   AssertIndexRange(i,waiting_tasks.size());
@@ -418,7 +430,7 @@ inline std::vector<unsigned int> const* Task::get_sweep_order() const
 }
 
 
-inline std::vector<types::global_dof_index> const* Task::get_incomplete_dofs(
+inline Task::dof_index_vector const* Task::get_incomplete_dofs(
     unsigned int i) const
 {
   AssertIndexRange(i,incomplete_required_tasks.size());
@@ -426,14 +438,19 @@ inline std::vector<types::global_dof_index> const* Task::get_incomplete_dofs(
 }
 
 
-inline std::vector<types::global_dof_index>* const 
+inline Task::dof_index_vector const* 
 Task::get_required_dofs(types::subdomain_id required_subdomain_id,unsigned int required_task_id) const
 {   
-  // Dont use iterator because need to do the search twice
-  // In map need find because of const
-  const unsigned int pos(required_tasks_map.find(global_id (required_subdomain_id,required_task_id))->second);
+  unsigned int pos(0);
+  for (; pos<n_required_tasks; ++pos)
+    if (std::get<0>(required_tasks[pos])==required_subdomain_id && 
+        std::get<1>(required_tasks[pos])==required_task_id)
+      break;
 
-  return const_cast<std::vector<types::global_dof_index>* const> (&(std::get<2>(required_tasks[pos])));
+  Assert(pos<n_required_tasks, ExcInternalError());
+
+  
+  return &(std::get<2>(required_tasks[pos]));
 }
 
 #endif
